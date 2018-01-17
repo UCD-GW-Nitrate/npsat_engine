@@ -263,6 +263,7 @@ void CL_arguments<dim>::declare_parameters(){
                            "This should be roughly equal to the maximum dimension\n"
                            "along the Z");
      }
+     prm.leave_subsection();
 }
 
 template<int dim>
