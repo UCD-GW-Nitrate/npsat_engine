@@ -1,0 +1,16 @@
+#first ignore everything
+/*
+# "un-ignore in the root folder
+# the source code
+!*.cc
+# the gitignore
+!.gitignore
+# the cmakelist
+!CMakeLists.txt
+
+# "un-ignore the header folder
+!/myheaders
+#Now ignore all the content of the folder myheaders
+/myheaders/*
+#Un-ignore the source code
+!/myheaders/*.h
