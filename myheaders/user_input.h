@@ -343,7 +343,7 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.vert_discr = Utilities::string_to_double(temp1);
         }
         else{
-            AQprop.vert_discr = linspace(0,1, AQprop.Nxyz[2]);
+            AQprop.vert_discr = linspace(0,1, AQprop.Nxyz[dim-1]);
         }
     }
     prm.leave_subsection ();

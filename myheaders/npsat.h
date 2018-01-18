@@ -78,7 +78,7 @@ private:
 template <int dim>
 NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     :
-    mpi_communicator (MPI::COMM_WORLD),
+    mpi_communicator (MPI_COMM_WORLD),
     triangulation (mpi_communicator,
                     typename Triangulation<dim>::MeshSmoothing
                     (Triangulation<dim>::smoothing_on_refinement |
@@ -121,6 +121,9 @@ void NPSAT<dim>::make_grid(){
 
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
     const MyFunction<dim, dim-1> bottom_function(AQProps.bottom_elevation);
+
+    mesh_struct.compute_initial_elevations(top_function,bottom_function,AQProps.vert_discr);
+
 
 
 }

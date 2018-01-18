@@ -124,8 +124,19 @@ public:
     //! (MAYBE THIS SHOULD SET THE DOF of the top/bottom node and not the elevation
     void set_id_above_below();
 
+    //! This creates the #dof_ij map.
     void make_dof_ij_map();
 
+    //! This method calculates the top and bottom elevation on the points of the #PointsMap
+    //! This should be called on the initial grid before any refinement
+    void compute_initial_elevations(MyFunction<dim, dim-1> top_function,
+                                    MyFunction<dim, dim-1> bot_function,
+                                    std::vector<double>& vert_discr);
+
+    //! Calculates the positions of the vertices that belong to a given level #level
+    void update_z(int level, MPI_Comm &mpi_communicator);
+
+    //! This method sets the scales #dbg_scale_x and #dbg_scale_z for debug plotting using softwares like houdini
     void dbg_set_scales(double xscale, double zscale);
 private:
     void dbg_meshStructInfo2D(std::string filename, unsigned int n_proc);
@@ -376,23 +387,23 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         for (unsigned int i = 0; i < nxypoints_per_proc.size(); ++i)
             pcout << "rank:" << i << "has: " << nxypoints_per_proc[i] << std::endl;
 
-        Sent_receive_data<double>(Xcoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
+        Sent_receive_data<double>(Xcoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
         if (dim ==3)
-            Sent_receive_data<double>(Ycoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
-        Sent_receive_data<int>(istart, nxypoints_per_proc, my_rank, mpi_communicator, MPI::INT);
-        Sent_receive_data<int>(iend, nxypoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+            Sent_receive_data<double>(Ycoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<int>(istart, nxypoints_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(iend, nxypoints_per_proc, my_rank, mpi_communicator, MPI_INT);
 
 
         // ------------Send Receive the Z information
         std::vector<int> nzpoints_per_proc;
         Send_receive_size(Zcoord[my_rank].size(), n_proc, nzpoints_per_proc, mpi_communicator);
 
-        Sent_receive_data<double>(Zcoord, nzpoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
+        Sent_receive_data<double>(Zcoord, nzpoints_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
         //Sent_receive_data<int>(id_above, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);// WHY THIS AT THIS POINT???
         //Sent_receive_data<int>(id_below, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);// WHY THIS AT THIS POINT???
-        Sent_receive_data<int>(is_hanging, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
-        Sent_receive_data<int>(dof, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
-        Sent_receive_data<int>(level, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+        Sent_receive_data<int>(is_hanging, nzpoints_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(dof, nzpoints_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(level, nzpoints_per_proc, my_rank, mpi_communicator, MPI_INT);
         MPI_Barrier(mpi_communicator);
 
         // now we loop through the processors and the points that have been received from the other processors
@@ -509,7 +520,6 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string filename, unsigned int m
                       << std::setw(15) << itz->level << ", "
                       << std::setw(15) << itz->id_above  << ", "
                       << std::setw(15) << itz->id_below << ", "
-                      << std::setw(15) << itz->level << ", "
                       << std::setw(15) << itz->id_top  << ", "
                       << std::setw(15) << itz->id_bot << ", "
                       << std::setw(15) << itz->rel_pos  << ", "
@@ -518,7 +528,6 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string filename, unsigned int m
                       << std::setw(15) << it->second.B << ", "
                       << std::setw(5) << it->second.have_to_send
                       << std::endl;
-
          }
      }
      log_file.close();
@@ -545,6 +554,33 @@ void Mesh_struct<dim>::make_dof_ij_map(){
         for (unsigned int k = 0; k < it->second.Zlist.size(); ++k){
             dof_ij[it->second.Zlist[k].dof] = std::pair<int,int> (it->first,k);
         }
+}
+
+template <int dim>
+void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_function,
+                                                  MyFunction<dim, dim-1> bot_function,
+                                                  std::vector<double>& vert_discr){
+    std::vector<double>uniform_dist = linspace(0.0, 1.0, vert_discr.size());
+
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        double top = top_function.value(it->second.PNT);
+        double bot = bot_function.value(it->second.PNT);
+        it->T = top;
+        it->B = bot;
+    }
+}
+
+template <int dim>
+Mesh_struct<dim>::update_z(int level, MPI_Comm &mpi_communicator){
+
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        for (unsigned int j = 0; j < it->second.Zlist.size(); ++j){
+
+        }
+
+    }
 }
 
 #endif // MESH_STRUCT_H

@@ -4,6 +4,10 @@
 #include <vector>
 #include <mpi.h>
 
+// About MPI warnings
+//https://stackoverflow.com/questions/46409575/openmpi-error-mpi-has-not-been-declared
+// IN the long run maybe I have to replace that with the boost mpi interface
+
 /*!
  * \brief Send_receive_size: Each processor sends and receives an integer
  * \param N This is the integer to be sent from this processor
@@ -22,11 +26,11 @@ void Send_receive_size(unsigned int N, unsigned int n_proc, std::vector<int> &ou
 
         MPI_Allgatherv(&N, // This is what this processor will send to every other
                        1, //This is the size of the message from this processor
-                       MPI::INT, // The data type will be sent
+                       MPI_INT, // The data type will be sent
                        &output[0], // This is where the data will be send on each processor
                        &temp[0], // an array with the number of points to be sent/receive
                        &displs[0],
-                       MPI::INT, comm);
+                       MPI_INT, comm);
 }
 
 /*!

@@ -65,8 +65,22 @@ public:
     int number_of_positive_dofs();
 
     /*! Assign the ids above and below of each node in the Zlist
-     * Call this routine only if all the points have positive dofs
-     * Maybe you need to delete the unused before calling this
+     * Call this routine only if all the points have positive dofs.
+     * It is also assumed that each processor has all the points it needs from the other processors
+     * Two z nodes are connected if there is a cell in the triangulation that has a face with those two nodes
+     * First we loop through the z nodes that exists under this xy point
+     * The first point with index 0 is the lowest in this column. The lowest point is always connected with the node above
+     * If this is a hanging node we set a hanging node flag to true
+     * As we loop through the points we set the dofs adove and below that point.
+     * If the node we visit in the loop is hanging node there are two options:
+     * It is either connected to the node above and disconnected from the node below or the oposite.
+     * If the hanging node flag was set to true then this node should be connected with the node below.
+     * in addition in this case the hangnig node flag set back to false.
+     * If the hanging node flag was set to false the this node is disconnected from the node below and connected to node above
+     * In addition we flip the hanging flag value
+     *
+     * Once the ids above/below and the connections between the nodes have been established we loop twice to find which id is top and bottom for each node
+     * The index 0 node has always itself its #Zinfo::id_bot, while the last index has itsef as its Zinfo::id_top.
     */
     void set_ids_above_below();
 };
@@ -150,7 +164,23 @@ int PntsInfo<dim>::number_of_positive_dofs(){
 
 template <int dim>
 void PntsInfo<dim>::set_ids_above_below(){
-    bool hanging_pair = false;
+    /*    a ---------       b   ---------
+     *      |   |   |           |       |
+     *      |-------|           |       |
+     *      |   |   |           |       |
+     *      ---------           ---------
+     *      |       |           |   |   |
+     *      |       |           ---------
+     *      |       |           |   |   |
+     *      ---------           ---------
+     */
+
+    bool hanging_pair;
+    if (Zlist[0].hanging == 0)// this is case b
+        hanging_pair= true;
+    else
+        hanging_pair = false; // this is case a
+
     for (unsigned int i = 0; i < Zlist.size(); ++i){
         if (i == 0){//================================================
             // If the is the first node from the bottom
@@ -192,11 +222,26 @@ void PntsInfo<dim>::set_ids_above_below(){
 
     }
 
-    for (unsigned int i = 0; i < Zlist.size(); ++i){
-
+    int cur_id_bot =Zlist[0].dof;
+    for (unsigned int i = 1; i < Zlist.size(); ++i){
+        if (Zlist[i].connected_below){
+            Zlist[i].id_bot = cur_id_bot;
+        }else{
+            Zlist[i].id_bot = Zlist[i].dof;
+            cur_id_bot = Zlist[i].dof;
+        }
     }
 
-
+    int cur_id_top =Zlist[Zlist.size()-1].dof;
+    for (int i = Zlist.size() - 2; i >=0; --i){// When we loop with --i unsigned int causes errors if i gets below 0
+        //std::cout << i << std::endl;
+        if (Zlist[i].connected_above)
+            Zlist[i].id_top = cur_id_top;
+        else{
+            Zlist[i].id_top = Zlist[i].dof;
+            cur_id_top = Zlist[i].dof;
+        }
+    }
 }
 
 
