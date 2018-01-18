@@ -151,23 +151,27 @@ int PntsInfo<dim>::number_of_positive_dofs(){
 template <int dim>
 void PntsInfo<dim>::set_ids_above_below(){
     bool hanging_pair = false;
-    std::vector<Zinfo>::iterator it;
     for (unsigned int i = 0; i < Zlist.size(); ++i){
-        if (i == 0){
+        if (i == 0){//================================================
+            // If the is the first node from the bottom
             Zlist[i].id_above = Zlist[i+1].dof;
             Zlist[i].connected_above = true;
-            // If the is the first node from the bottom
+            Zlist[i].id_bot = Zlist[i].dof;
+
             if (Zlist[i].hanging == 0){
-                B = Zlist[i].z;
+                B = Zlist[i].z;// MAYBE THIS HAS TO BE SET LATER. IF YES CHANGE THE CONDITION
             }else{
                 hanging_pair = !hanging_pair;
             }
-        }else if(i==Zlist.size()-1){
+
+        }else if(i==Zlist.size()-1){//======================================
             //this is the top node on this list
             Zlist[i].id_below = Zlist[i-1].dof;
             Zlist[i].connected_below = true;
+            Zlist[i].id_top = Zlist[i].dof;
+
             if (Zlist[i].hanging == 0){
-                T = Zlist[i].z;
+                T = Zlist[i].z;// MAYBE THIS HAS TO BE SET LATER. IF YES CHANGE THE CONDITION
             }else{
                 hanging_pair = !hanging_pair;
             }
@@ -187,6 +191,12 @@ void PntsInfo<dim>::set_ids_above_below(){
         }
 
     }
+
+    for (unsigned int i = 0; i < Zlist.size(); ++i){
+
+    }
+
+
 }
 
 

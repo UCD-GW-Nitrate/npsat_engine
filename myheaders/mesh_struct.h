@@ -71,7 +71,10 @@ public:
     //! This map associates each point with a unique id (#_counter)
     std::map<int , PntsInfo<dim> > PointsMap;
 
-    //! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@WHAT IS THIS SUPPOSED TO DO????
+    //! This is a Map structure that relates the dofs with the PointsMap.
+    //! The key is the dof and the value is the pair #PointsMap key and the index of the z value in
+    //! the Zlist of the #PointsMap.
+    //! In other words <dof> - <xy_index, z_index>
     std::map<int,std::pair<int,int> > dof_ij;
 
     //! this is a cgal container of the points of this class stored in an optimized way for spatial queries
@@ -120,6 +123,8 @@ public:
     //! and sets the top and bottom elevation for each xy point
     //! (MAYBE THIS SHOULD SET THE DOF of the top/bottom node and not the elevation
     void set_id_above_below();
+
+    void make_dof_ij_map();
 
     void dbg_set_scales(double xscale, double zscale);
 private:
@@ -417,27 +422,18 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         set_id_above_below();
         dbg_meshStructInfo3D("After3D", my_rank);
         MPI_Barrier(mpi_communicator);
-
-
-
-
-
-
-
-
-
     }//if (n_proc > 1)
 
+    set_id_above_below();
+    dbg_meshStructInfo3D("After3D", my_rank);
 
 
 
-
-
-
-
-
-
-
+    std::clock_t end_t = std::clock();
+    double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
+    //std::cout << "====================================================" << std::endl;
+    std::cout << "I'm rank " << my_rank << " and spend " << elapsed_secs << " sec on Updating XYZ" << std::endl;
+    //std::cout << "====================================================" << std::endl;
 }
 
 template <int dim>
@@ -540,6 +536,15 @@ void Mesh_struct<dim>::set_id_above_below(){
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         it->second.set_ids_above_below();
     }
+}
+
+template  <int dim>
+void Mesh_struct<dim>::make_dof_ij_map(){
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it)
+        for (unsigned int k = 0; k < it->second.Zlist.size(); ++k){
+            dof_ij[it->second.Zlist[k].dof] = std::pair<int,int> (it->first,k);
+        }
 }
 
 #endif // MESH_STRUCT_H
