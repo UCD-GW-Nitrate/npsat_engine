@@ -27,7 +27,8 @@ public:
     */
     PntsInfo(Point<dim-1> p, Zinfo zinfo);
 
-    //! Adds as z node in the existing p<dim-1> point
+    //! Adds as z node in the existing p<dim-1> point. If the point exists we update the
+    //! #Zinfo::dof, #Zinfo::level and #Zinfo::constr
     void add_Zcoord(Zinfo zinfo, double thres);
 
     //! This method checks if the input z elevation exists in the list of the z nodes in this point
@@ -48,8 +49,10 @@ public:
     //! The bottom elevation of the aquifer at the x-y point
     double B;
 
-    /*! a flag that indicates whether the z nodes of this x-y point are all locally owned by the
-    * same processor or not.
+    /*! a flag that indicates that at least one of the z points that exist in the #Zlist
+     * belong to a cell that has a ghost neighbor cell. If it is true then the entire column
+     * of z points is transfered to all processors as it is likely that there would be z points
+     * that are missing from the other processors
     */
     int have_to_send;
 
@@ -60,6 +63,12 @@ public:
      * \return returns the number of z nodes with positive ids
      */
     int number_of_positive_dofs();
+
+    /*! Assign the ids above and below of each node in the Zlist
+     * Call this routine only if all the points have positive dofs
+     * Maybe you need to delete the unused before calling this
+    */
+    void set_ids_above_below();
 };
 
 template <int dim>
@@ -91,7 +100,9 @@ void PntsInfo<dim>::add_Zcoord(Zinfo zinfo, double thres){
     std::vector<Zinfo>::iterator it = check_if_z_exists(zinfo, thres);
     if (it != Zlist.end()){
         // SHOULD WE UPDATE ALL THE INFO OR SOME OF IT OR NONE?????????
-        it->copy(zinfo);
+        it->dof = zinfo.dof;
+        it->level = zinfo.level;
+        it->hanging = zinfo.hanging;
     }
     else{
         Zlist.push_back(zinfo);
@@ -135,6 +146,47 @@ int PntsInfo<dim>::number_of_positive_dofs(){
     }
     return N_dofs;
 
+}
+
+template <int dim>
+void PntsInfo<dim>::set_ids_above_below(){
+    bool hanging_pair = false;
+    std::vector<Zinfo>::iterator it;
+    for (unsigned int i = 0; i < Zlist.size(); ++i){
+        if (i == 0){
+            Zlist[i].id_above = Zlist[i+1].dof;
+            Zlist[i].connected_above = true;
+            // If the is the first node from the bottom
+            if (Zlist[i].hanging == 0){
+                B = Zlist[i].z;
+            }else{
+                hanging_pair = !hanging_pair;
+            }
+        }else if(i==Zlist.size()-1){
+            //this is the top node on this list
+            Zlist[i].id_below = Zlist[i-1].dof;
+            Zlist[i].connected_below = true;
+            if (Zlist[i].hanging == 0){
+                T = Zlist[i].z;
+            }else{
+                hanging_pair = !hanging_pair;
+            }
+        }else{
+            Zlist[i].id_above = Zlist[i+1].dof;
+            Zlist[i].id_below = Zlist[i-1].dof;
+            if (Zlist[i].hanging == 0){
+                Zlist[i].connected_above = true;
+                Zlist[i].connected_below = true;
+            }else{
+                hanging_pair = !hanging_pair;
+                if (hanging_pair)
+                    Zlist[i].connected_above = true;
+                else
+                    Zlist[i].connected_below = true;
+            }
+        }
+
+    }
 }
 
 

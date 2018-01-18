@@ -14,6 +14,7 @@
 #include "pnt_info.h"
 #include "cgal_functions.h"
 #include "my_functions.h"
+#include "mpi_help.h"
 
 //! Returns true if any neighbor element is ghost
 template <int dim>
@@ -114,11 +115,16 @@ public:
     //! It is used primarily for debuging
     void n_vertices(int myrank);
 
-    //!
+    //! Assuming that all processors have gathered all Z nodes for each xy point they own
+    //! this routine identifies the dofs above and below each node, how the nodes are connected,
+    //! and sets the top and bottom elevation for each xy point
+    //! (MAYBE THIS SHOULD SET THE DOF of the top/bottom node and not the elevation
+    void set_id_above_below();
+
     void dbg_set_scales(double xscale, double zscale);
 private:
-    void dbg_meshStructInfo2D(unsigned int n_proc);
-    void dbg_meshStructInfo3D(unsigned int n_proc);
+    void dbg_meshStructInfo2D(std::string filename, unsigned int n_proc);
+    void dbg_meshStructInfo3D(std::string filename, unsigned int n_proc);
     double dbg_scale_x;
     double dbg_scale_z;
 
@@ -309,8 +315,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     distributed_mesh_vertices.compress(VectorOperation::insert);
     MPI_Barrier(mpi_communicator);
 
-    dbg_meshStructInfo2D(my_rank);
-    dbg_meshStructInfo3D(my_rank);
+    //dbg_meshStructInfo2D("before2D", my_rank);
+    dbg_meshStructInfo3D("before3D", my_rank);
 
 
     if (n_proc > 1){
@@ -322,8 +328,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         std::vector<std::vector<double> > Xcoord(n_proc);
         std::vector<std::vector<double> > Ycoord(n_proc);
         std::vector<std::vector<double> > Zcoord(n_proc);
-        std::vector<std::vector<int> > id_above(n_proc);// this are not needed at this time
-        std::vector<std::vector<int> > id_below(n_proc);// they should be -9 but have to double check within a loop
+        //std::vector<std::vector<int> > id_above(n_proc);// this are not needed at this time
+        //std::vector<std::vector<int> > id_below(n_proc);// they should be -9 but have to double check within a loop
         std::vector<std::vector<int> > is_hanging(n_proc);
         std::vector<std::vector<int> > dof(n_proc);
         std::vector<std::vector<int> > level(n_proc);
@@ -343,8 +349,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                         // we will send only those with meaningful dof
                         if (itz->dof >= 0){
                             Zcoord[my_rank].push_back(itz->z);
-                            id_above[my_rank].push_back(itz->id_above);// maybe not needed at this time
-                            id_below[my_rank].push_back(itz->id_below);// maybe not needed at this time
+                            //id_above[my_rank].push_back(itz->id_above);// maybe not needed at this time
+                            //id_below[my_rank].push_back(itz->id_below);// maybe not needed at this time
                             is_hanging[my_rank].push_back(itz->hanging);
                             dof[my_rank].push_back(itz->dof);
                             level[my_rank].push_back(itz->level);
@@ -354,6 +360,68 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                 }
             }
         }
+        std::cout << "I'm rank " << my_rank << " and I'll send " << Xcoord[my_rank].size() << " and " << Zcoord[my_rank].size() << std::endl;
+        MPI_Barrier(mpi_communicator);
+
+        // -----------------Send those points to every processor------------
+
+        // -------Send Receive the XY information
+        std::vector<int> nxypoints_per_proc;
+        Send_receive_size(Xcoord[my_rank].size(), n_proc, nxypoints_per_proc, mpi_communicator);
+        for (unsigned int i = 0; i < nxypoints_per_proc.size(); ++i)
+            pcout << "rank:" << i << "has: " << nxypoints_per_proc[i] << std::endl;
+
+        Sent_receive_data<double>(Xcoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
+        if (dim ==3)
+            Sent_receive_data<double>(Ycoord, nxypoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
+        Sent_receive_data<int>(istart, nxypoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+        Sent_receive_data<int>(iend, nxypoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+
+
+        // ------------Send Receive the Z information
+        std::vector<int> nzpoints_per_proc;
+        Send_receive_size(Zcoord[my_rank].size(), n_proc, nzpoints_per_proc, mpi_communicator);
+
+        Sent_receive_data<double>(Zcoord, nzpoints_per_proc, my_rank, mpi_communicator, MPI::DOUBLE);
+        //Sent_receive_data<int>(id_above, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);// WHY THIS AT THIS POINT???
+        //Sent_receive_data<int>(id_below, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);// WHY THIS AT THIS POINT???
+        Sent_receive_data<int>(is_hanging, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+        Sent_receive_data<int>(dof, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+        Sent_receive_data<int>(level, nzpoints_per_proc, my_rank, mpi_communicator, MPI::INT);
+        MPI_Barrier(mpi_communicator);
+
+        // now we loop through the processors and the points that have been received from the other processors
+        // and for those that this processor has points under the same XY location it will check if the point
+        // is missing. if yes it will add it to its structure
+        std::map<int,int> id_map;
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (i_proc == my_rank) continue; // we do not check the point that this processor has sent
+            for (unsigned int i = 0; i < Xcoord[i_proc].size(); ++i){
+                Point<dim-1> ptemp;
+                ptemp[0] = Xcoord[i_proc][i];
+                if (dim == 3)ptemp[1] = Ycoord[i_proc][i];
+                int id = check_if_point_exists(ptemp);
+                if (id >= 0){
+                    it = PointsMap.find(id);
+                    if (it == PointsMap.end())
+                        std::cerr << "There must be an entry under this key" << std::endl;
+
+                    for (unsigned int k = static_cast<unsigned int>(istart[i_proc][i]); k <= static_cast<unsigned int>(iend[i_proc][i]); ++k){
+                        Zinfo ztest(Zcoord[i_proc][k], dof[i_proc][k], level[i_proc][k], is_hanging[i_proc][k] );
+                        it->second.add_Zcoord(ztest, z_thres);
+                    }
+                }
+            }
+        }
+
+        set_id_above_below();
+        dbg_meshStructInfo3D("After3D", my_rank);
+        MPI_Barrier(mpi_communicator);
+
+
+
+
+
 
 
 
@@ -393,9 +461,9 @@ void Mesh_struct<dim>::n_vertices(int myrank){
 }
 
 template <int dim>
-void Mesh_struct<dim>::dbg_meshStructInfo2D(unsigned int my_rank){
-    const std::string log_file_name = ("MshStruct2D"	+
-                                       Utilities::int_to_string(my_rank, 4) +
+void Mesh_struct<dim>::dbg_meshStructInfo2D(std::string filename, unsigned int my_rank){
+    const std::string log_file_name = (filename	+ "_" +
+                                       Utilities::int_to_string(my_rank+1, 4) +
                                        ".txt");
      std::ofstream log_file;
      log_file.open(log_file_name.c_str());
@@ -421,9 +489,9 @@ void Mesh_struct<dim>::dbg_meshStructInfo2D(unsigned int my_rank){
 }
 
 template <int dim>
-void Mesh_struct<dim>::dbg_meshStructInfo3D(unsigned int my_rank){
-    const std::string log_file_name = ("MshStruct3D"	+
-                                       Utilities::int_to_string(my_rank, 4) +
+void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string filename, unsigned int my_rank){
+    const std::string log_file_name = (filename + "_" +
+                                       Utilities::int_to_string(my_rank+1, 4) +
                                        ".txt");
      std::ofstream log_file;
      log_file.open(log_file_name.c_str());
@@ -433,9 +501,9 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(unsigned int my_rank){
          for (; itz != it->second.Zlist.end(); ++itz){
              double x,y,z;
              x = it->second.PNT[0]/dbg_scale_x;
-             if (dim == 3) z = it->second.PNT[1];
+             if (dim == 3) z = it->second.PNT[1]/dbg_scale_x;
              else z = 0;
-             y = itz->z;
+             y = itz->z/dbg_scale_z;
              log_file << std::setprecision(3)
                       << std::fixed
                       << std::setw(15) << x << ", "
@@ -464,6 +532,14 @@ template <int dim>
 void Mesh_struct<dim>::dbg_set_scales(double xscale, double zscale){
     dbg_scale_x = xscale;
     dbg_scale_z = zscale;
+}
+
+template <int dim>
+void Mesh_struct<dim>::set_id_above_below(){
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        it->second.set_ids_above_below();
+    }
 }
 
 #endif // MESH_STRUCT_H

@@ -351,7 +351,7 @@ bool CL_arguments<dim>::read_param_file(){
     prm.enter_subsection("Debug Parameters");
     {
         AQprop.dbg_scale_x = prm.get_double("Domain Scale X");
-        AQprop.dbg_scale_x = prm.get_double("Domain Scale Z");
+        AQprop.dbg_scale_z = prm.get_double("Domain Scale Z");
     }
     prm.leave_subsection ();
 
