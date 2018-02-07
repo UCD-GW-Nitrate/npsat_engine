@@ -14,3 +14,10 @@
 /myheaders/*
 #Un-ignore the source code
 !/myheaders/*.h
+
+# unignore the Vis folder
+!/Vis
+# now ignore all the content of the folder
+/Vis/*
+#unignore the houdini files
+!/Vis/*.hipnc

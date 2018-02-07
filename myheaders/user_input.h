@@ -250,7 +250,7 @@ void CL_arguments<dim>::declare_parameters(){
                            "A list of numbers between 0 and 1 that correspond\n"
                            "to the vertical distribution of layers separated by "","".\n"
                            "This parameter overrides the 3rd or 2nd element of the Nxyz\n"
-                           "in 3D or 3D respecitvely");
+                           "in 3D or 2D respecitvely");
      }
      prm.leave_subsection();
 

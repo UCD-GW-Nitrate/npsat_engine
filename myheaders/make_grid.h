@@ -43,7 +43,11 @@ namespace AquiferGrid{
         //! Parameters that control the shape of the domain and all properties
         AquiferProperties<dim> geom_param;
 
-        //! This method is called when the aquifer is a box
+        //! This method is called when the aquifer is a box. Creates a box domain with dimensions
+        //! indicated by #AquiferProperties::left_lower_point and #AquiferProperties::Length.
+        //! However the #dim-1 dimension is set to 0 with lenght 1. The actual elevation is set
+        //! afterwards using the inputs from the #AquiferProperties::top_elevation and
+        //! #AquiferProperties::bottom_elevation functions.
         void make_box(parallel::distributed::Triangulation<dim>& triangulation);
 
         //! Reads the mesh file and creates a 2D triangulation

@@ -150,7 +150,8 @@ public:
     void make_dof_ij_map();
 
     //! This method calculates the top and bottom elevation on the points of the #PointsMap
-    //! This should be called on the initial grid before any refinement
+    //! This should be called on the initial grid before any refinement. In additional sets the relative
+    //! positions in the vertical direction according to #vert_discr vector.
     void compute_initial_elevations(MyFunction<dim, dim-1> top_function,
                                     MyFunction<dim, dim-1> bot_function,
                                     std::vector<double>& vert_discr);
@@ -1077,14 +1078,18 @@ template <int dim>
 void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_function,
                                                   MyFunction<dim, dim-1> bot_function,
                                                   std::vector<double>& vert_discr){
-    std::vector<double>uniform_dist = linspace(0.0, 1.0, vert_discr.size());
+    //std::vector<double>uniform_dist = linspace(0.0, 1.0, vert_discr.size());
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
+    std::vector<Zinfo>::iterator itz;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         double top = top_function.value(it->second.PNT);
         double bot = bot_function.value(it->second.PNT);
         it->second.T = top;
         it->second.B = bot;
+        for (unsigned int k = 0; k < it->second.Zlist.size(); ++k){
+            it->second.Zlist[k].rel_pos = vert_discr[k];
+        }
     }
 }
 

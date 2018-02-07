@@ -122,10 +122,15 @@ void NPSAT<dim>::make_grid(){
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
     const MyFunction<dim, dim-1> bottom_function(AQProps.bottom_elevation);
 
-    mesh_struct.compute_initial_elevations(top_function,bottom_function,AQProps.vert_discr);
+    mesh_struct.compute_initial_elevations(top_function,bottom_function, AQProps.vert_discr);
 
-
-
+    mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                    mesh_constraints,
+                                    mesh_vertices,
+                                    distributed_mesh_vertices,
+                                    mpi_communicator,
+                                    pcout,
+                                    "MeshAfter0_");
 }
 
 
