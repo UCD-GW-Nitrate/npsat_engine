@@ -4,9 +4,34 @@
 #include <vector>
 #include <mpi.h>
 
-// About MPI warnings
-//https://stackoverflow.com/questions/46409575/openmpi-error-mpi-has-not-been-declared
-// IN the long run maybe I have to replace that with the boost mpi interface
+//! A method that prints the size of the input vector that my_rank processor has
+//! This is used for debuging only as it will produce alot of output
+template <typename T>
+void print_size_msg(std::vector<std::vector<T>> v, int my_rank){
+    for (unsigned int i_proc = 0; i_proc < v.size(); ++i_proc){
+        std::cout << "I'm Rank: " << my_rank << " and I have from/for proc: " << i_proc << ": " << v[i_proc].size() << " data." << std::endl;
+    }
+}
+
+/*!
+ * \brief This function reads the #i, #j element of a 2D vector after checking
+ * whether the indices are in the range of the vector. It is supposed to be a
+ * safe way to do v[i][j]
+ * \param v the 2D vector.
+ * \param i is the index of first element.
+ * \param j is the index of the second element.
+ */
+template <typename T>
+T get_v(std::vector<std::vector<T> > v, unsigned int i, unsigned int j){
+    if (i < v.size()){
+        if (j < v[i].size()){
+            return v[i][j];
+        }else
+            std::cerr << "vector index j:" << j << " out of size: " << v[i].size() << std::endl;
+    }else
+        std::cerr << "vector index i:" << i << " out of size: " << v.size() << std::endl;
+    return 0;
+}
 
 /*!
  * \brief Send_receive_size: Each processor sends and receives an integer

@@ -23,11 +23,11 @@ public:
     MyFunction(InterpInterface<griddim>& grid_in);
 
     //! This overrides the value method. All it does is to call the InterpInterface#interpolate method
-    virtual double value (const Point<dim> &point,
+    virtual double value (const Point<griddim> &point,
                           const unsigned int component = 0)const;
 
      //! Overrides the value list which simply loops through the points and calls the value method
-    virtual void value_list(const std::vector<Point<dim> >	&points,
+    virtual void value_list(const std::vector<Point<griddim> >	&points,
                             std::vector<double>             &values,
                             const unsigned int              component = 0)const;
 private:
@@ -43,7 +43,7 @@ MyFunction<dim, griddim>::MyFunction(InterpInterface<griddim>& grid_in)
 
 
 template <int dim, int griddim>
-double MyFunction<dim, griddim>::value(const Point<dim> &point,
+double MyFunction<dim, griddim>::value(const Point<griddim> &point,
                           const unsigned int component)const{
     //std::cout << point << std::endl;
     Point<griddim> v;
@@ -56,7 +56,7 @@ double MyFunction<dim, griddim>::value(const Point<dim> &point,
 }
 
 template <int dim, int griddim>
-void MyFunction<dim, griddim>::value_list(const std::vector<Point<dim> >	&points,
+void MyFunction<dim, griddim>::value_list(const std::vector<Point<griddim> > &points,
                                           std::vector<double>               &values,
                                           const unsigned int                component)const{
     for (unsigned int i = 0; i < points.size(); ++i)
