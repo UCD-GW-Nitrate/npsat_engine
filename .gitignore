@@ -21,3 +21,17 @@
 /Vis/*
 #unignore the houdini files
 !/Vis/*.hipnc
+# unignore the houdini python scripts
+!/Vis/*.py
+
+
+# unignore the example folder
+!/examples
+# ignore all the content of the folder
+/examples/*
+# unignore the box2D example
+!/examples/box2D
+ignore all the content of box2D
+/examples/box2D/*
+#unignore the *.npsat files
+!/examples/box2D/*.npsat

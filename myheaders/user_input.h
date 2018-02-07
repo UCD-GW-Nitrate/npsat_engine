@@ -282,6 +282,8 @@ bool CL_arguments<dim>::read_param_file(){
     {
         input_dir = prm.get("Input directory");
         output_dir = prm.get("Output directory");
+        AQprop.Dirs.input = input_dir;
+        AQprop.Dirs.output = output_dir;
     }
     prm.leave_subsection ();
 

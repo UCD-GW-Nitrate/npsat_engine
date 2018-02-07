@@ -118,8 +118,7 @@ public:
                          TrilinosWrappers::MPI::Vector& mesh_vertices,
                          TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                          MPI_Comm&  mpi_communicator,
-                         ConditionalOStream pcout,
-                         std::string prefix);
+                         ConditionalOStream pcout);
 
     //! Once the #PointsMap::T and #PointsMap::B have been set to a new elevation
     //! we can use this method to update the z elevations of the
@@ -130,8 +129,7 @@ public:
                              TrilinosWrappers::MPI::Vector& mesh_vertices,
                              TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                              MPI_Comm&  mpi_communicator,
-                             ConditionalOStream pcout,
-                             std::string prefix);
+                             ConditionalOStream pcout);
 
     //! Clears out all the information
     void reset();
@@ -162,13 +160,10 @@ public:
 
     //! This is the method that actually moves the mesh vertices using the updated elevations in the #PointsMap.
     //! This is called internally from #updateMeshElevation.
-    //! WE HAVE TO REMOVE THE PART OF THE CODE THAT PRINT THE MESH
     void move_vertices(DoFHandler<dim>& mesh_dof_handler,
-                       TrilinosWrappers::MPI::Vector& mesh_vertices,
-                       unsigned int my_rank,
-                       std::string prefix);
+                       TrilinosWrappers::MPI::Vector& mesh_vertices);
     //! Print the mesh to a format readable by a custom python houdini script.
-    void printMesh(std::string filename, unsigned int i_proc, DoFHandler<dim>& mesh_dof_handler);
+    void printMesh(std::string folder, std::string filename, unsigned int i_proc, DoFHandler<dim>& mesh_dof_handler);
 private:
     //! Prints the 2D information of the #PointsMap
     void dbg_meshStructInfo2D(std::string filename, unsigned int n_proc);
@@ -258,8 +253,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                                        TrilinosWrappers::MPI::Vector& mesh_vertices,
                                        TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                        MPI_Comm&  mpi_communicator,
-                                       ConditionalOStream pcout,
-                                       std::string prefix){
+                                       ConditionalOStream pcout){
+    std::string prefix = "iter";
     // Use this to time the operation. Note that this is a very expensive operation but nessecary
     std::clock_t begin_t = std::clock();
     // get the rank and processor id just for output display
@@ -447,10 +442,10 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
     MPI_Barrier(mpi_communicator);
     distributed_mesh_vertices.compress(VectorOperation::insert);
-    MPI_Barrier(mpi_communicator);
+    //MPI_Barrier(mpi_communicator);
 
     //dbg_meshStructInfo2D("before2D", my_rank);
-    dbg_meshStructInfo3D("before3D_Struct_" + prefix + "_", my_rank);
+   // dbg_meshStructInfo3D("before3D_Struct_" + prefix + "_", my_rank);
 
 
     if (n_proc > 1){
@@ -714,7 +709,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
     make_dof_ij_map();
     set_id_above_below();
-    dbg_meshStructInfo3D("After3D_Struct_" + prefix + "_", my_rank);
+    //dbg_meshStructInfo3D("After3D_Struct_" + prefix + "_", my_rank);
 
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
@@ -872,8 +867,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                            TrilinosWrappers::MPI::Vector& mesh_vertices,
                                            TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                            MPI_Comm&  mpi_communicator,
-                                           ConditionalOStream pcout,
-                                           std::string prefix){
+                                           ConditionalOStream pcout){
+    std::string prefix = "iter";
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
@@ -953,7 +948,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     MPI_Barrier(mpi_communicator);
 
-    dbg_meshStructInfo3D("After3D_Elev_" + prefix + "_", my_rank);
+    //dbg_meshStructInfo3D("After3D_Elev_" + prefix + "_", my_rank);
 
     // The compress sends the data to the processors that owns the data
     distributed_mesh_vertices.compress(VectorOperation::insert);
@@ -964,56 +959,32 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     //move the actual vertices ------------------------------------------------
     move_vertices(mesh_dof_handler,
-                  mesh_vertices,
-                  my_rank, prefix);
+                  mesh_vertices);
 }
 
 template <int dim>
 void Mesh_struct<dim>::move_vertices(DoFHandler<dim>& mesh_dof_handler,
-                                     TrilinosWrappers::MPI::Vector& mesh_vertices,
-                                     unsigned int my_rank,
-                                     std::string prefix){
+                                     TrilinosWrappers::MPI::Vector& mesh_vertices){
     // for debuging just print the cell mesh
-    const std::string mesh_file_name = ("mesh_after_" + prefix + "_" +
-                                        Utilities::int_to_string(my_rank+1, 4) +
-                                        ".dat");
-
-    std::ofstream mesh_file;
-    mesh_file.open((mesh_file_name.c_str()));
 
     typename DoFHandler<dim>::active_cell_iterator
     cell = mesh_dof_handler.begin_active(),
     endc = mesh_dof_handler.end();
-    double x,y,z;
     for (; cell != endc; ++cell){
         if (cell->is_locally_owned()){//cell->is_artificial() == false
             for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
                 Point<dim> &v=cell->vertex(vertex_no);
                 for (unsigned int dir=0; dir < dim; ++dir){
                     v(dir) = mesh_vertices(cell->vertex_dof_index(vertex_no, dir));
-                    if (dir == 0)
-                        x = v(dir)/dbg_scale_x;
-                    if (dir == 1 && dim == 2){
-                        y = v(dir)/dbg_scale_z;
-                        z = 0;
-                    }
-                    if (dir == 1 && dim == 3){
-                        z = v(dir)/dbg_scale_x;
-                    }
-                    if (dir == 2 && dim == 3)
-                        y = v(dir)/dbg_scale_z;
                 }
-                mesh_file << x << ", " << y << ", " << z << ", ";
             }
-            mesh_file << std::endl;
         }
     }
-    mesh_file.close();
 }
 
 template<int dim>
-void Mesh_struct<dim>::printMesh(std::string filename, unsigned int i_proc, DoFHandler<dim>& mesh_dof_handler){
-    const std::string mesh_file_name = ("mesh_Print" + filename + "_" +
+void Mesh_struct<dim>::printMesh(std::string folder, std::string filename, unsigned int i_proc, DoFHandler<dim>& mesh_dof_handler){
+    const std::string mesh_file_name = (folder + "mesh_hou_" + filename + "_" +
                                         Utilities::int_to_string(i_proc+1, 4) +
                                         ".dat");
     std::ofstream mesh_file;

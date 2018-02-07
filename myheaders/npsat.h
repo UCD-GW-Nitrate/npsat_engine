@@ -70,6 +70,7 @@ private:
     std::vector<int>                            bottom_boundary_ids;
 
     ConditionalOStream                        	pcout;
+    int                                         my_rank;
 
 
 
@@ -92,6 +93,7 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
     //user_input = CLI;
+    my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     make_grid();
 }
 
@@ -117,7 +119,7 @@ void NPSAT<dim>::make_grid(){
                                  mesh_locally_relevant,
                                  mesh_vertices,
                                  distributed_mesh_vertices,
-                                 mpi_communicator, pcout,"MeshBefore0_");
+                                 mpi_communicator, pcout);
 
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
     const MyFunction<dim, dim-1> bottom_function(AQProps.bottom_elevation);
@@ -129,8 +131,8 @@ void NPSAT<dim>::make_grid(){
                                     mesh_vertices,
                                     distributed_mesh_vertices,
                                     mpi_communicator,
-                                    pcout,
-                                    "MeshAfter0_");
+                                    pcout);
+    mesh_struct.printMesh(AQProps.Dirs.output, "iter0", my_rank, mesh_dof_handler);
 }
 
 

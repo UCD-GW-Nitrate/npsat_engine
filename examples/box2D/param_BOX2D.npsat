@@ -1,0 +1,82 @@
+# Listing of Parameters
+# ---------------------
+subsection Debug Parameters
+  # This should be roughly equal to the maximum dimension
+  # along the X Y
+  set Domain Scale X = 2500
+
+  # This should be roughly equal to the maximum dimension
+  # along the Z
+  set Domain Scale Z = 1
+end
+
+
+subsection Discretization
+  # The number of initial refinements
+  set Initial Refinement      = 0
+
+  # The number of cells along the x, y, z directions, in that order.
+  # In case of 2D the 3rd element is ignored but it should be set > 0.
+  set Nxyz                    = 10,5,3
+
+  # The number of initial refinements around the Streams
+  set Stream Refinement       = 0
+
+  # A list of numbers between 0 and 1 that correspond
+  # to the vertical distribution of layers separated by ,.
+  # This parameter overrides the 3rd or 2nd element of the Nxyz
+  # in 3D or 3D respecitvely
+  set Vertical discretization = 
+
+  # The number of initial refinements around the wells
+  set Well Refinement         = 0
+end
+
+
+subsection Geometry
+  # Bottom elevation function must be either a single value
+  # or the name of a file
+  set Bottom elevation function = -270
+
+  # Geometry Type. Valid entries are BOX and FILE
+  set Geometry Type             = BOX
+
+  # The name of the file to print the initial mesh.
+  # Leave empty if no print is required
+  set Initial mesh file name    = 
+
+  # If the geometry type is FILE specify the file name
+  # that contains the initial mesh.
+  # If the type is box this is ignored.
+  set Input mesh file           = 
+
+  # The coordinates of the left lower point of the domain.
+  # In case of 2D the 3rd element is ignored
+  # .This is valid for BOX geometry type
+  set Left lower point          = 0,0,0
+
+  # Top elevation function must be either a single value
+  # or the name of a file
+  set Top elevation function    = 30
+
+  # The length of the aquifer along the X Y Z directions.
+  # In case of 2D the 3rd element is ignored but it should be > 0
+  # .This is valid for BOX geometry type
+  set XYZ dimensions            = 5000,300,300
+
+  # Threshold value along the horizontal plane
+  set x-y threshold             = 0.1
+
+  # Threshold value the vertical plane
+  set z threshold               = 0.01
+end
+
+
+subsection Workspace directories
+  # The directory with all input data.
+  # All input data must be under the same directory.
+  set Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+
+  # The directory where all output data will be saved.
+  set Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/
+end

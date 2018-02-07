@@ -6,6 +6,12 @@
 
 #include "interpinterface.h"
 
+struct Directories{
+public:
+    std::string input;
+    std::string output;
+};
+
 /*!
  * \brief A struct to hold the data for the aquifer Properties.
  *
@@ -73,6 +79,8 @@ public:
     //! The dbg_scale_z scales the z coordinates. In typical groundwater aquifers the z dimension is much smaller than the
     //! x-y therefore a different scale factor in z allows to better visualize the domains
     double dbg_scale_z;
+
+    Directories                     Dirs;
 };
 
 #endif // DSIMSTRUCTS_H
