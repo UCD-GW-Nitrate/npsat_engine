@@ -10,6 +10,8 @@
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/grid_reordering.h>
 
+#include "my_macros.h"
+
 #include "dsimstructs.h"
 
 namespace AquiferGrid{
@@ -111,10 +113,13 @@ namespace AquiferGrid{
                 Triangulation<dim> tria3D;
                 bool done = read_2D_grid(tria2D);
                 if (done){
+#if _DIM>2
                     dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 1, tria3D);
                     convert_to_parallel(tria3D, triangulation);
                     triangulation.refine_global(geom_param.N_init_refinement);
                     assign_default_boundary_id(triangulation);
+#endif
+
                 }
                 else{
                     std::cerr<< "Unable to read triangulation" << std::endl;

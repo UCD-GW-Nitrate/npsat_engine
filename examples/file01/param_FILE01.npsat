@@ -48,7 +48,7 @@ subsection Geometry
   # If the geometry type is FILE specify the file name
   # that contains the initial mesh.
   # If the type is box this is ignored.
-  set Input mesh file           = 
+  set Input mesh file           = init_mesh_coarse.npsat
 
   # The coordinates of the left lower point of the domain.
   # In case of 2D the 3rd element is ignored
