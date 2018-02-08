@@ -17,7 +17,7 @@ subsection Discretization
 
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be set > 0.
-  set Nxyz                    = 10,5,3
+  set Nxyz                    = 10,10,3
 
   # The number of initial refinements around the Streams
   set Stream Refinement       = 0
@@ -62,7 +62,7 @@ subsection Geometry
   # The length of the aquifer along the X Y Z directions.
   # In case of 2D the 3rd element is ignored but it should be > 0
   # .This is valid for BOX geometry type
-  set XYZ dimensions            = 5000,300,300
+  set XYZ dimensions            = 5000,5000,300
 
   # Threshold value along the horizontal plane
   set x-y threshold             = 0.1
@@ -75,8 +75,8 @@ end
 subsection Workspace directories
   # The directory with all input data.
   # All input data must be under the same directory.
-  set Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set Input directory  = /home/giorgk/CODES/NPSAT/examples/box3D/
 
   # The directory where all output data will be saved.
-  set Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set Output directory = /home/giorgk/CODES/NPSAT/examples/box3D/
 end

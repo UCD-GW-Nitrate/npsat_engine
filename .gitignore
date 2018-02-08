@@ -8,14 +8,14 @@
 # the cmakelist
 !CMakeLists.txt
 
-# "un-ignore the header folder
+# "un-ignore the header folder =========Header========
 !/myheaders
 #Now ignore all the content of the folder myheaders
 /myheaders/*
 #Un-ignore the source code
 !/myheaders/*.h
 
-# unignore the Vis folder
+# unignore the Vis folder =========Vis========
 !/Vis
 # now ignore all the content of the folder
 /Vis/*
@@ -25,13 +25,26 @@
 !/Vis/*.py
 
 
-# unignore the example folder
+# unignore the example folder =========Examples========
 !/examples
 # ignore all the content of the folder
 /examples/*
-# unignore the box2D example
+# unignore the box2D example ----------box2D-----------
 !/examples/box2D
 ignore all the content of box2D
 /examples/box2D/*
 #unignore the *.npsat files
 !/examples/box2D/*.npsat
+# unignore the box3D example ----------box3D-----------
+!/examples/box3D
+ignore all the content of box3D
+/examples/box3D/*
+#unignore the *.npsat files
+!/examples/box3D/*.npsat
+# unignore the file01 example ----------file01-----------
+!/examples/file01
+ignore all the content of file01
+/examples/file01/*
+#unignore the *.npsat files
+!/examples/file01/*.npsat
+

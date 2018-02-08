@@ -17,16 +17,16 @@ int main (int argc, char **argv){
     deallog.depth_console (1);
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
 
-    CL_arguments<2> CLI;
+    CL_arguments<3> CLI;
     if (CLI.parse_command_line(argc,argv)){
         CLI.read_param_file();
         CLI.Debug_Prop();
-        NPSAT<2> npsat(CLI.AQprop);
+        NPSAT<3> npsat(CLI.AQprop);
     }
 
-    InterpInterface<2> II;
-    II.get_data("10");
-    std::cout << II.interpolate(Point<2>(0,0)) << std::endl;
+    //InterpInterface<2> II;
+    //II.get_data("10");
+    //std::cout << II.interpolate(Point<2>(0,0)) << std::endl;
 
 	return 0;
 }

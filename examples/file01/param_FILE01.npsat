@@ -39,7 +39,7 @@ subsection Geometry
   set Bottom elevation function = -270
 
   # Geometry Type. Valid entries are BOX and FILE
-  set Geometry Type             = BOX
+  set Geometry Type             = FILE
 
   # The name of the file to print the initial mesh.
   # Leave empty if no print is required
@@ -75,8 +75,8 @@ end
 subsection Workspace directories
   # The directory with all input data.
   # All input data must be under the same directory.
-  set Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set Input directory  = /home/giorgk/CODES/NPSAT/examples/file01/
 
   # The directory where all output data will be saved.
-  set Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set Output directory = /home/giorgk/CODES/NPSAT/examples/file01/
 end
