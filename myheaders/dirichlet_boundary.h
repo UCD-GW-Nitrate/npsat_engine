@@ -7,6 +7,7 @@
 
 #include "interpinterface.h"
 #include "my_functions.h"
+#include "cgal_functions.h"
 
 
 namespace BoundaryConditions{
@@ -19,7 +20,7 @@ using namespace dealii;
  * A primitive shape boundary is a polygon that is associated with a single constant value.
  *
  */
-template<int dim>
+
 class BoundPrim{
 public:
     //! This holds the X coordinates of the polygon
@@ -35,17 +36,16 @@ public:
     std::string TYPE;
 
     //! This is the minimum point of the polygon bounding box
-    Point<dim> BBmin;
+    Point<2> BBmin;
 
     //! This is the maximum point of the polygon bounding box
-    Point<dim> BBmax;
+    Point<2> BBmax;
 
     //! A method that checks if any point in the list is inside this primitive polygon
     bool is_any_point_insideBB(std::vector<double> x, std::vector<double> y);
 };
 
-template <int dim>
-bool BoundPrim<dim>::is_any_point_insideBB(std::vector<double> x, std::vector<double> y){
+bool BoundPrim::is_any_point_insideBB(std::vector<double> x, std::vector<double> y){
     bool outcome = false;
     for (unsigned int i = 0; i < x.size(); ++i){
         if (x[i] > BBmin[0] && x[i] < BBmax[0] &&
@@ -143,7 +143,7 @@ public:
 
 
     std::string namefile;
-    std::vector<BoundPrim<dim> > boundary_parts;
+    std::vector<BoundPrim> boundary_parts;
     std::vector<InterpInterface<dim-1>> interp_funct;
     std::vector<MyFunction<dim,dim-1>> DirFunctions;
     int Nbnd;
@@ -175,13 +175,222 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
             inp >> boundary_parts[i].TYPE;
-            //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            if (dim == 2){
+                if (boundary_parts[i].TYPE == "EDGE"){// in 2D an EDGE is represented by one point
+                    double x;
+                    inp >> x; boundary_parts[i].Xcoords.push_back(x);
+                    boundary_parts[i].Ycoords.push_back(0.0);
+                }
+                else if (boundary_parts[i].TYPE == "TOP" || boundary_parts[i].TYPE == "BOT"){ // in 2D the top and bottom is represented by 2 points
+                    double x;
+                    inp >> x; boundary_parts[i].Xcoords.push_back(x); boundary_parts[i].Ycoords.push_back(0.0);
+                    inp >> x; boundary_parts[i].Xcoords.push_back(x); boundary_parts[i].Ycoords.push_back(0.0);
+                }
+                inp >> boundary_parts[i].value;
+                Nbnd++;
+
+                interp_funct[i].get_data(boundary_parts[i].value);
+
+                MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                DirFunctions.push_back(tempfnc);
+            }
+            else if (dim == 3){
+                int N;  // Number of points that define the polygon
+                inp >> N;
+                // The value for each boundary can be a scalar value or a file that it represents a 2D variable field
+                std::string temp_str;
+                inp >> temp_str;
+                if (is_input_a_scalar(temp_str)){
+                    boundary_parts[i].value = temp_str;
+                }
+                else{
+                    boundary_parts[i].value = input_dir + temp_str;
+                }
+
+                if (boundary_parts[i].TYPE == "TOP" || boundary_parts[i].TYPE == "BOT"){
+                    double x;
+                    boundary_parts[i].BBmin[0] = 99999999999;
+                    boundary_parts[i].BBmin[1] = 99999999999;
+                    boundary_parts[i].BBmax[0] = -99999999999;
+                    boundary_parts[i].BBmax[1] = -99999999999;
+                    for (unsigned int iv = 0; iv < N; ++iv){
+                        datafile.getline(buffer,512);
+                        std::istringstream inp(buffer);
+                        inp >> x;
+                        // X coordinate
+                        if (x < boundary_parts[i].BBmin[0])
+                            boundary_parts[i].BBmin[0] = x;
+                         if (x > boundary_parts[i].BBmax[0])
+                             boundary_parts[i].BBmax[0] = x;
+                         boundary_parts[i].Xcoords.push_back(x);
+
+                         // Y coordinate
+                         inp >> x;
+                         if (x < boundary_parts[i].BBmin[1])
+                             boundary_parts[i].BBmin[1] = x;
+                         if (x > boundary_parts[i].BBmax[1])
+                             boundary_parts[i].BBmax[1] = x;
+                         boundary_parts[i].Ycoords.push_back(x);
+                    }
+                    Nbnd++;
+
+                    interp_funct[i].get_data(boundary_parts[i].value);
+                    MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                    DirFunctions.push_back(tempfnc);
+                }
+                else if (boundary_parts[i].TYPE == "EDGE"){// we read the value associated with the edge
+                    double x;
+                    for (unsigned int iv = 0; iv < 2; ++iv){
+                        datafile.getline(buffer,512);
+                        std::istringstream inp(buffer);
+                        inp >> x;
+                        boundary_parts[i].Xcoords.push_back(x);
+                        inp >> x;
+                        boundary_parts[i].Ycoords.push_back(x);
+                    }
+                    Nbnd++;
+                    interp_funct[i].get_data(boundary_parts[i].value);
+                    MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                    DirFunctions.push_back(tempfnc);
+                }
+            }
         }
-
     }
-
 }
 
+template <int dim>
+void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Triangulation<dim>& triangulation,
+                                                       typename FunctionMap<dim>::type&	dirichlet_boundary,
+                                                       std::vector<int>& top_boundary_ids,
+                                                       std::vector<int>& bottom_boundary_ids){
+    top_boundary_ids.clear();
+    bottom_boundary_ids.clear();
+    top_boundary_ids.push_back(GeometryInfo<dim>::faces_per_cell-1);
+    bottom_boundary_ids.push_back(GeometryInfo<dim>::faces_per_cell-2);
+
+    const int JJ = 17;
+    for (unsigned int i = 0; i < DirFunctions.size(); ++i){
+        dirichlet_boundary[JJ + i] = &DirFunctions[i];
+    }
+
+    typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+    cell = triangulation.begin_active(),
+    endc = triangulation.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
+                if (cell->face(iface)->at_boundary()){
+                    // Here we reset the boundary indicators
+                    cell->face(iface)->set_all_boundary_ids(iface);
+                    for (unsigned int i = 0; i < boundary_parts.size(); ++i){
+                        if (dim == 2){
+                            if (boundary_parts[i].TYPE == "EDGE" && (cell->face(iface)->boundary_id() == 0 || cell->face(iface)->boundary_id() == 1) ){
+                                Point<dim> x1 = cell->face(iface)->vertex(0);
+                                if (abs(x1[0] - boundary_parts[i].Xcoords[0]) < 0.01){
+                                    cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                }
+                            }
+                            else if (boundary_parts[i].TYPE == "TOP" && cell->face(iface)->boundary_id() == 3){
+                                add_id(top_boundary_ids, 3);
+                                Point<dim> x1 = cell->face(iface)->vertex(0);
+                                Point<dim> x2 = cell->face(iface)->vertex(1);
+                                double xp1 = boundary_parts[i].Xcoords[0];
+                                double xp2 = boundary_parts[i].Xcoords[1];
+                                bool assign_this = false;
+                                if (xp1 > x1[0] && xp1 < x2[0])
+                                    assign_this = true;
+                                else if (xp2 > x1[0] && xp2 < x2[0])
+                                    assign_this = true;
+                                else if (x1[0] > xp1 && x1[0] < xp2)
+                                    assign_this = true;
+                                else if (x2[0] > xp1 && x2[0] < xp2)
+                                    assign_this = true;
+
+                                if (assign_this){
+                                    cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    add_id(top_boundary_ids, JJ+i);
+                                }
+                            }
+                            else if (boundary_parts[i].TYPE == "BOT" && cell->face(iface)->boundary_id() == 2){
+                                add_id(bottom_boundary_ids, 2);
+                                Point<dim> x1 = cell->face(iface)->vertex(0);
+                                Point<dim> x2 = cell->face(iface)->vertex(1);
+                                double xp1 = boundary_parts[i].Xcoords[0];
+                                double xp2 = boundary_parts[i].Xcoords[1];
+                                bool assign_this = false;
+                                if (xp1 > x1[0] && xp1 < x2[0])
+                                    assign_this = true;
+                                else if (xp2 > x1[0] && xp2 < x2[0])
+                                    assign_this = true;
+                                else if (x1[0] > xp1 && x1[0] < xp2)
+                                    assign_this = true;
+                                else if (x2[0] > xp1 && x2[0] < xp2)
+                                    assign_this = true;
+
+                                if (assign_this){
+                                    cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    add_id(bottom_boundary_ids, JJ+i);
+                                }
+                            }
+                        }
+                        else if (dim == 3){
+                            if ((boundary_parts[i].TYPE == "TOP" && (cell->face(iface)->boundary_id() == 5 || iface == 5)) ||
+                                (boundary_parts[i].TYPE == "BOT" && (cell->face(iface)->boundary_id() == 4 || iface == 4))  ){
+                                std::vector<double> xface, yface;
+                                for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
+                                    xface.push_back(cell->face(iface)->vertex(ivert)[0]);
+                                    yface.push_back(cell->face(iface)->vertex(ivert)[1]);
+                                }
+
+                                if (boundary_parts[i].is_any_point_insideBB(xface, yface) == false)
+                                    continue;
+
+                                // re-orient the cell coordinates
+                                double tempd = xface[2]; xface[2] = xface[3]; xface[3] = tempd;
+                                tempd = yface[2]; yface[2] = yface[3]; yface[3] = tempd;
+
+                                bool do_intersect = polyXpoly(boundary_parts[i].Xcoords, boundary_parts[i].Ycoords, xface, yface);
+                                if (do_intersect){
+                                    cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    if (boundary_parts[i].TYPE == "TOP")
+                                        add_id(top_boundary_ids, JJ+i);
+                                    else if (boundary_parts[i].TYPE == "BOT")
+                                        add_id(bottom_boundary_ids, JJ+i);
+                                }
+                            }
+                            else if (boundary_parts[i].TYPE == "EDGE" && (
+                                         cell->face(iface)->boundary_id() == 0 ||
+                                         cell->face(iface)->boundary_id() == 1 ||
+                                         cell->face(iface)->boundary_id() == 2 ||
+                                         cell->face(iface)->boundary_id() == 3 ||)){
+
+                                double x1,y1,x2,y2,x3,y3,x4,y4;
+                                x1 = boundary_parts[i].Xcoords[0]; y1 = boundary_parts[i].Ycoords[0];
+                                x2 = boundary_parts[i].Xcoords[1]; y2 = boundary_parts[i].Ycoords[1];
+                                double L = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+
+                                x3 = cell->face(iface)->vertex(0)[0]; y3 = cell->face(iface)->vertex(0)[1];
+                                double dst3 = abs((x2 - x1)*(y1 - y3) - (x1 - x3)*(y2 - y1))/L;
+                                if (dst3 < 0.001){
+                                    x4 = cell->face(iface)->vertex(1)[0];
+                                    y4 = cell->face(iface)->vertex(1)[1];
+                                    double dst4 = abs((x2 - x1)*(y1 - y4) - (x1 - x4)*(y2 - y1))/L;
+                                    if (dst4 < 0.001){
+                                        // the face is colinear with the boundary
+                                        CGAL::Segment_2< exa_Kernel > segm(exa_Point2(x1,y1),exa_Point2(x2,y2));
+                                        if (segm.collinear_has_on(Point_2(x3,y3)) || segm.collinear_has_on(Point_2(x4,y4))){
+                                            cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 template <int dim>
 void Dirichlet<dim>::add_id(std::vector<int>& id_list, int id){

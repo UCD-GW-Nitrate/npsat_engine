@@ -4,6 +4,7 @@
 #include <deal.II/base/point.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
 // includes from AABB tree search
 #include <CGAL/AABB_tree.h>
@@ -23,6 +24,10 @@
 // includes for particle tracking searching functions
 #include <CGAL/Range_segment_tree_traits.h>
 #include <CGAL/Range_tree_k.h>
+
+// includes for polyxpoly
+#include <CGAL/Boolean_set_operations_2.h>
+#include <CGAL/Segment_2.h>
 
 /*! \file cgal_functions.h
     \brief CGAL types and functions.
@@ -76,6 +81,10 @@ typedef CGAL::Range_tree_3<ine_dDTraits>                                    Rang
 typedef ine_dDTraits::Key                                                   ine_Key;
 typedef ine_dDTraits::Interval                                              ine_Interval;
 typedef ine_dDTraits::Pure_key                                              ine_Pure_key;
+
+typedef CGAL::Exact_predicates_exact_constructions_kernel                   exa_Kernel;
+typedef exa_Kernel::Point_2                                                 exa_Point2;
+typedef CGAL::Polygon_2<exa_Kernel>                                         Polygon_2;
 
 
 void find_intersection_inner(ine_Tree& tree,
@@ -262,6 +271,19 @@ std::vector<int> circle_search_in_2DSet(PointSet2& PSet, ine_Point3 p_in, double
         }
     }
     return id;
+}
+
+bool polyXpoly(std::vector<double> X1, std::vector<double> Y1,
+               std::vector<double> X2, std::vector<double> Y2){
+    Polygon_2 P;
+    for (unsigned int i = 0; i < X1.size(); ++i)
+        P.push_back (exa_Point2 (X1[i], Y1[i]));
+
+    Polygon_2 Q;
+    for (unsigned int i = 0; i < X2.size(); ++i)
+        Q.push_back (exa_Point2 (X2[i], Y2[i]));
+
+    return CGAL::do_intersect (P, Q);
 }
 
 
