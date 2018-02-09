@@ -80,7 +80,25 @@ public:
     //! x-y therefore a different scale factor in z allows to better visualize the domains
     double dbg_scale_z;
 
+    //! A structure containing the input and output directories
     Directories                     Dirs;
+
+    //! dirichlet_file_names is file name that contains a list of filenames with the dirichlet boundary conditions
+    std::string                     dirichlet_file_names;
+
+    //! This is a prefix name that is used as prefix for the various output files
+    std::string                     sim_prefix;
+
+    //! This is a structure that will store the hydraulic conductivity values
+    std::vector<InterpInterface<dim> >	HydraulicConductivity;
+
+    //! This boolean variable specifies which functions of the AquiferProperties#HydraulicConductivity are actually used.
+    //! For example when the aquifer is isotropic the HKuse[0] should be true while the HKuse[1] and HKuse[2] should be set to false.
+    std::vector<bool>               HKuse;
+
+    //! A 3D interpolation function for the aquifer porosity
+    InterpInterface<dim>                Porosity;
+
 };
 
 #endif // DSIMSTRUCTS_H

@@ -180,90 +180,154 @@ void CL_arguments<dim>::print_usage_message(){
 template<int dim>
 void CL_arguments<dim>::declare_parameters(){
 
-    prm.enter_subsection("Workspace directories");
-    {
-       prm.declare_entry ("Input directory", "",Patterns::Anything(),
-                          "The directory with all input data. \n"
-                          "All input data must be under the same directory.");
 
-       prm.declare_entry ("Output directory", "",Patterns::Anything(),
-                          "The directory where all output data will be saved.");
+    prm.enter_subsection("1. Workspace directories");
+    {
+        prm.declare_entry ("1.1 Input directory", "",Patterns::Anything(),
+                           "1\n"
+                           "The directory with all input data. \n"
+                           "All input data must be under the same directory.");
+
+        prm.declare_entry ("1.2 Output directory", "",Patterns::Anything(),
+                           "2\n"
+                           "The directory where all output data will be saved.");
     }
     prm.leave_subsection();
 
 
-     prm.enter_subsection("Geometry");
-     {
-         prm.declare_entry("Geometry Type","BOX", Patterns::Anything(),
-                           "Geometry Type. Valid entries are ""BOX"" and ""FILE""");
+    prm.enter_subsection("2. Geometry");
+    {
+        prm.declare_entry("2.1 Geometry Type","BOX", Patterns::Anything(),
+                          "1\n"
+                          "Geometry Type. Valid entries are ""BOX"" and ""FILE""");
 
-         prm.declare_entry ("Input mesh file", "",Patterns::Anything(),
-                            "If the geometry type is FILE specify the file name\n"
-                            "that contains the initial mesh.\n If the type is box this is ignored.");
+        prm.declare_entry ("2.2 Input mesh file", "",Patterns::Anything(),
+                           "2\n"
+                           "case FILE:\n"
+                           "If the geometry type is FILE specify the file name\n"
+                           "that contains the initial mesh.\n If the type is box this is ignored.");
 
-         prm.declare_entry("XYZ dimensions", "5000,5000,300", Patterns::List(Patterns::Double(1,1000000),3,3,","),
-                            "The length of the aquifer along the X Y Z directions.\n"
-                            "In case of 2D the 3rd element is ignored but it should be > 0\n."
-                            "This is valid for BOX geometry type");
+        prm.declare_entry("2.3 XYZ dimensions", "5000,5000,300", Patterns::List(Patterns::Double(1,1000000),3,3,","),
+                          "3\n"
+                          "case BOX:\n"
+                          "The length of the aquifer along the X Y Z directions.\n"
+                          "In case of 2D the 3rd element is ignored but it should be > 0\n."
+                          "This is valid for BOX geometry type");
 
-         prm.declare_entry("Left lower point","0,0,0", Patterns::List(Patterns::Double(-1000000,1000000),3,3,","),
-                                 "The coordinates of the left lower point of the domain.\n"
-                                 "In case of 2D the 3rd element is ignored\n."
-                                 "This is valid for BOX geometry type");
+        prm.declare_entry("2.4 Left lower point","0,0,0", Patterns::List(Patterns::Double(-1000000,1000000),3,3,","),
+                          "4\n"
+                          "case BOX:\n"
+                          "The coordinates of the left lower point of the domain.\n"
+                          "In case of 2D the 3rd element is ignored\n."
+                          "This is valid for BOX geometry type");
 
-         prm.declare_entry ("Top elevation function", "",Patterns::Anything(),
-                            "Top elevation function must be either a single value\n"
-                            "or the name of a file");
+        prm.declare_entry ("2.5 Top elevation function", "",Patterns::Anything(),
+                           "5\n"
+                           "Top elevation function must be either a single value\n"
+                           "or the name of a file");
 
-         prm.declare_entry ("Bottom elevation function", "",Patterns::Anything(),
-                            "Bottom elevation function must be either a single value\n"
-                            "or the name of a file");
+        prm.declare_entry ("2.6 Bottom elevation function", "",Patterns::Anything(),
+                           "6\n"
+                           "Bottom elevation function must be either a single value\n"
+                           "or the name of a file");
 
-         prm.declare_entry("Initial mesh file name","", Patterns::Anything(),
-                           "The name of the file to print the initial mesh. \n"
-                           "Leave empty if no print is required");
+        prm.declare_entry("2.7 x-y threshold", "0.1", Patterns::Double(0,10000),
+                          "7\n"
+                          "Threshold value along the horizontal plane");
 
-         prm.declare_entry("x-y threshold", "0.1", Patterns::Double(0,10000),
-                           "Threshold value along the horizontal plane");
+        prm.declare_entry("2.8 z threshold", "0.01", Patterns::Double(0,10000),
+                          "8\n"
+                          "Threshold value the vertical plane");
+    }
+    prm.leave_subsection();
 
-         prm.declare_entry("z threshold", "0.01", Patterns::Double(0,10000),
-                           "Threshold value the vertical plane");
-     }
-     prm.leave_subsection();
 
-     prm.enter_subsection("Discretization");
-     {
-         prm.declare_entry("Nxyz","10,10,3", Patterns::List(Patterns::Integer(1,1000),3,3,","),
-                           "The number of cells along the x, y, z directions, in that order.\n"
-                           "In case of 2D the 3rd element is ignored but it should be set > 0.");
+    prm.enter_subsection("3. Discretization");
+    {
+        prm.declare_entry("3.1 Nxyz","10,10,3", Patterns::List(Patterns::Integer(1,1000),3,3,","),
+                          "1\n"
+                          "The number of cells along the x, y, z directions, in that order.\n"
+                          "In case of 2D the 3rd element is ignored but it should be set > 0.");
 
-         prm.declare_entry("Initial Refinement", "0", Patterns::Integer(0,10),
-                         "The number of initial refinements");
+        prm.declare_entry("3.2 Vertical discretization", "", Patterns::Anything(),
+                          "2\n"
+                          "A list of numbers between 0 and 1 that correspond\n"
+                          "to the vertical distribution of layers separated by "","".\n"
+                          "This parameter, if present, overrides the 3rd or 2nd element of the Nxyz\n"
+                          "in 3D or 2D respecitvely");
 
-         prm.declare_entry("Well Refinement", "0", Patterns::Integer(0,10),
-                           "The number of initial refinements around the wells");
+        prm.declare_entry("3.3 Initial Refinement", "0", Patterns::Integer(0,10),
+                          "3\n"
+                          "The number of initial refinements");
 
-         prm.declare_entry("Stream Refinement", "0", Patterns::Integer(0,10),
-                           "The number of initial refinements around the Streams");
+        prm.declare_entry("3.4 Well Refinement", "0", Patterns::Integer(0,10),
+                          "4\n"
+                          "The number of initial refinements around the wells");
 
-         prm.declare_entry("Vertical discretization", "", Patterns::Anything(),
-                           "A list of numbers between 0 and 1 that correspond\n"
-                           "to the vertical distribution of layers separated by "","".\n"
-                           "This parameter overrides the 3rd or 2nd element of the Nxyz\n"
-                           "in 3D or 2D respecitvely");
-     }
-     prm.leave_subsection();
+        prm.declare_entry("3.5 Stream Refinement", "0", Patterns::Integer(0,10),
+                          "5\n"
+                          "The number of initial refinements around the Streams");
 
-     prm.enter_subsection("Debug Parameters");
-     {
-         prm.declare_entry("Domain Scale X", "5000", Patterns::Double(0,10000),
-                           "This should be roughly equal to the maximum dimension\n"
-                           "along the X Y");
-         prm.declare_entry("Domain Scale Z", "100", Patterns::Double(0,10000),
-                           "This should be roughly equal to the maximum dimension\n"
-                           "along the Z");
-     }
-     prm.leave_subsection();
+    }
+    prm.leave_subsection();
+
+
+    prm.enter_subsection("4. Boundary Conditions");
+    {
+        prm.declare_entry ("4.1 Dirichlet file name", "",Patterns::Anything(),
+                           "1\n"
+                           "The name file of multiple files separated by ; \n"
+                           "with the constant head boundary conditions");
+
+    }
+    prm.leave_subsection();
+
+
+    prm.enter_subsection("5 Aquifer Properties");
+    {
+        prm.declare_entry ("5.1 Hydraulic Conductivity KX", "",Patterns::Anything(),
+                           "1\n"
+                           "Hydraulic conductivity along the x direction\n"
+                           "must be either a single value or the name of a file");
+
+        prm.declare_entry ("5.2 Hydraulic Conductivity KY", "",Patterns::Anything(),
+                           "2\n"
+                           "Hydraulic conductivity along the y direction\n"
+                           "must be either a single value or the name of a file\n"
+                           "If KY == KX leave this empty. In 2D this is ignored");
+
+        prm.declare_entry ("5.3 Hydraulic Conductivity KZ", "",Patterns::Anything(),
+                           "3\n"
+                           "Hydraulic conductivity along the z direction\n"
+                           "must be either a single value or the name of a file\n"
+                           "If KZ == KX leave this empty. In 2D this corresponds to the vertical K");
+
+        prm.declare_entry("5.4 Porosity", "", Patterns::Anything(),
+                          "4\n"
+                          "Porosity. This is used during particle tracking\n"
+                          "A single value or the name of the file");
+    }
+    prm.leave_subsection();
+
+
+    prm.enter_subsection("6. Output Parameters");
+    {
+        prm.declare_entry("6.1 Prefix", "", Patterns::Anything(),
+                          "1\n"
+                          "Prefix is a keyword that is used when printing the various\n"
+                          "output files");
+
+        prm.declare_entry("6.2 Domain Scale X", "5000", Patterns::Double(0,10000),
+                          "2\n"
+                          "This should be roughly equal to the maximum dimension\n"
+                          "along the X Y");
+
+        prm.declare_entry("6.3 Domain Scale Z", "100", Patterns::Double(0,10000),
+                          "3\n"
+                          "This should be roughly equal to the maximum dimension\n"
+                          "along the Z");
+    }
+    prm.leave_subsection();
 }
 
 template<int dim>
@@ -278,10 +342,10 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // WORKSPACE DIRECTORIES
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("Workspace directories");
+    prm.enter_subsection("1. Workspace directories");
     {
-        input_dir = prm.get("Input directory");
-        output_dir = prm.get("Output directory");
+        input_dir = prm.get("1.1 Input directory");
+        output_dir = prm.get("1.2 Output directory");
         AQprop.Dirs.input = input_dir;
         AQprop.Dirs.output = output_dir;
     }
@@ -291,32 +355,32 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // GEOMETRY
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("Geometry");
+    prm.enter_subsection("2. Geometry");
     {
-        AQprop.geomtype = prm.get("Geometry Type");
+        AQprop.geomtype = prm.get("2.1 Geometry Type");
 
         if (AQprop.geomtype == "BOX"){
-            std::vector<std::string> temp = Utilities::split_string_list(prm.get("XYZ dimensions"));
+            std::vector<std::string> temp = Utilities::split_string_list(prm.get("2.3 XYZ dimensions"));
             AQprop.Length = Utilities::string_to_double(temp);
 
             temp.clear();
-            temp = Utilities::split_string_list(prm.get("Left lower point"));
+            temp = Utilities::split_string_list(prm.get("2.4 Left lower point"));
             AQprop.left_lower_point = Utilities::string_to_double(temp);
         } else if (AQprop.geomtype == "FILE") {
-            AQprop.input_mesh_file = prm.get("Input mesh file");
+            AQprop.input_mesh_file = prm.get("2.2 Input mesh file");
             AQprop.input_mesh_file = input_dir + AQprop.input_mesh_file;
         } else {
             std::cerr << AQprop.geomtype << " is Not Valid input" << std::endl;
         }
 
-        std::string temp_name = prm.get("Top elevation function");
+        std::string temp_name = prm.get("2.5 Top elevation function");
         if (is_input_a_scalar((temp_name))){
             AQprop.top_elevation.get_data(temp_name);
         }else{
             AQprop.top_elevation.get_data(input_dir + temp_name);
         }
 
-        temp_name = prm.get("Bottom elevation function");
+        temp_name = prm.get("2.6 Bottom elevation function");
         if (is_input_a_scalar(temp_name)){
             AQprop.bottom_elevation.get_data(temp_name);
         }
@@ -324,21 +388,25 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.bottom_elevation.get_data(input_dir + temp_name);
         }
 
-        AQprop.xy_thres = prm.get_double("x-y threshold");
-        AQprop.z_thres = prm.get_double("z threshold");
+        AQprop.xy_thres = prm.get_double("2.7 x-y threshold");
+        AQprop.z_thres = prm.get_double("2.8 z threshold");
     }
     prm.leave_subsection ();
 
-    prm.enter_subsection("Discretization");
+
+    //+++++++++++++++++++++++++++++++++++++++++
+    // DISCRETIZATION
+    //+++++++++++++++++++++++++++++++++++++++++
+    prm.enter_subsection("3. Discretization");
     {
-        std::vector<std::string> temp = Utilities::split_string_list(prm.get("Nxyz"));
+        std::vector<std::string> temp = Utilities::split_string_list(prm.get("3.1 Nxyz"));
         AQprop.Nxyz = Utilities::string_to_int(temp);
 
-        AQprop.N_init_refinement = prm.get_integer("Initial Refinement");
+        AQprop.N_init_refinement = prm.get_integer("3.3 Initial Refinement");
 
-        AQprop.N_well_refinement = prm.get_integer("Well Refinement");
+        AQprop.N_well_refinement = prm.get_integer("3.4 Well Refinement");
 
-        std::string temp_str = prm.get("Vertical discretization");
+        std::string temp_str = prm.get("3.2 Vertical discretization");
 
         if (temp_str != ""){
             std::vector<std::string> temp1 = Utilities::split_string_list(temp_str);
@@ -350,10 +418,79 @@ bool CL_arguments<dim>::read_param_file(){
     }
     prm.leave_subsection ();
 
-    prm.enter_subsection("Debug Parameters");
+    //+++++++++++++++++++++++++++++++++++++++++
+    // BOUNDARY CONDITIONS
+    //+++++++++++++++++++++++++++++++++++++++++
+    prm.enter_subsection("4. Boundary Conditions");
     {
-        AQprop.dbg_scale_x = prm.get_double("Domain Scale X");
-        AQprop.dbg_scale_z = prm.get_double("Domain Scale Z");
+        AQprop.dirichlet_file_names = input_dir + prm.get("4.1 Dirichlet file name");
+    }
+    prm.leave_subsection ();
+
+
+    //+++++++++++++++++++++++++++++++++++++++++
+    // AQUIFER PARAMETERS
+    //+++++++++++++++++++++++++++++++++++++++++
+    prm.enter_subsection("5 Aquifer Properties");
+    {
+        // KX hydraulic conductivity
+        AQprop.HydraulicConductivity.resize(dim);
+        AQprop.HKuse.resize(dim,false);
+        std::string temp_name = prm.get("5.1 Hydraulic Conductivity KX");
+        if (is_input_a_scalar(temp_name)){
+            AQprop.HydraulicConductivity[0].get_data(temp_name);
+        }
+        else{
+            AQprop.HydraulicConductivity[0].get_data(input_dir + temp_name);
+        }
+        AQprop.HKuse[0] = true;
+
+        //KZ Hydraulic Conductivity
+        std::string KZ_file = prm.get("5.3 Hydraulic Conductivity KZ");
+        if (KZ_file != ""){
+            if (is_input_a_scalar(KZ_file)){
+                AQprop.HydraulicConductivity[dim-1].get_data(KZ_file);
+            }
+            else{
+                AQprop.HydraulicConductivity[dim-1].get_data(input_dir + KZ_file);
+            }
+            AQprop.HKuse[dim-1] = true;
+        }
+
+        if (dim == 3){
+            //KY Hydraulic Conductivity
+            std::string KY_file = prm.get("5.3 Hydraulic Conductivity KY");
+            if (KY_file != ""){
+                if(is_input_a_scalar(KY_file)){
+                    AQprop.HydraulicConductivity[1].get_data(KY_file);
+                }
+                else{
+                    AQprop.HydraulicConductivity[1].get_data(input_dir + KY_file);
+                }
+                AQprop.HKuse[1] = true;
+            }
+        }
+
+        //Porosity
+        std::string por_file = prm.get("5.4 Porosity");
+        if (is_input_a_scalar(por_file)){
+            AQprop.Porosity.get_data(por_file);
+        }
+        else{
+            AQprop.Porosity.get_data(input_dir + por_file);
+        }
+    }
+    prm.leave_subsection ();
+
+
+    //+++++++++++++++++++++++++++++++++++++++++
+    // OUTPUT PARAMETERS
+    //+++++++++++++++++++++++++++++++++++++++++
+    prm.enter_subsection("6. Output Parameters");
+    {
+        AQprop.sim_prefix = prm.get("6.1 Prefix");
+        AQprop.dbg_scale_x = prm.get_double("6.2 Domain Scale X");
+        AQprop.dbg_scale_z = prm.get_double("6.3 Domain Scale Z");
     }
     prm.leave_subsection ();
 

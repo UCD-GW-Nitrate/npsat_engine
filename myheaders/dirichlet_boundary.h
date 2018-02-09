@@ -98,6 +98,8 @@ public:
     */
     void get_from_file(std::string& namefile, std::string& input_dir);
 
+    void read_master_file(std::string& namefile, std::string& input_dir);
+
     //! This is a dealii structure that creates a map between face ids and boundaries and it is used
     //! during dirichlet boundary assignement
     typename FunctionMap<dim>::type		function_map;
@@ -163,6 +165,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
     }
     else{
         char buffer[512];
+        memset (buffer,' ',512);
         datafile.getline(buffer,512);
         std::istringstream inp(buffer);
         int N_bnd;
@@ -171,7 +174,8 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
         interp_funct.resize(N_bnd + boundary_parts.size());
 
         std::string type;
-        for (unsigned int i = 0; i < N_bnd; ++i){
+        for (int i = 0; i < N_bnd; ++i){
+            memset (buffer,' ',512);
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
             inp >> boundary_parts[i].TYPE;
@@ -362,7 +366,8 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                          cell->face(iface)->boundary_id() == 0 ||
                                          cell->face(iface)->boundary_id() == 1 ||
                                          cell->face(iface)->boundary_id() == 2 ||
-                                         cell->face(iface)->boundary_id() == 3 ||)){
+                                         cell->face(iface)->boundary_id() == 3) )
+                            {
 
                                 double x1,y1,x2,y2,x3,y3,x4,y4;
                                 x1 = boundary_parts[i].Xcoords[0]; y1 = boundary_parts[i].Ycoords[0];
@@ -378,7 +383,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     if (dst4 < 0.001){
                                         // the face is colinear with the boundary
                                         CGAL::Segment_2< exa_Kernel > segm(exa_Point2(x1,y1),exa_Point2(x2,y2));
-                                        if (segm.collinear_has_on(Point_2(x3,y3)) || segm.collinear_has_on(Point_2(x4,y4))){
+                                        if (segm.collinear_has_on(exa_Point2(x3,y3)) || segm.collinear_has_on(exa_Point2(x4,y4))){
                                             cell->face(iface)->set_all_boundary_ids(JJ+i);
                                         }
                                     }
@@ -391,6 +396,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
         }
     }
 }
+
 
 template <int dim>
 void Dirichlet<dim>::add_id(std::vector<int>& id_list, int id){

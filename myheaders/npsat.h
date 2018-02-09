@@ -19,6 +19,7 @@
 #include "make_grid.h"
 #include "dsimstructs.h"
 #include "mesh_struct.h"
+#include "dirichlet_boundary.h"
 
 using namespace dealii;
 
@@ -37,6 +38,11 @@ public:
 
     //! The solve method starts the simulation
     //void solve();
+
+    //! The solve_refine method every iteration first solve and the refines the mesh according to the
+    //! error criteria
+    void solve_refine();
+
 
 
 private:
@@ -57,15 +63,15 @@ private:
     ConstraintMatrix                            mesh_constraints;
 
 
-
-
-
     void make_grid();
 
     AquiferProperties<dim>                      AQProps;
 
     Mesh_struct<dim>                            mesh_struct;
 
+    // Boundary Conditions
+    typename FunctionMap<dim>::type             dirichlet_boundary;
+    BoundaryConditions::Dirichlet<dim>          DirBC;
     std::vector<int>                            top_boundary_ids;
     std::vector<int>                            bottom_boundary_ids;
 
@@ -95,6 +101,7 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     //user_input = CLI;
     my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     make_grid();
+    DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
 }
 
 template <int dim>
@@ -132,7 +139,34 @@ void NPSAT<dim>::make_grid(){
                                     distributed_mesh_vertices,
                                     mpi_communicator,
                                     pcout);
-    mesh_struct.printMesh(AQProps.Dirs.output, "iter0", my_rank, mesh_dof_handler);
+    mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
+}
+
+template <int dim>
+void NPSAT<dim>::solve_refine(){
+
+    // Create a hydraulic conductivity function
+    MyTensorFunction<dim>* HK_function;
+    if (dim == 2){
+        if (AQProps.HKuse[1] == false)
+            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0]);
+        else
+            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+                                                    AQProps.HydraulicConductivity[1]);
+    }
+    else if (dim == 3){
+        if (AQProps.HKuse[1] == false && AQProps.HKuse[2] == false)
+            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0]);
+        else if(AQProps.HKuse[1] == false && AQProps.HKuse[2] == true)
+            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+                                                    AQProps.HydraulicConductivity[2]);
+        else if(AQProps.HKuse[1] == true && AQProps.HKuse[2] == true)
+            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+                                                    AQProps.HydraulicConductivity[1],
+                                                    AQProps.HydraulicConductivity[2]);
+    }
+
+
 }
 
 
