@@ -118,19 +118,37 @@ subsection 5 Aquifer Properties
 end
 
 
-subsection 6. Output Parameters
+subsection 6. Sources & Sinks
+  # 1
+  # Groundwater recharche function
+  # must be either a single value or the name of a file
+  set 6.1 Groundwater recharge = 0.0004
+
+  # 2
+  # Stream network
+  # The name of a file that defines the streams and the rates
+  set 6.2 Stream recharge      = 
+
+  # 3
+  # Well network
+  # The name of a file with the well information
+  set 6.3 Wells                = 
+end
+
+
+subsection 7. Output Parameters
   # 1
   # Prefix is a keyword that is used when printing the various
   # output files
-  set 6.1 Prefix         = box2D
+  set 7.1 Prefix         = box2D
 
   # 2
   # This should be roughly equal to the maximum dimension
   # along the X Y
-  set 6.2 Domain Scale X = 1000
+  set 7.2 Domain Scale X = 1000
 
   # 3
   # This should be roughly equal to the maximum dimension
   # along the Z
-  set 6.3 Domain Scale Z = 500
+  set 7.3 Domain Scale Z = 500
 end

@@ -12,6 +12,91 @@ public:
     std::string output;
 };
 
+//! Parameters related to solver
+struct SolverParameters{
+    //! Maximum number of iterations of the non
+    int Maxiter;
+
+    //! Maximum number of refine and solve cycles
+    int NonLinearIter;
+
+    //! Solver tolerance
+    double solver_tol;
+};
+
+//! RefinementParameters is a struct with parameters that control the mesh refinements
+struct RefinementParameters{
+
+    //! Specifies the maximum number of refinements
+    int MaxRefinement;
+
+    //!  This is the top fraction of the refinement criterion. (See deal documentation)
+    double TopFraction;
+
+    //! This is the bottom fraction of the refinement criterion (See deal documentation)
+    double BottomFraction;
+
+    //! Any element with size smaller that MinElementSize will not be further refined
+    double MinElementSize;
+};
+
+/*!
+ * \brief The ParticleParameters struct is a container for the parameters that control the particle tracking algorithm
+ */
+struct ParticleParameters{
+    //! This is a prefix for the output files generated from the particle tracking process.
+    std::string base_name;
+
+    //! Entity_freq controls for which wells or streams the particle tracking will be triggered. The particle tracking will
+    //! run every Entity_freq wells or streams. Use 1 to trigger particle tracking for all wells
+    int Entity_freq;
+
+    //! Streaml_freq controls the number of streamlines per well or stream. For example the particle tracking will be triggered
+    //! every Streaml_freq. Use 1 to trigger particle tracking for all streams
+    int Streaml_freq;
+
+    //! The program creates a bounding box for each streamline. During particle tracking, the bounding box is expected to expand at every step.
+    //! If the bounding box does not expand after Stuck_iter iterations the particle tracking terminates.
+    int Stuck_iter;
+
+    //! When the program runs on multiple processors it is necessary to exchange particles between processors.
+    //! Outmost_iter specifies the maximum number of exchanges between the processors. This is usefull to avoid situations
+    //! where a particle is stuck between two processors for example.
+    int Outmost_iter;
+
+    //! streaml_iter is the maximum number of iterations for each particle
+    int streaml_iter;
+
+    /*! There are three methods available for the particle tracking
+     *   - 1 -> for Euler
+     *   - 2 -> for Runge Kutta 2nd order
+     *   - 3 -> for Runge Kutta 4nd order
+     */
+    int method;
+
+    //! The step size is a function of the cell size. step_size actually defines an approximate number of steps to take within each cell.
+    //! The algorithm divides the the element size by step_size to calculate the actual step size in length.
+    double step_size;
+
+    //! When a particle exits an element a search process is triggerd to find the cell that the particle is moving to.
+    //! The algorithm creates first a list of elements that surround the current element and search if any contains the new particle position.
+    //! The search_iter controls how many cells will be searched. Note that search_iter is not the number cells to be searched but rather
+    //! the number of search layers around the current cell.
+    int search_iter;
+
+    //! Typically each stramline is represented by a polyline that may consist of a large number of vertices. To remove unnecessary
+    //! vertices the program applies a Ramer–Douglas–Peucker algorithm (https://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm)
+    //!  where simplify_thres is the threshold of the simplification algorithm.
+    double simplify_thres;
+
+    //! We can turn off particle tracking by setting this parameter to 0. Any other integer value will run particle tracking
+    int bDoParticleTracking;
+
+    //! Number of particles that we execute in parallel
+    int Nparallel_particles;
+};
+
+
 /*!
  * \brief A struct to hold the data for the aquifer Properties.
  *
@@ -81,24 +166,35 @@ public:
     double dbg_scale_z;
 
     //! A structure containing the input and output directories
-    Directories                     Dirs;
+    Directories                         Dirs;
 
     //! dirichlet_file_names is file name that contains a list of filenames with the dirichlet boundary conditions
-    std::string                     dirichlet_file_names;
+    std::string                         dirichlet_file_names;
 
     //! This is a prefix name that is used as prefix for the various output files
-    std::string                     sim_prefix;
+    std::string                         sim_prefix;
 
     //! This is a structure that will store the hydraulic conductivity values
     std::vector<InterpInterface<dim> >	HydraulicConductivity;
 
     //! This boolean variable specifies which functions of the AquiferProperties#HydraulicConductivity are actually used.
     //! For example when the aquifer is isotropic the HKuse[0] should be true while the HKuse[1] and HKuse[2] should be set to false.
-    std::vector<bool>               HKuse;
+    std::vector<bool>                   HKuse;
 
     //! A 3D interpolation function for the aquifer porosity
     InterpInterface<dim>                Porosity;
 
+    //! This is a 2D interpolation function for the groundwater recharge
+    InterpInterface<dim-1>              GroundwaterRecharge;
+
+    //! Holds the Refinements parameters
+    RefinementParameters                refine_param;
+
+    //! Holds the Particle tracking parameters
+    ParticleParameters                  part_param;
+
+    //! Holds the Solver parameters
+    SolverParameters                    solver_param;
 };
 
 #endif // DSIMSTRUCTS_H

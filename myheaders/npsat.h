@@ -166,6 +166,10 @@ void NPSAT<dim>::solve_refine(){
                                                     AQProps.HydraulicConductivity[2]);
     }
 
+    MyFunction<dim, dim-1> GR_funct(AQProps.GroundwaterRecharge);
+
+
+
 
 }
 
