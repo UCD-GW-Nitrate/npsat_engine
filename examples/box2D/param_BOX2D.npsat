@@ -1,154 +1,243 @@
 # Listing of Parameters
 # ---------------------
-subsection 1. Workspace directories
-  # 1
+subsection A. Workspace directories
+  # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set 1.1 Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
 
-  # 2
+  # b----------------------------------
   # The directory where all output data will be saved.
-  set 1.2 Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set b Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/
 end
 
 
-subsection 2. Geometry
-  # 1
+subsection B. Geometry
+  # a----------------------------------
   # Geometry Type. Valid entries are BOX and FILE
-  set 2.1 Geometry Type             = BOX
+  set a Geometry Type             = BOX
 
-  # 2
+  # b----------------------------------
   # case FILE:
   # If the geometry type is FILE specify the file name
   # that contains the initial mesh.
   # If the type is box this is ignored.
-  set 2.2 Input mesh file           = 
+  set b Input mesh file           = 
 
-  # 3
+  # c----------------------------------
   # case BOX:
   # The length of the aquifer along the X Y Z directions.
   # In case of 2D the 3rd element is ignored but it should be > 0
   # .This is valid for BOX geometry type
-  set 2.3 XYZ dimensions            = 5000,300,300
+  set c XYZ dimensions            = 5000,300,300
 
-  # 4
+  # d----------------------------------
   # case BOX:
   # The coordinates of the left lower point of the domain.
   # In case of 2D the 3rd element is ignored
   # .This is valid for BOX geometry type
-  set 2.4 Left lower point          = 0,0,0
+  set d Left lower point          = 0,0,0
 
-  # 5
+  # e----------------------------------
   # Top elevation function must be either a single value
   # or the name of a file
-  set 2.5 Top elevation function    = 30
+  set e Top elevation function    = 30
 
-  # 6
+  # f----------------------------------
   # Bottom elevation function must be either a single value
   # or the name of a file
-  set 2.6 Bottom elevation function = -270
+  set f Bottom elevation function = -270
 
-  # 7
+  # g----------------------------------
   # Threshold value along the horizontal plane
-  set 2.7 x-y threshold             = 0.1
+  set g x-y threshold             = 0.1
 
-  # 8
+  # h----------------------------------
   # Threshold value the vertical plane
-  set 2.8 z threshold               = 0.01
+  set h z threshold               = 0.01
 end
 
 
-subsection 3. Discretization
-  # 1
+subsection C. Discretization
+  # a----------------------------------
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be set > 0.
-  set 3.1 Nxyz                    = 10,5,3
+  set a Nxyz                    = 10,5,3
 
-  # 2
+  # b----------------------------------
   # A list of numbers between 0 and 1 that correspond
   # to the vertical distribution of layers separated by ,.
   # This parameter, if present, overrides the 3rd or 2nd element of the Nxyz
   # in 3D or 2D respecitvely
-  set 3.2 Vertical discretization = 
+  set b Vertical discretization = 
 
-  # 3
+  # c----------------------------------
   # The number of initial refinements
-  set 3.3 Initial Refinement      = 0
+  set c Initial Refinement      = 0
 
-  # 4
+  # d----------------------------------
   # The number of initial refinements around the wells
-  set 3.4 Well Refinement         = 0
+  set d Well Refinement         = 0
 
-  # 5
+  # e----------------------------------
   # The number of initial refinements around the Streams
-  set 3.5 Stream Refinement       = 0
+  set e Stream Refinement       = 0
 end
 
 
-subsection 4. Boundary Conditions
-  # 1
+subsection D. Boundary Conditions
+  # a----------------------------------
   # The name file of multiple files separated by ;
   # with the constant head boundary conditions
-  set 4.1 Dirichlet file name = Dirichlet_BC.npsat
+  set a Dirichlet file name = Dirichlet_BC.npsat
 end
 
 
-subsection 5 Aquifer Properties
-  # 1
+subsection E Aquifer Properties
+  # a----------------------------------
   # Hydraulic conductivity along the x direction
   # must be either a single value or the name of a file
-  set 5.1 Hydraulic Conductivity KX = 20
+  set a Hydraulic Conductivity KX = 20
 
-  # 2
+  # b----------------------------------
   # Hydraulic conductivity along the y direction
   # must be either a single value or the name of a file
   # If KY == KX leave this empty. In 2D this is ignored
-  set 5.2 Hydraulic Conductivity KY = 
+  set b Hydraulic Conductivity KY = 
 
-  # 3
+  # c----------------------------------
   # Hydraulic conductivity along the z direction
   # must be either a single value or the name of a file
   # If KZ == KX leave this empty. In 2D this corresponds to the vertical K
-  set 5.3 Hydraulic Conductivity KZ = 
+  set c Hydraulic Conductivity KZ = 
 
-  # 4
+  # d----------------------------------
   # Porosity. This is used during particle tracking
   # A single value or the name of the file
-  set 5.4 Porosity                  = 0.1
+  set d Porosity                  = 0.1
 end
 
 
-subsection 6. Sources & Sinks
-  # 1
+subsection F. Sources & Sinks
+  # a----------------------------------
   # Groundwater recharche function
   # must be either a single value or the name of a file
-  set 6.1 Groundwater recharge = 0.0004
+  set a Groundwater recharge = 0.0004
 
-  # 2
+  # b----------------------------------
   # Stream network
   # The name of a file that defines the streams and the rates
-  set 6.2 Stream recharge      = 
+  set b Stream recharge      = 
 
-  # 3
+  # c----------------------------------
   # Well network
   # The name of a file with the well information
-  set 6.3 Wells                = 
+  set c Wells                = 
 end
 
 
-subsection 7. Output Parameters
-  # 1
+subsection G. Solver parameters
+  # a----------------------------------
+  # Number of nonlinear iterations for solving the unconfined problem
+  # The refinement would occur during the N Max refinements iterations.
+  set a Nonlinear iterations = 10
+
+  # b----------------------------------
+  # Tolerance of solver
+  set b Solver tolerance     = 1e-8
+
+  # c----------------------------------
+  # Number of maximum solver iterations
+  set c Max iterations       = 1000
+end
+
+
+subsection H. Refinement Parameters
+  # a----------------------------------
+  # Number of maximum refinement cycles during a simulation
+  set a Max refinements iterations = 5
+
+  # b----------------------------------
+  # Top refinement fraction
+  set b Top fraction               = 0.15
+
+  # c----------------------------------
+  # Bottom refinement fraction
+  set c Bottom fraction            = 0.01
+
+  # d----------------------------------
+  # Minimum element size
+  set d Minimum element size       = 1.0
+end
+
+
+subsection I. Particle tracking
+  # a----------------------------------
+  # This will print the streamlines every N Entities (e.g. every 10 wells)
+  set a Print entity frequency     = 1
+
+  # b----------------------------------
+  # For each Entity will print every N streamlines
+  set b Print streamline frequency = 1
+
+  # c----------------------------------
+  # If the streamline has not been expanded after N iteration stop tracking
+  set c Stuck iterations           = 50
+
+  # d----------------------------------
+  # The number of times that processors are allowed to exchange particles
+  # This will prevent case where a particle moves back and forth between
+  # processors
+  set d Outer iterations           = 100
+
+  # e----------------------------------
+  # The maximum number of steps per streamline
+  set e Streamline iterations      = 1000
+
+  # f----------------------------------
+  # 1-> Euler, 2->RK2, 3->RK4
+  set f Tracking method            = 3
+
+  # g----------------------------------
+  # The actual step size for each cell is calculated by dividing the diameter
+  # of each cell
+  # with the given number. Essensially this number indicates the average
+  # number of steps
+  # of the algorithm within a cell
+  set g Step size                  = 6
+
+  # h----------------------------------
+  # How many neighbor to search for the next point if the point has left the
+  # current cell
+  set h Search iterations          = 3
+
+  # i----------------------------------
+  # Simplification threshold used for plotting
+  set i Simplify threshold         = 5.5
+
+  # j----------------------------------
+  # Set to 0 to deactivate particle tracking. Default is 1
+  set j Do particle tracking       = 1
+
+  # k----------------------------------
+  # The maximum number of particles that is allowed to run in parallel
+  set k N Particles in parallel    = 5000
+end
+
+
+subsection J. Output Parameters
+  # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set 7.1 Prefix         = box2D
+  set a Prefix         = box2D
 
-  # 2
+  # b----------------------------------
   # This should be roughly equal to the maximum dimension
   # along the X Y
-  set 7.2 Domain Scale X = 1000
+  set b Domain Scale X = 1000
 
-  # 3
+  # c----------------------------------
   # This should be roughly equal to the maximum dimension
   # along the Z
-  set 7.3 Domain Scale Z = 500
+  set c Domain Scale Z = 500
 end
