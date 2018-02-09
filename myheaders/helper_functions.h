@@ -52,6 +52,63 @@ bool is_input_a_scalar(std::string input){
 }
 
 /*!
+ * \brief triangle_area Calculates the area of a triangle defined by the three vertices
+ * \param A 1st Point of triangle
+ * \param B 2nd Point of triangle
+ * \param C 3rd Point of triangle
+ * \param project if true this will calculate the area of the triangle when projected in the XY plane
+ * \return the area of the triangle
+ */
+template <int dim>
+double triangle_area(dealii::Point<dim> A, dealii::Point<dim> B, dealii::Point<dim> C, bool project){
+    double area = 0;
+    if (project){
+        area = std::abs( 0.5*(A[0]*(B[1] - C[1]) + B[0]*(C[1] - A[1]) + C[0]*(A[1] - B[1])));
+    }
+    else{
+        //http://mathworld.wolfram.com/TriangleArea.html
+        double x1 = A[0]; double y1 = A[1]; double z1 = A[2];
+        double x2 = B[0]; double y2 = B[1]; double z2 = B[2];
+        double x3 = C[0]; double y3 = C[1]; double z3 = C[2];
+        area = pow(x1*y2 - x2*y1 - x1*y3 + x3*y1 + x2*y3 - x3*y2, 2) +
+               pow(x1*z2 - x2*z1 - x1*z3 + x3*z1 + x2*z3 - x3*z2, 2) +
+               pow(y1*z2 - y2*z1 - y1*z3 + y3*z1 + y2*z3 - y3*z2, 2);
+        area = 0.5*sqrt(area);
+    }
+    return area;
+}
+
+
+/*!
+ * \brief recharge_weight calculates a weight factor which is used during recharge calculations.
+ * To calculate the correct amount of groundwater recharge (e.g. from precipitation), the recharge rate
+ * should be multiplied by the projected area on the xy plane of the top face of the element.
+ * \param cell is the element where the recharge is applied
+ * \param face is the face id
+ * \return the weight
+ */
+template<int dim>
+double recharge_weight(typename dealii::DoFHandler<dim>::active_cell_iterator cell, unsigned int face){
+    double weight = 1;
+    if (dim == 2){
+        dealii::Point<dim> v1 = cell->face(face)->vertex(0);
+        dealii::Point<dim> v2 = cell->face(face)->vertex(1);
+        double actual_length = v1.distance(v2);
+        double projected_length = std::abs(v2[0] - v1[0]);
+        weight = projected_length/actual_length;
+    }else if (dim == 3){
+        dealii::Point<dim> v1 = cell->face(face)->vertex(0);
+        dealii::Point<dim> v2 = cell->face(face)->vertex(1);
+        dealii::Point<dim> v3 = cell->face(face)->vertex(2);
+        dealii::Point<dim> v4 = cell->face(face)->vertex(3);
+        double A_real = triangle_area(v1,v2,v4,false) + triangle_area(v1,v4,v3,false);
+        double A_proj = triangle_area(v1,v2,v4,true)  + triangle_area(v1,v4,v3,true);
+        weight = A_proj/A_real;
+    }
+    return weight;
+}
+
+/*!
  * \brief This function returns a list of indices that are connected to the #ii node in a cell
  * \param #ii is the index of the node we seek its connected nodes
  * \return a vector of connected indices. Note that this is simply returns the ids of the nodes
