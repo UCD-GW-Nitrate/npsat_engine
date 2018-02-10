@@ -6,7 +6,6 @@
 #include "helper_functions.h"
 #include "cgal_functions.h"
 
-namespace SourceSinks {
 
 using namespace dealii;
 
@@ -111,7 +110,7 @@ public:
     PointSet2 WellsXY;
 
     //! This is a structure that is used by CGAL during fast searching and it is used to obtain the id of the included wells
-    std::vector< std::pair<ine_Point2,unsigned> > wellxy;
+    std::vector< std::pair<ine_Point2,int> > wellxy;
 
     //! Given a 3D cell sets up the 2D Well_Set::#tria cell.
     void setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D);
@@ -236,6 +235,136 @@ Well_Set<dim>::setup_cell(typename parallel::distributed::Triangulation<dim>::ac
     }
 }
 
+template <int dim>
+bool Well_Set<dim>::read_wells(std::string base_filename)
+{
+    std::ifstream  datafile(base_filename.c_str());
+    if (!datafile.good()){
+        std::cout << "Can't open the file" << namefile << std::endl;
+        return false;
+    }
+    else{
+        char buffer[512];
+        double Xcoord, Ycoord, top, bot, Q;
+        datafile.getline(buffer,512);
+        std::istringstream inp1(buffer);
+        inp1 >> Nwells;
+        wells.resize(Nwells);
+        for (int i = 0; i < Nwells; i++){
+            datafile.getline(buffer,512);
+            std::istringstream inp(buffer);
+            inp >> Xcoord;
+            if (dim == 2)
+                Ycoord = 0;
+            else if (dim == 3)
+                inp >> Ycoord;
+
+            wellxy.push_back(std::make_pair(ine_Point2(Xcoord, Ycoord), i) );
+            inp >> top;
+            inp >> bot;
+            inp >> Q;
+            Point<dim> p_top;
+            Point<dim> p_bot;
+            if (dim == 2){
+                p_top[0] = Xcoord; p_top[1] = top;
+                p_bot[0] = Xcoord; p_bot[1] = bot;
+            }
+            else if (dim == 3){
+                p_top[0] = Xcoord; p_top[1] = Ycoord; p_top[2] = top;
+                p_bot[0] = Xcoord; p_bot[1] = Ycoord; p_bot[2] = bot;
+            }
+
+            wells[i].top = p_top;
+            wells[i].bottom = p_bot;
+            wells[i].Qtot = Q;
+            wells[i].well_id = i;
+        }
+        WellsXY.insert(wellxy.begin(), wellxy.end());
+        return true;
+    }
 }
+
+template <int dim>
+void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim> &triangulation){
+    const MappingQ1<dim-1> mapping2D;
+    Point<dim-1> well_point_2d;
+
+    typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+    cell = triangulation.begin_active(),
+    endc = triangulation.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            std::vector<int> well_id_in_cell;
+            std::vector<double> xp; std::vector<double> yp;
+            if (dim == 2){
+                xp.push_back(cell->face(2)->vertex(0)[0]);yp.push_back(0);
+                xp.push_back(cell->face(2)->vertex(1)[0]);yp.push_back(0);
+            }
+            else if (dim == 3){
+                xp.push_back(cell->face(4)->vertex(0)[0]); yp.push_back(cell->face(4)->vertex(0)[1]);
+                xp.push_back(cell->face(4)->vertex(1)[0]); yp.push_back(cell->face(4)->vertex(1)[1]);
+                xp.push_back(cell->face(4)->vertex(3)[0]); yp.push_back(cell->face(4)->vertex(3)[1]);
+                xp.push_back(cell->face(4)->vertex(2)[0]); yp.push_back(cell->face(4)->vertex(2)[1]);
+            }
+            bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
+
+            if (!are_wells)
+                continue;
+
+            setup_cell(cell);
+            typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
+
+            for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
+                int i = well_id_in_cell[iw];
+                well_point_2d[0] = wells[i].top[0];
+                if (dim == 3)
+                    well_point_2d[1] = wells[i].top[1];
+
+                Point<dim-1> p_unit2D;
+                bool mapping_done = try_mapping<dim-1>(well_point_2d, p_unit2D, cell2D, mapping2D);
+                if (!mapping_done)
+                    continue;
+
+                Point<dim> p_unit_top, p_unit_bot;
+                for (unsigned int ii = 0; ii < dim-1; ++ii){
+                    p_unit_top[ii] = p_unit2D[ii];
+                    p_unit_bot[ii] = p_unit2D[ii];
+                }
+                p_unit_top[dim-1] = 1;
+                p_unit_bot[dim-1] = 0;
+                double z_top = 0;
+                double z_bot = 0;
+
+                for (unsigned int j = 0; j < GeometryInfo<dim>::vertices_per_cell ; j++){
+                    z_top = z_top +  GeometryInfo<dim>::d_linear_shape_function(p_unit_top, j)*cell->vertex(j)[dim-1];
+                    z_bot = z_bot +  GeometryInfo<dim>::d_linear_shape_function(p_unit_bot, j)*cell->vertex(j)[dim-1];
+                }
+
+                double well_TPF = wells[i].top[dim-1];
+                double well_BPF = wells[i].bottom[dim-1];
+                bool cell_flaged = false;
+                if  (well_BPF < z_bot && well_TPF > z_top){
+                    cell->set_refine_flag ();
+                    cell_flaged = true;
+                }
+                if  (well_BPF > z_bot && well_TPF < z_top){
+                    cell->set_refine_flag ();
+                    cell_flaged = true;
+                }
+                if (well_BPF < z_bot && well_TPF < z_top && well_TPF > z_bot){
+                    cell->set_refine_flag ();
+                    cell_flaged = true;
+                }
+                if (well_BPF > z_bot && well_BPF < z_top && well_TPF > z_top){
+                    cell->set_refine_flag ();
+                    cell_flaged = true;
+                }
+                if (cell_flaged)
+                    break;
+            }
+        }
+    }
+}
+
 
 #endif // WELLS_H

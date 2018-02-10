@@ -32,6 +32,31 @@ std::vector<double> linspace(double min, double max, int n){
     return result;
 }
 
+template <int dim>
+bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
+                 typename dealii::Triangulation<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
+    bool mapping_done = false;
+    int count_try = 0;
+    dealii::Point<dim> p_try = p;
+    while (!mapping_done){
+        try{
+            p_unit = mapping.transform_real_to_unit_cell(cell, p_try);
+            mapping_done = true;
+        }
+        catch(...){
+            for (unsigned int idim = 0; idim < dim; ++idim)
+                p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(double(rand())/double(RAND_MAX)));
+            ++count_try;
+            if (count_try > 20){
+                break;
+                std::cerr << "transformation Failed" << std::endl;
+            }
+
+        }
+    }
+    return mapping_done;
+}
+
 /*!
  * \brief is_input_a_scalar check if the string can be converted into a scalar value
  * \param input is the string to test

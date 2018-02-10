@@ -228,8 +228,7 @@ bool get_point_ids_in_set(PointSet2& Pset, std::vector<double>& xp, std::vector<
     else if(xp.size() == 2 && yp.size() == 2){
         ine_Point2 p1(xp[0], yp[0]);
         ine_Point2 p2(xp[1], yp[1]);
-        ine_Point2 p3((xp[0]+xp[1])/2, yp[0] + abs(xp[1] - xp[0])/2);
-        CGAL::Circle_2<ine_Kernel> rc(p1, p3, p2);
+        CGAL::Circle_2<ine_Kernel> rc(p1, p2,CGAL::Orientation::COUNTERCLOCKWISE);
         Pset.range_search(rc, std::back_inserter(LV));
     }
     else{
