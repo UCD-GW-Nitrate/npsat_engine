@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "interpinterface.h"
+#include "wells.h"
 
 struct Directories{
 public:
@@ -186,6 +187,12 @@ public:
 
     //! This is a 2D interpolation function for the groundwater recharge
     InterpInterface<dim-1>              GroundwaterRecharge;
+
+    //! This holds the information about the wells in the aquifer
+    Well_Set<dim>                            wells;
+
+    //! A boolean function which is set to false if there are no wells
+    bool                                have_wells;
 
     //! Holds the Refinements parameters
     RefinementParameters                refine_param;

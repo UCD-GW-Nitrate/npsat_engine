@@ -632,6 +632,13 @@ bool CL_arguments<dim>::read_param_file(){
         else{
             AQprop.GroundwaterRecharge.get_data(input_dir + temp_name);
         }
+
+        // Read Wells
+        std::string well_file = input_dir + prm.get("c Wells");
+        if (well_file != ""){
+            AQprop.have_wells = AQprop.wells.read_wells(well_file);
+        }
+
     }
     prm.leave_subsection();
 

@@ -20,6 +20,7 @@
 #include "dsimstructs.h"
 #include "mesh_struct.h"
 #include "dirichlet_boundary.h"
+#include "steady_state.h"
 
 using namespace dealii;
 
@@ -176,6 +177,16 @@ void NPSAT<dim>::solve_refine(){
                                                 dirichlet_boundary,
                                                 top_boundary_ids,
                                                 bottom_boundary_ids);
+        GWFLOW<dim> gw(mpi_communicator,
+                       dof_handler,
+                       fe,
+                       locally_relevant_solution,
+                       dirichlet_boundary,
+                       HK_function[0],
+                       GR_funct,
+                       top_boundary_ids);
+
+        gw.Simulate(iter, AQProps.sim_prefix, triangulation, AQProps.wells);
 
     }
 

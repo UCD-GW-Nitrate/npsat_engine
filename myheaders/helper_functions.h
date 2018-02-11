@@ -233,6 +233,31 @@ std::vector<int> get_connected_indices(int ii){
 }
 
 template <int dim>
+void initTria(dealii::Triangulation<dim-1> &tria){
+    std::vector< dealii::Point<dim-1> > vertices(dealii::GeometryInfo<dim-1>::vertices_per_cell);
+    std::vector< dealii::CellData<dim-1> > cells(1);
+
+    if (dim == 2){
+        vertices[0] = dealii::Point<dim-1>(0);
+        vertices[1] = dealii::Point<dim-1>(1);
+        cells[0].vertices[0] = 0;
+        cells[0].vertices[1] = 1;
+    }else if (dim == 3){
+        vertices[0] = dealii::Point<dim-1>(0,0);
+        vertices[1] = dealii::Point<dim-1>(1,0);
+        vertices[2] = dealii::Point<dim-1>(0,1);
+        vertices[3] = dealii::Point<dim-1>(1,1);
+        cells[0].vertices[0] = 0;
+        cells[0].vertices[1] = 1;
+        cells[0].vertices[2] = 2;
+        cells[0].vertices[3] = 3;
+    }
+    tria.create_triangulation(vertices, cells, SubCellData());
+
+
+}
+
+template <int dim>
 void Print_Mesh_DofHandler(std::string filename,
                            unsigned int my_rank,
                            DoFHandler<dim>& mesh_dof_handler,

@@ -2,9 +2,14 @@
 #define WELLS_H
 
 #include <deal.II/base/point.h>
+#include <deal.II/distributed/tria.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
 
 #include "helper_functions.h"
 #include "cgal_functions.h"
+#include "my_functions.h"
+#include "mpi_help.h"
 
 
 using namespace dealii;
@@ -56,6 +61,7 @@ public:
      */
     void distribute_particles(std::vector<Point<dim> >& particles,
                               int Nppl, int Nlay, double radius);
+
 };
 
 template <int dim>
@@ -96,14 +102,14 @@ public:
     Well_Set();
 
     //! A vector of SourceSinks::#Well wells which containt the well info
-    std::vector<Well> wells;
+    std::vector<Well<dim>> wells;
 
     //! The total number of wells
     int Nwells;
 
     //! This is a helper triangulation which consist of one element and gets initialized by the contructor
     //! It is use to provide some needed functionality at dim-1
-    Triangulation<dim-1> tria;
+    //Triangulation<dim-1> tria;
 
     //! This is a structure that contains the XY locations of the wells into a structure provided by CGAL.
     //! It is used for fast searching
@@ -113,10 +119,10 @@ public:
     std::vector< std::pair<ine_Point2,int> > wellxy;
 
     //! Given a 3D cell sets up the 2D Well_Set::#tria cell.
-    void setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D);
+    void setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D, Triangulation<dim-1> &tria);
 
     //! Given a 3D cell sets up the 2D WELLS::#tria cell.
-    void setup_cell(typename parallel::distributed::Triangulation<dim>::active_cell_iterator Cell3D);
+    void setup_cell(typename parallel::distributed::Triangulation<dim>::active_cell_iterator Cell3D, Triangulation<dim-1> &tria);
 
     /*!
      * \brief read_wells Reads the wells and initializes the CGAL structures WELLS#WellsXY and WELLS#wellxy.
@@ -185,24 +191,12 @@ public:
 
 template <int dim>
 Well_Set<dim>::Well_Set(){
-    std::vector< Point<dim-1> > vertices(GeometryInfo<dim-1>::vertices_per_cell);
-    std::vector< CellData<dim-1> > cells(1);
-
-    if (dim == 2){
-        vertices[0] = Point<dim-1>(0);
-        vertices[1] = Point<dim-1>(1);
-    }else if (dim == 3){
-        vertices[0] = Point<dim-1>(0,0);
-        vertices[1] = Point<dim-1>(1,0);
-        vertices[2] = Point<dim-1>(0,1);
-        vertices[3] = Point<dim-1>(1,1);
-    }
-    tria.create_triangulation(vertices, cells, SubCellData());
     Nwells = 0;
 }
 
+
 template <int dim>
-Well_Set<dim>::setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D){
+void Well_Set<dim>::setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D, Triangulation<dim-1>& tria){
     typename Triangulation<dim-1>::active_cell_iterator
     cell = tria.begin_active();
     for (unsigned int i = 0; i < GeometryInfo<dim-1>::vertices_per_cell; ++i){
@@ -220,7 +214,7 @@ Well_Set<dim>::setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D)
 }
 
 template <int dim>
-Well_Set<dim>::setup_cell(typename parallel::distributed::Triangulation<dim>::active_cell_iterator Cell3D){
+void Well_Set<dim>::setup_cell(typename parallel::distributed::Triangulation<dim>::active_cell_iterator Cell3D, Triangulation<dim-1>& tria){
     typename Triangulation<dim>::active_cell_iterator
     cell = tria.begin_active();
     for (unsigned int i=0; i < GeometryInfo<dim-1>::vertices_per_cell; ++i){
@@ -240,7 +234,7 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
 {
     std::ifstream  datafile(base_filename.c_str());
     if (!datafile.good()){
-        std::cout << "Can't open the file" << namefile << std::endl;
+        std::cout << "Can't open the file" << base_filename << std::endl;
         return false;
     }
     else{
@@ -285,7 +279,10 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
 }
 
 template <int dim>
-void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim> &triangulation){
+void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& triangulation){
+    Triangulation<dim-1> tria;
+    initTria<dim-1>(tria);
+
     const MappingQ1<dim-1> mapping2D;
     Point<dim-1> well_point_2d;
 
@@ -311,7 +308,7 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
             if (!are_wells)
                 continue;
 
-            setup_cell(cell);
+            setup_cell(cell,tria);
             typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
 
             for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
@@ -376,6 +373,8 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
     int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    Triangulation<dim-1> tria;
+    initTria<dim>(tria);
     const MappingQ1<dim-1> mapping2D;
     const MappingQ1<dim> mapping;
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
@@ -408,7 +407,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             if (!are_wells)
                 continue;
 
-            setup_cell(cell);
+            setup_cell(cell,tria);
             typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
 
             for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
@@ -452,7 +451,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     if  (well_BPF < z_bot && well_TPF > z_top){
                         // the well screen fully penetrates this cell.
                         p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
-                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - z_bot;
                         add_this_cell = true;
@@ -461,7 +460,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     if  (well_BPF > z_bot && well_TPF < z_top){
                         // the well screen is all within this cell.
                         p_mid[dim-1] = (well_TPF - well_BPF)/2.0 + well_BPF;
-                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = well_TPF - well_BPF;
                         add_this_cell = true;
@@ -470,7 +469,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     if (well_BPF < z_bot && well_TPF < z_top && well_TPF > z_bot){
                         // the bottom of the screen is below the cell and the top is in the cell
                         p_mid[dim-1] = (well_TPF - z_bot)/2.0 + z_bot;
-                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = well_TPF - z_bot;
                         add_this_cell = true;
@@ -479,18 +478,18 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     if (well_BPF > z_bot && well_BPF < z_top && well_TPF > z_top){
                         // the bottom of the screen is in the cell and the top of the screen is above the cell
                         p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
-                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - well_BPF;
                         add_this_cell = true;
                     }
                     //case 5
-                   if (well_BPF > z_top && cell->face(5)->at_boundary()){
+                   if (well_BPF > z_top && cell->face(2*dim-1)->at_boundary()){ //2*dim-1 returns the top face
                         // The well is above of the water table. Still we want the first layer to take out water
                         //std::cout << "Zt:" << z_top << ", Zb:" << z_bot << ", Wb:" << well_BPF << std::endl;
                         //std::cout << "The bottome of the well is above the top cell" << std::endl;
                         p_mid[dim-1] = (z_top - z_bot)/2 + z_bot;
-                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - z_bot;
                         add_this_cell = true;
@@ -606,17 +605,18 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     }
 }
 
-template <int dim>
-void Well_Set<dim>::distribute_particles(std::vector<PART_TRACK::Streamline> &Streamlines,
-                                         int Nppl, int Nlay, double radius){
-    for (int i = 0; i < Nwells; ++i){
-        std::vector<Point<3> > particles;
-        wells[i].distribute_particles(particles, Nppl, Nlay, radius);
-        for (unsigned int j = 0; j < particles.size(); ++j){
-            Streamlines.push_back(PART_TRACK::Streamline(i,j,particles[j]));
-        }
-    }
-}
+
+//template <int dim>
+//void Well_Set<dim>::distribute_particles(std::vector<PART_TRACK::Streamline> &Streamlines,
+//                                         int Nppl, int Nlay, double radius){
+//    for (int i = 0; i < Nwells; ++i){
+//        std::vector<Point<3> > particles;
+//        wells[i].distribute_particles(particles, Nppl, Nlay, radius);
+//        for (unsigned int j = 0; j < particles.size(); ++j){
+//            Streamlines.push_back(PART_TRACK::Streamline(i,j,particles[j]));
+//        }
+//    }
+//}
 
 
 #endif // WELLS_H

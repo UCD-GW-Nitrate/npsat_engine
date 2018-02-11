@@ -30,6 +30,12 @@ public:
     virtual void value_list(const std::vector<Point<griddim> >	&points,
                             std::vector<double>             &values,
                             const unsigned int              component = 0)const;
+
+    //! Overrides the value list which simply loops through the points and calls the value method
+    void value_list(const std::vector<Point<dim> >	&points,
+                    std::vector<double>             &values,
+                    const unsigned int              component = 0)const;
+
 private:
     const InterpInterface<griddim>&	interpolant;
 };
@@ -61,6 +67,18 @@ void MyFunction<dim, griddim>::value_list(const std::vector<Point<griddim> > &po
                                           const unsigned int                component)const{
     for (unsigned int i = 0; i < points.size(); ++i)
         values[i] = MyFunction::value(points[i]);
+}
+
+template <int dim, int griddim>
+void MyFunction<dim, griddim>::value_list(const std::vector<Point<dim> > &points,
+                                          std::vector<double>               &values,
+                                          const unsigned int                component)const{
+    for (unsigned int i = 0; i < points.size(); ++i){
+        Point<griddim> p_grd;
+        for (unsigned int ii = 0; ii < griddim; ++ii)
+            p_grd[ii] = points[i][ii];
+        values[i] = MyFunction::value(p_grd);
+    }
 }
 
 /*!

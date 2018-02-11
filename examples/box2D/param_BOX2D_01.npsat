@@ -89,7 +89,7 @@ subsection D. Boundary Conditions
   # a----------------------------------
   # The name file of multiple files separated by ;
   # with the constant head boundary conditions
-  set a Dirichlet file name = Dirichlet_BC.npsat
+  set a Dirichlet file name = Dirichlet_BC_box01.npsat
 end
 
 
@@ -132,7 +132,7 @@ subsection F. Sources & Sinks
   # c----------------------------------
   # Well network
   # The name of a file with the well information
-  set c Wells                = 
+  set c Wells                = wells_box2D_01.npsat
 end
 
 
@@ -229,7 +229,7 @@ subsection J. Output Parameters
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix         = box2D
+  set a Prefix         = box2D01_
 
   # b----------------------------------
   # This should be roughly equal to the maximum dimension

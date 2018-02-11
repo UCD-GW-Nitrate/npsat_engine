@@ -6,14 +6,20 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/solver_control.h>
+#include <deal.II/lac/trilinos_solver.h>
+#include <deal.II/lac/trilinos_precondition.h>
 #include <deal.II/dofs/function_map.h>
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/timer.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/data_out.h>
 
 #include "my_functions.h"
 #include "helper_functions.h"
+#include "wells.h"
 
 using namespace dealii;
 
@@ -31,8 +37,8 @@ public:
 
 
     void Simulate(int iter,                                     std::string output_file,
-                  parallel::distributed::Triangulation<dim>& 	triangulation/*,
-                    SourceSinks::WELLS&                         wells,
+                  parallel::distributed::Triangulation<dim>& 	triangulation,
+                  Well_Set<dim>&                                     wells/*,
                     SourceSinks::Streams&                      streams*/);
 
 private:
@@ -112,7 +118,7 @@ void GWFLOW<dim>::setup_system(){
                                                 locally_relevant_dofs);
     system_matrix.reinit (locally_owned_dofs,
                           locally_owned_dofs,
-                          csp,
+                          dynamic_sparsity_pattern,
                           mpi_communicator);
 }
 
@@ -286,19 +292,19 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
 
 template <int dim>
 void GWFLOW<dim>::Simulate(int iter,                                     std::string output_file,
-                           parallel::distributed::Triangulation<dim>& 	triangulation/*,
-                           SourceSinks::WELLS&                         wells,
+                           parallel::distributed::Triangulation<dim>& 	triangulation,
+                           Well_Set<dim> &wells/*,
                            SourceSinks::Streams&                      streams*/){
     setup_system();
 
-    /*
+
     wells.add_contributions(system_rhs,
                             dof_handler,
                             fe,
                             constraints,
                             HK,
                             mpi_communicator);
-
+/*
     streams.add_contributions(system_rhs,
                               dof_handler,
                               fe,

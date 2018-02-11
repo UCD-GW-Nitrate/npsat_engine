@@ -25,6 +25,7 @@ int main (int argc, char **argv){
         CLI.read_param_file();
         CLI.Debug_Prop();
         NPSAT<_DIM> npsat(CLI.AQprop);
+        npsat.solve_refine();
     }
 
     //InterpInterface<2> II;
