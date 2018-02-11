@@ -366,5 +366,257 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
     }
 }
 
+template <int dim>
+void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
+                                      const DoFHandler<dim>& dof_handler,
+                                      const FE_Q<dim>& fe,
+                                      const ConstraintMatrix& constraints,
+                                      const MyTensorFunction<dim>& hydraulic_conductivity,
+                                      MPI_Comm mpi_communicator){
+
+    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    const MappingQ1<dim-1> mapping2D;
+    const MappingQ1<dim> mapping;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    Vector<double> cell_rhs_wells (dofs_per_cell);
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    std::vector<std::vector<int> > 		well_id(n_proc);
+    std::vector<std::vector<double> > 	cell_length(n_proc);
+    std::vector<std::vector<double> > 	cell_cond(n_proc);
+
+    Point<dim-1> well_point_2d;
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            std::vector<int> well_id_in_cell;
+            std::vector<double> xp; std::vector<double> yp;
+            if (dim == 2){
+                xp.push_back(cell->face(2)->vertex(0)[0]);yp.push_back(0);
+                xp.push_back(cell->face(2)->vertex(1)[0]);yp.push_back(0);
+            }
+            else if (dim == 3){
+                xp.push_back(cell->face(4)->vertex(0)[0]); yp.push_back(cell->face(4)->vertex(0)[1]);
+                xp.push_back(cell->face(4)->vertex(1)[0]); yp.push_back(cell->face(4)->vertex(1)[1]);
+                xp.push_back(cell->face(4)->vertex(3)[0]); yp.push_back(cell->face(4)->vertex(3)[1]);
+                xp.push_back(cell->face(4)->vertex(2)[0]); yp.push_back(cell->face(4)->vertex(2)[1]);
+            }
+            bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
+            if (!are_wells)
+                continue;
+
+            setup_cell(cell);
+            typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
+
+            for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
+                int i = well_id_in_cell[iw];
+                well_point_2d[0] = wells[i].top[0];
+                if (dim == 3)
+                    well_point_2d[1] = wells[i].top[1];
+
+                bool is_in_cell = cell2D->point_inside(well_point_2d);
+
+                if (is_in_cell == true){
+                    // If the point is inside the cell find its unit coordinates
+                    // and the top and bottom of the cell at the well point
+                    Point<dim-1> p_unit2D;
+                    bool mapping_done = try_mapping<dim-1>(well_point_2d, p_unit2D, cell2D, mapping2D);
+                    if (!mapping_done)
+                        continue;
+
+                    Point<dim> p_unit_top, p_unit_bot;
+                    for (unsigned int ii = 0; ii < dim-1; ++ii){
+                        p_unit_top[ii] = p_unit2D[ii];
+                        p_unit_bot[ii] = p_unit2D[ii];
+                    }
+                    p_unit_top[dim-1] = 1;
+                    p_unit_bot[dim-1] = 0;
+                    double z_top = 0;
+                    double z_bot = 0;
+                    for (unsigned int j = 0; j < dofs_per_cell; j++){
+                        z_top = z_top +  GeometryInfo<dim>::d_linear_shape_function(p_unit_top, j)*cell->vertex(j)[dim-1];
+                        z_bot = z_bot +  GeometryInfo<dim>::d_linear_shape_function(p_unit_bot, j)*cell->vertex(j)[dim-1];
+                    }
+                    double well_TPF = wells[i].top[dim-1];
+                    double well_BPF = wells[i].bottom[dim-1];
+                    bool add_this_cell = false;
+                    double segment_length;
+                    Point<dim> p_mid;
+                    for (unsigned int ii = 0; ii < dim-1; ++ii)
+                        p_mid[ii] = well_point_2d[ii];
+                    double K;
+                    // case 1
+                    if  (well_BPF < z_bot && well_TPF > z_top){
+                        // the well screen fully penetrates this cell.
+                        p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
+                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        K = K_tensor[0][0];
+                        segment_length = z_top - z_bot;
+                        add_this_cell = true;
+                    }
+                    //case 2
+                    if  (well_BPF > z_bot && well_TPF < z_top){
+                        // the well screen is all within this cell.
+                        p_mid[dim-1] = (well_TPF - well_BPF)/2.0 + well_BPF;
+                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        K = K_tensor[0][0];
+                        segment_length = well_TPF - well_BPF;
+                        add_this_cell = true;
+                    }
+                    //case 3
+                    if (well_BPF < z_bot && well_TPF < z_top && well_TPF > z_bot){
+                        // the bottom of the screen is below the cell and the top is in the cell
+                        p_mid[dim-1] = (well_TPF - z_bot)/2.0 + z_bot;
+                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        K = K_tensor[0][0];
+                        segment_length = well_TPF - z_bot;
+                        add_this_cell = true;
+                    }
+                    //case 4
+                    if (well_BPF > z_bot && well_BPF < z_top && well_TPF > z_top){
+                        // the bottom of the screen is in the cell and the top of the screen is above the cell
+                        p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
+                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        K = K_tensor[0][0];
+                        segment_length = z_top - well_BPF;
+                        add_this_cell = true;
+                    }
+                    //case 5
+                   if (well_BPF > z_top && cell->face(5)->at_boundary()){
+                        // The well is above of the water table. Still we want the first layer to take out water
+                        //std::cout << "Zt:" << z_top << ", Zb:" << z_bot << ", Wb:" << well_BPF << std::endl;
+                        //std::cout << "The bottome of the well is above the top cell" << std::endl;
+                        p_mid[dim-1] = (z_top - z_bot)/2 + z_bot;
+                        Tensor<dim-1,dim> K_tensor = hydraulic_conductivity.value(p_mid);
+                        K = K_tensor[0][0];
+                        segment_length = z_top - z_bot;
+                        add_this_cell = true;
+                    }
+                    if (add_this_cell){
+                        wells[i].well_cells.push_back(cell);
+                        wells[i].mid_point.push_back(p_mid);
+                        wells[i].L_cell.push_back(segment_length);
+                        wells[i].K_cell.push_back(K);
+                        wells[i].owned.push_back(true);
+
+                        well_id[my_rank].push_back(i);
+                        cell_length[my_rank].push_back(segment_length);
+                        cell_cond[my_rank].push_back(K);
+                    }
+                }
+            }
+        }
+    }
+
+    // So far we have loop through the cells that are locally owned and each processor
+    // has stored into the wells class the info about K and segment length.
+    // Next all processors will send everything to all processors so that
+    // each processor can weight the pumping independently
+
+    MPI_Barrier(mpi_communicator);
+    std::vector<int> N_data;
+    // First send the number of cells that each processor has calculated the required data
+    Send_receive_size(cell_cond[my_rank].size(), n_proc, N_data, mpi_communicator);
+    // Next send the data
+    Sent_receive_data<int>(well_id, N_data, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<double>(cell_cond, N_data, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(cell_length, N_data, my_rank, mpi_communicator, MPI_DOUBLE);
+    MPI_Barrier(mpi_communicator);
+
+    // Each processor will add the data to its wells variable
+    // But these data are not owned
+    for (int i = 0; i < n_proc; ++i){
+        if (i == my_rank)// This has already the data
+            continue;
+
+        for (int j = 0; j < N_data[i]; ++j){
+            wells[well_id[i][j]].K_cell.push_back(cell_cond[i][j]);
+            wells[well_id[i][j]].L_cell.push_back(cell_length[i][j]);
+            wells[well_id[i][j]].owned.push_back(false);
+            typename DoFHandler<dim>::active_cell_iterator dummy_cell;
+            wells[well_id[i][j]].well_cells.push_back(dummy_cell);
+            Point<dim> dummy_point;
+            wells[well_id[i][j]].mid_point.push_back(dummy_point);
+        }
+    }
+    // Now each processor will loop though the wells.
+    // if there are well with owned == true we will distribute the pumping rate to all cells
+    // even to those that have owned == false but we will assign rates only to the owned == true
+    for (int i = 0; i < Nwells; ++i){
+        bool any_true = false;
+        int N_cells = wells[i].owned.size();
+        for (int j = 0; j < N_cells; ++j){
+            if (wells[i].owned[j] == true){
+                any_true = true;
+                break;
+            }
+        }
+        if (any_true){
+            std::vector<double> wK(N_cells);
+            std::vector<double> wL(N_cells);
+            std::vector<double> wKL(N_cells);
+            double sum_K, sum_L, sum_KL;
+            sum_K = 0; sum_L = 0; sum_KL = 0;
+            for (int j = 0; j < N_cells; ++j){
+                wK[j] = wells[i].K_cell[j];
+                wL[j] = wells[i].L_cell[j];
+                sum_K += wK[j];
+                sum_L += wL[j];
+            }
+            for (int j = 0; j < N_cells; ++j){
+                wKL[j] = (wK[j]/sum_K) * (wL[j]/sum_L);
+                sum_KL += wKL[j];
+            }
+            for (int j = 0; j < N_cells; ++j){
+                if (wells[i].owned[j] == true){
+                    cell_rhs_wells = 0;
+                    // convert the mid point to unit point
+                    Point<dim> p_unit_mid_point;
+                    bool mapping_done = try_mapping(wells[i].mid_point[j], p_unit_mid_point, wells[i].well_cells[j],mapping);
+                    if (mapping_done){
+                        Quadrature<dim> temp_quadrature(p_unit_mid_point);
+                        FEValues<dim> fe_values_temp(fe, temp_quadrature, update_values | update_quadrature_points);
+                        fe_values_temp.reinit(wells[i].well_cells[j]);
+                        for (unsigned int q_point = 0; q_point < temp_quadrature.size(); ++q_point){
+                            for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
+                                double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
+                                cell_rhs_wells(ii) += Q_temp;
+                            }
+                        }
+                        wells[i].well_cells[j]->get_dof_indices (local_dof_indices);
+                        constraints.distribute_local_to_global(cell_rhs_wells,
+                                                               local_dof_indices,
+                                                               system_rhs);
+                    }
+                }
+            }
+        }
+    }
+    MPI_Barrier(mpi_communicator);
+    for (int i = 0; i < Nwells; ++i){
+        wells[i].Q_cell.clear();
+        wells[i].L_cell.clear();
+        wells[i].K_cell.clear();
+        wells[i].owned.clear();
+        wells[i].mid_point.clear();
+        wells[i].well_cells.clear();
+    }
+}
+
+template <int dim>
+void Well_Set<dim>::distribute_particles(std::vector<PART_TRACK::Streamline> &Streamlines,
+                                         int Nppl, int Nlay, double radius){
+    for (int i = 0; i < Nwells; ++i){
+        std::vector<Point<3> > particles;
+        wells[i].distribute_particles(particles, Nppl, Nlay, radius);
+        for (unsigned int j = 0; j < particles.size(); ++j){
+            Streamlines.push_back(PART_TRACK::Streamline(i,j,particles[j]));
+        }
+    }
+}
+
 
 #endif // WELLS_H
