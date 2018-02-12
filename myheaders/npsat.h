@@ -21,6 +21,7 @@
 #include "mesh_struct.h"
 #include "dirichlet_boundary.h"
 #include "steady_state.h"
+#include "mix_mesh.h"
 
 using namespace dealii;
 
@@ -62,9 +63,11 @@ private:
     IndexSet                                    mesh_locally_owned;
     IndexSet                                    mesh_locally_relevant;
     ConstraintMatrix                            mesh_constraints;
+    mix_mesh<dim-1>                             top_grid;
+    mix_mesh<dim-1>                             bottom_grid;
 
 
-    void make_grid();
+
 
     AquiferProperties<dim>                      AQProps;
 
@@ -79,6 +82,8 @@ private:
     ConditionalOStream                        	pcout;
     int                                         my_rank;
 
+    void make_grid();
+    void create_dim_1_grids();
 
 
 };
@@ -188,11 +193,119 @@ void NPSAT<dim>::solve_refine(){
 
         gw.Simulate(iter, AQProps.sim_prefix, triangulation, AQProps.wells);
 
+
+        if (iter < AQProps.solver_param.NonLinearIter - 1){
+            create_dim_1_grids();
+
+        }
+
+    }
+}
+
+template <int dim>
+void NPSAT<dim>::create_dim_1_grids(){
+    pcout << "Create 2D grids..." << std::endl << std::flush;
+    top_grid.reset();
+    bottom_grid.reset();
+    std::vector<double> new_old_elev(2);
+
+    int point_counter_top = 0;
+    int point_counter_bottom = 0;
+    std::vector<int>	tempcell;
+    std::vector<int>ind;
+    tempcell.clear(); ind.clear();
+    if (dim == 2){
+        tempcell.resize(2);
+        ind.resize(2);
+        ind.resize(2);
+        ind[0]=0; ind[1]=1;
+    }
+    else if (dim == 3){
+        tempcell.resize(4);
+        ind.resize(4);
+        ind[0]=0; ind[1]=1; ind[2]=3; ind[3]=2;
     }
 
+    QTrapez<dim-1> face_trapez_formula; // In trapezoid quadrature the quadrature points coincide with the cell vertices
+    FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
+    std::vector< double > values(face_trapez_formula.size());
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned() || cell->is_ghost()){
+            for (unsigned int face=0; face<GeometryInfo<dim>::faces_per_cell; ++face){
+                if(cell->face(face)->at_boundary()){
+                    bool is_top = false;
+                    bool is_bottom = false;
+                    for (unsigned int ibnd = 0; ibnd < top_boundary_ids.size(); ++ibnd){
+                        if (cell->face(face)->boundary_id() == top_boundary_ids[ibnd]){
+                            is_top = true;
+                            break;
+                        }
+                    }
+                    if (!is_top){
+                        for (unsigned int ibnd = 0; ibnd < bottom_boundary_ids.size(); ++ibnd){
+                            if (cell->face(face)->boundary_id() == bottom_boundary_ids[ibnd]){
+                                is_bottom = true;
+                                break;
+                            }
+                        }
+                    }
 
+                    if (is_top){
+                        fe_face_values.reinit (cell, face);
+                        fe_face_values.get_function_values(locally_relevant_solution, values);
+                        for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                            Point<dim> temp_point_dim = cell->face(face)->vertex(ii);
+                            Point<dim-1> temp_point_dim_1;// this is the point projected in dim-1 dimension
+                            for (unsigned int kk = 0; kk < dim-1; ++kk){
+                                temp_point_dim_1[kk] =temp_point_dim[kk];
+                            }
+                            int id = is_point_in_list<dim-1>(temp_point_dim_1, top_grid.P, 1e-3);
+                            if (id < 0){
+                                top_grid.P.push_back(temp_point_dim_1);
+                                new_old_elev[0] = values[ii];
+                                new_old_elev[1] = temp_point_dim[dim-1];
+                                top_grid.data_point.push_back(new_old_elev);
+                                tempcell[static_cast<unsigned int>(ind[ii])] = point_counter_top;
+                                point_counter_top++;
+                            }
+                            else{
+                                tempcell[static_cast<unsigned int>(ind[ii])] = id;
+                            }
+                        }
+                        top_grid.add_element(tempcell);
 
-
+                    }
+                    else if (is_bottom){
+                        for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                            Point<dim> temp_point_dim = cell->face(face)->vertex(ii);
+                            Point<dim-1> temp_point_dim_1;// this is the point projected in dim-1 dimension
+                            for (unsigned int kk = 0; kk < dim-1; ++kk){
+                                temp_point_dim_1[kk] =temp_point_dim[kk];
+                            }
+                            int id = is_point_in_list<dim-1>(temp_point_dim_1, bottom_grid.P, 1e-3);
+                            if (id < 0){
+                                bottom_grid.P.push_back(temp_point_dim_1);
+                                bottom_grid.data_point.push_back(std::vector<double>(1,temp_point_dim[dim-1]));
+                                tempcell[static_cast<unsigned int>(ind[ii])] = point_counter_bottom;
+                                point_counter_bottom++;
+                            }
+                            else{
+                                tempcell[static_cast<unsigned int>(ind[ii])] = id;
+                            }
+                        }
+                        bottom_grid.add_element(tempcell);
+                    }
+                }
+            }
+        }
+    }
+    top_grid.Np = top_grid.P.size();
+    top_grid.Nel = top_grid.MSH.size();
+    bottom_grid.Np = bottom_grid.P.size();
+    bottom_grid.Nel = bottom_grid.MSH.size();
 }
 
 

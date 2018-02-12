@@ -22,10 +22,12 @@ int main (int argc, char **argv){
 
     CL_arguments<_DIM> CLI;
     if (CLI.parse_command_line(argc,argv)){
-        CLI.read_param_file();
-        CLI.Debug_Prop();
-        NPSAT<_DIM> npsat(CLI.AQprop);
-        npsat.solve_refine();
+        bool read_param = CLI.read_param_file();
+        if (read_param){
+            CLI.Debug_Prop();
+            NPSAT<_DIM> npsat(CLI.AQprop);
+            npsat.solve_refine();
+        }
     }
 
     //InterpInterface<2> II;

@@ -133,6 +133,21 @@ double recharge_weight(typename dealii::DoFHandler<dim>::active_cell_iterator ce
     return weight;
 }
 
+
+template<int dim>
+int is_point_in_list(dealii::Point<dim>& temp_point, std::vector<dealii::Point<dim> >& list, double tol){
+    int out = -1;
+    if (list.size() > 0){
+        for (unsigned int i = 0; i < list.size(); i++){
+            if (temp_point.distance(list[i]) < tol){
+                out = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+    return out;
+}
+
 /*!
  * \brief This function returns a list of indices that are connected to the #ii node in a cell
  * \param #ii is the index of the node we seek its connected nodes
@@ -252,35 +267,36 @@ void initTria(dealii::Triangulation<dim-1> &tria){
         cells[0].vertices[2] = 2;
         cells[0].vertices[3] = 3;
     }
-    tria.create_triangulation(vertices, cells, SubCellData());
+    tria.create_triangulation(vertices, cells, dealii::SubCellData());
 
 
 }
 
+/*
 template <int dim>
 void Print_Mesh_DofHandler(std::string filename,
                            unsigned int my_rank,
-                           DoFHandler<dim>& mesh_dof_handler,
-                           FESystem<dim>& mesh_fe){
+                           dealii::DoFHandler<dim>& mesh_dof_handler,
+                           dealii::FESystem<dim>& mesh_fe){
 
-    std::map<int,std::pair<int,Point<dim>>> Points; // <dof> - <counter - Point>
+    std::map<int,std::pair<int,dealii::Point<dim>>> Points; // <dof> - <counter - Point>
     std::map<int,std::vector<int> > Mesh;
 
-    typename std::map<int,std::pair<int,Point<dim>>>::iterator itp;
+    typename std::map<int,std::pair<int,dealii::Point<dim>>>::iterator itp;
 
     int p_cnt = 0; // Point counter
     int m_cnt = 0; // Mesh counter
 
-    const MappingQ1<dim> mapping;
-    const std::vector<Point<dim> > mesh_support_points
+    const dealii::MappingQ1<dim> mapping;
+    const std::vector<dealii::Point<dim> > mesh_support_points
                                   = mesh_fe.base_element(0).get_unit_support_points();
-    FEValues<dim> fe_mesh_points (mapping,
+    dealii::FEValues<dim> fe_mesh_points (mapping,
                                   mesh_fe,
                                   mesh_support_points,
                                   update_quadrature_points);
 
     std::vector<unsigned int> cell_dof_indices (mesh_fe.dofs_per_cell);
-    typename DoFHandler<dim>::active_cell_iterator
+    typename dealii::DoFHandler<dim>::active_cell_iterator
     cell = mesh_dof_handler.begin_active(),
     endc = mesh_dof_handler.end();
     for (; cell != endc; ++cell){
@@ -288,7 +304,7 @@ void Print_Mesh_DofHandler(std::string filename,
             fe_mesh_points.reinit(cell);
             cell->get_dof_indices (cell_dof_indices);
             for (unsigned int idof = 0; idof < mesh_fe.base_element(0).dofs_per_cell; ++idof){
-                Point <dim> current_node;
+                dealii::Point <dim> current_node;
                 std::vector<int> current_dofs(dim);
                 for (unsigned int dir = 0; dir < dim; ++dir){
                     unsigned int support_point_index = mesh_fe.component_to_system_index(dir, idof );
@@ -297,7 +313,7 @@ void Print_Mesh_DofHandler(std::string filename,
                 }
                 itp = Points.find(current_dofs[dim-1]);
                 if (itp == Points.end()){
-                    Points.insert(std::pair<int, std::pair<int,Point<dim>>>(current_dofs[dim-1], std::pair<int,Point<dim>>(p_cnt,current_node)));
+                    Points.insert(std::pair<int, std::pair<int,dealii::Point<dim>>>(current_dofs[dim-1], std::pair<int,Point<dim>>(p_cnt,current_node)));
                     p_cnt++;
                 }
             }
@@ -305,5 +321,5 @@ void Print_Mesh_DofHandler(std::string filename,
     }
 
 }
-
+*/
 #endif // HELPER_FUNCTIONS_H
