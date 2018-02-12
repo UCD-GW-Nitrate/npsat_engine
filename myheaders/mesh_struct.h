@@ -1094,6 +1094,19 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 temp_point[1] = it->second.Y;
              // -----------TOP ELEVATION----------------------
             bool top_found = false;
+            if (top_elev.Np > 0 && top_elev.Nel > 0){
+                // sometimes the processor does not own any part of the top or bottom
+                int id_nd = top_elev.find_nearest_node(temp_point);
+                double dst = temp_point.distance(top_elev.P[id_nd]);
+                if (dst < 0.1){
+                    it->second.T = top_elev.data_point[id_nd][0];
+                    top_found = true;
+                }
+                else{
+                    bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
+                }
+
+            }
 
         }
 
