@@ -197,6 +197,7 @@ void NPSAT<dim>::solve_refine(){
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             create_dim_1_grids();
 
+
         }
 
     }

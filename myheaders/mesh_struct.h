@@ -18,6 +18,7 @@
 #include "my_functions.h"
 #include "mpi_help.h"
 #include "helper_functions.h"
+#include "mix_mesh.h"
 
 //! custom struct to hold point data temporarily as we iterate through the cells
 template <int dim>
@@ -153,6 +154,10 @@ public:
     void compute_initial_elevations(MyFunction<dim, dim-1> top_function,
                                     MyFunction<dim, dim-1> bot_function,
                                     std::vector<double>& vert_discr);
+
+    void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
+                           ConditionalOStream pcout,
+                           MPI_Comm &mpi_communicator);
 
 
     //! This method sets the scales #dbg_scale_x and #dbg_scale_z for debug plotting using software like houdini
@@ -1062,6 +1067,38 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_fun
             it->second.Zlist[k].rel_pos = vert_discr[k];
         }
     }
+}
+
+template <int dim>
+void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
+                                         ConditionalOStream pcout,
+                                         MPI_Comm &mpi_communicator){
+    pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
+    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    {   // First interpolate the points each processor owns and make a list on those that are do not have top or bottom
+        // variables to transfer data for the points which the top/bottom live on other processor
+        std::vector<std::vector<double> > Xcoord_top(n_proc);
+        std::vector<std::vector<double> > Ycoord_top(n_proc);
+        std::vector<std::vector<double> > Xcoord_bot(n_proc);
+        std::vector<std::vector<double> > Ycoord_bot(n_proc);
+        std::vector<int> id_top;
+        std::vector<int> id_bot;
+        for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+            Point <dim-1> temp_point;
+            std::vector<double> values;
+            temp_point[0] = it->second.X;
+            if (dim == 3)
+                temp_point[1] = it->second.Y;
+             // -----------TOP ELEVATION----------------------
+            bool top_found = false;
+
+        }
+
+    }
+
 }
 
 
