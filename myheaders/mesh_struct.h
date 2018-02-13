@@ -1078,27 +1078,158 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
     int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
-    {   // First interpolate the points each processor owns and make a list on those that are do not have top or bottom
-        // variables to transfer data for the points which the top/bottom live on other processor
-        std::vector<std::vector<double> > Xcoord_top(n_proc);
-        std::vector<std::vector<double> > Ycoord_top(n_proc);
-        std::vector<std::vector<double> > Xcoord_bot(n_proc);
-        std::vector<std::vector<double> > Ycoord_bot(n_proc);
-        std::vector<int> id_top;
-        std::vector<int> id_bot;
-        for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-            Point <dim-1> temp_point;
-            std::vector<double> values;
-            temp_point[0] = it->second.PNT[0];
-            if (dim == 3)
-                temp_point[1] = it->second.PNT[1];
-             // -----------TOP ELEVATION----------------------
-            bool top_found = false;
-            if (top_elev.Np > 0 && top_elev.Nel > 0){
-                // sometimes the processor does not own any part of the top or bottom
-                bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
+    // First interpolate the points each processor owns and make a list on those that are do not have top or bottom
+    // variables to transfer data for the points which the top/bottom live on other processor
+    std::vector<std::vector<double> > Xcoord_top(n_proc);
+    std::vector<std::vector<double> > Ycoord_top(n_proc);
+    std::vector<std::vector<double> > Xcoord_bot(n_proc);
+    std::vector<std::vector<double> > Ycoord_bot(n_proc);
+    std::vector<int> id_top;
+    std::vector<int> id_bot;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        Point <dim-1> temp_point;
+        std::vector<double> values;
+        temp_point[0] = it->second.PNT[0];
+        if (dim == 3)
+            temp_point[1] = it->second.PNT[1];
+         // -----------TOP ELEVATION----------------------
+        bool top_found = false;
+        if (top_elev.Np > 0 && top_elev.Nel > 0){
+            // sometimes the processor does not own any part of the top or bottom
+            bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
+            if (point_found){
+                it->second.T = values[0];
+                top_found = true;
             }
         }
+        if (!top_found){
+            Xcoord_top[my_rank].push_back(it->second.PNT[0]);
+            if (dim == 3)
+                Ycoord_top[my_rank].push_back(it->second.PNT[1]);
+            id_top.push_back(it->first);
+        }
+
+        //--------------BOTTOM ELEVATION-------------------
+        bool bot_found = false;
+        if (bot_elev.Np > 0 && bot_elev.Nel > 0){
+            bool point_found = bot_elev.interpolate_on_nodes(temp_point,values);
+            if (point_found){
+                it->second.B = values[0];
+                bot_found = true;
+            }
+        }
+        if (!bot_found){
+            Xcoord_bot[my_rank].push_back(it->second.PNT[0]);
+            if (dim == 3)
+                Ycoord_bot[my_rank].push_back(it->second.PNT[1]);
+            id_bot.push_back(it->first);
+        }
+    }
+
+    MPI_Barrier(mpi_communicator);
+
+    if (n_proc > 1){
+        pcout << "Checking top points..." << std::endl << std::flush;
+        std::vector<int> points_per_proc;
+        Send_receive_size(Xcoord_top[my_rank].size(), n_proc, points_per_proc, mpi_communicator);
+        Sent_receive_data<double>(Xcoord_top, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(Ycoord_top, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // Now each processor will test those points
+        std::vector<std::vector<int> > which_point(n_proc); // This will hold the id in Xcoord_top that the current processor found the top
+        std::vector<std::vector<int> > which_proc(n_proc);
+        std::vector<std::vector<double> > top_new(n_proc); // This is the top new elevation
+
+        if (top_elev.Np > 0 && top_elev.Nel > 0){
+            for (unsigned int i = 0; i < n_proc; ++i){
+                if (i == my_rank)
+                    continue;
+                for (unsigned int j = 0; j < Xcoord_top[i].size(); ++j){
+                    Point<dim-1> p_test;
+                    std::vector<double> values;
+                    p_test[0] = Xcoord_top[i][j];
+                    if (dim == 3)
+                        p_test[1] = Ycoord_top[i][j];
+                    bool point_found = top_elev.interpolate_on_nodes(p_test,values);
+                    if (point_found){
+                        which_point[my_rank].push_back(j);
+                        which_proc[my_rank].push_back(i);
+                        top_new[my_rank].push_back(values[0]);
+                    }
+                }
+            }
+        }
+
+        MPI_Barrier(mpi_communicator);
+        // Now all points should have top but we still need to send them to the right processors
+        Send_receive_size(which_proc[my_rank].size(), n_proc, points_per_proc, mpi_communicator);
+        Sent_receive_data<int>(which_point, points_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(which_proc, points_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(top_new, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // Last each processor should loop through the received points and obtain the information
+        // it needs
+        for (unsigned int i = 0; i < n_proc; ++i){
+            if (i == my_rank)
+                continue;
+            for (unsigned int j = 0; j < which_proc[i].size(); ++j){
+                if (which_proc[i][j] == my_rank){
+                     it = PointsMap.find(id_top[which_point[i][j]]);
+                     it->second.T = top_new[i][j];
+                }
+            }
+        }
+
+        pcout << "Checking bottom points..." <<std::endl << std::flush;
+
+        Send_receive_size(Xcoord_bot[my_rank].size(), n_proc, points_per_proc, mpi_communicator);
+        Sent_receive_data<double>(Xcoord_bot, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(Ycoord_bot, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        for (unsigned int ii = 0; ii < n_proc; ++ii){
+            which_point[ii].clear();
+            which_proc[ii].clear();
+        }
+        std::vector<std::vector<double> > bottom(n_proc);
+        if (bot_elev.Np > 0 && bot_elev.Nel > 0){
+            for (unsigned int i = 0; i < n_proc; ++i){
+                if (i == my_rank)
+                    continue;
+                for (unsigned int j = 0; j < Xcoord_bot[i].size(); ++j){
+                    Point<dim-1> p_test;
+                    std::vector<double> values;
+                    p_test[0] = Xcoord_bot[i][j];
+                    if (dim == 3)
+                        p_test[1] = Ycoord_bot[i][j];
+                    bool point_found = bot_elev.interpolate_on_nodes(p_test,values);
+                    if (point_found){
+                        which_point[my_rank].push_back(j);
+                        which_proc[my_rank].push_back(i);
+                        bottom[my_rank].push_back(values[0]);
+                    }
+                }
+            }
+        }
+
+        MPI_Barrier(mpi_communicator);
+        Send_receive_size(which_proc[my_rank].size(), n_proc, points_per_proc, mpi_communicator);
+        Sent_receive_data<int>(which_proc, points_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(which_point, points_per_proc, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(bottom, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        for (unsigned int i = 0; i < n_proc; ++i){
+            if (i == my_rank)
+                continue;
+            for (unsigned int j = 0; j < which_proc[i].size(); ++j){
+                if (which_proc[i][j] == my_rank){
+                    it = PointsMap.find(id_bot[which_point[i][j]]);
+                    it->second.B = bottom[i][j];
+                }
+            }
+        }
+        MPI_Barrier(mpi_communicator);
     }
 }
 
