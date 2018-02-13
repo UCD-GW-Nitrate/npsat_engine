@@ -29,6 +29,10 @@
 #include <CGAL/Boolean_set_operations_2.h>
 #include <CGAL/Segment_2.h>
 
+// includes for barycentric coordinates
+#include <CGAL/Barycentric_coordinates_2/Wachspress_2.h>
+#include <CGAL/Barycentric_coordinates_2/Generalized_barycentric_coordinates_2.h>
+
 /*! \file cgal_functions.h
     \brief CGAL types and functions.
 
@@ -85,6 +89,10 @@ typedef ine_dDTraits::Pure_key                                              ine_
 typedef CGAL::Exact_predicates_exact_constructions_kernel                   exa_Kernel;
 typedef exa_Kernel::Point_2                                                 exa_Point2;
 typedef CGAL::Polygon_2<exa_Kernel>                                         Polygon_2;
+
+//typedefs for Barycentric
+typedef CGAL::Barycentric_coordinates::Wachspress_2<exa_Kernel> Wachspress;
+typedef CGAL::Barycentric_coordinates::Generalized_barycentric_coordinates_2<Wachspress, exa_Kernel> Wachspress_coordinates;
 
 
 void find_intersection_inner(ine_Tree& tree,
@@ -283,6 +291,27 @@ bool polyXpoly(std::vector<double> X1, std::vector<double> Y1,
         Q.push_back (exa_Point2 (X2[i], Y2[i]));
 
     return CGAL::do_intersect (P, Q);
+}
+
+template <int dim>
+std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double> yv, dealii::Point<dim> p){
+    unsigned int number_of_vertices = xv.size();
+    std::vector<exa_Point2> vertices(number_of_vertices);
+    for (unsigned int i = 0; i < number_of_vertices; ++i)
+        vertices.push_back(exa_Point2(xv[0],yv[0]));
+
+    // Instantiate the class with Wachspress coordinates for the polygon defined above.
+    Wachspress_coordinates wachspress_coordinates(vertices.begin(), vertices.end());
+    exa_Point2 p_q(p[0], p[1]);
+    std::vector<exa_Kernel::FT> coordinates;
+    coordinates.reserve(1);
+    wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::FAST);
+
+    std::vector<double> bcoords;
+    for(unsigned int j = 0; j < number_of_vertices; ++j){
+        bcoords.push_back(CGAL::to_double(coordinates[j]));
+    }
+    return bcoords;
 }
 
 

@@ -3,6 +3,13 @@
 
 #include <deal.II/grid/tria.h>
 
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+#include <boost/geometry/geometries/polygon.hpp>
+
+typedef boost::geometry::model::d2::point_xy<double> b_point;
+typedef boost::geometry::model::polygon<b_point> b_polygon;
+
 #include "helper_functions.h"
 
 using namespace dealii;
@@ -64,21 +71,7 @@ public:
 
 
 private:
-    /*! Checkes if the point is inside the element. When the element is quadrilateral, splits the element
-     * into two triangles. If the point is found returns true and the variable t would contain the
-     * parametric coordinates and the variable quad will indicate in which of the two triangles of
-     * the quadrilateral the point is in.
-     */
-    bool is_point_in_elem(Point<3> &t, int el_id, Point<dim> p, int &quad);
-
-    /*! Calculates the parametric coordinates of point p with respect to the triangle defined
-     * from the coordinates xv and yv. The parametric coordinates are returned in variable
-     * t. If any of the values of t are negative or greater to 1 then the point is actually outsilde of
-     * the element.
-     */
-    void parametric_2D_triangle(Point<3> &t, std::vector<double> xv, std::vector<double> yv, Point<dim> p);
-
-    bool in_triangle_exception(Point<dim-1> p, std::vector<double> xv, std::vector<double> yv);
+    bool is_point_inside(Point<dim> p, int el_id);
 };
 
 template <int dim>
@@ -144,11 +137,29 @@ int mix_mesh<dim>::find_nearest_node(Point<dim> p){
 
 template <int dim>
 bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& values){
-    bool output = false;
-    Point<dim> t;
-    int quad;
-    values.clear();
-    int el_id = find_elem_id(p, t, quad);
+
+    std::vector<bary_dst> dst(bary.size());
+    for (unsigned int i = 0; i < bary.size(); ++i){
+        dst[i].dst = p.distance(bary[i]);
+        dst[i].id = static_cast<int>(i);
+    }
+
+    // next sort them
+    int N_sort = 10;
+    if (bary.size() < 12){
+        std::sort(dst.begin(), dst.end(), sort_distance);
+        N_sort = dst.size();
+    }
+    else{
+        std::partial_sort (dst.begin(), dst.begin() + N_sort, dst.end(), sort_distance);
+    }
+    for (int i = 0; i < N_sort; ++i){
+        bool is_in = is_point_inside(p, dst[i].id);
+        if (is_in){
+            // Calculate the barycentric coordinates
+        }
+    }
+
 }
 
 template <int dim>
@@ -181,79 +192,40 @@ int mix_mesh<dim>::find_elem_id(Point<dim> p, Point<3> &t, int &quad){
 }
 
 template <int dim>
-bool mix_mesh<dim>::is_point_in_elem(Point<3> &t, int el_id, Point<dim> p, int &quad){
-    bool is_p_in = false;
-    if (MSH[el_id].size() == 3){
-        std::vector<double> xv(3); std::vector<double> yv(3);
-        xv[0] = P[MSH[el_id][0]][0]; yv[0] = P[MSH[el_id][0]][1];
-        xv[1] = P[MSH[el_id][1]][0]; yv[1] = P[MSH[el_id][1]][1];
-        xv[2] = P[MSH[el_id][2]][0]; yv[2] = P[MSH[el_id][2]][1];
-        parametric_2D_triangle(t, xv, yv, p);
-        if ((t[0]>=0 && t[0]<=1) && (t[1]>=0 && t[1]<=1) && (t[2]>=0 && t[2]<=1)){
-            is_p_in = true;
-            quad = 1;
+bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){
+    if (MSH[el_id].size() > 2 && dim == 3){
+        b_polygon b_poly;
+        std::vector<b_point> pnts;
+        std::vector<double> xv, yv;
+        for (unsigned int i = 0; i < MSH[el_id].size(); ++i){
+            pnts.push_back(b_point(P[MSH[el_id][i]][0], P[MSH[el_id][i]][1]));
         }
-        else{
+        boost::geometry::assign_points(b_poly, pnts);
+        boost::geometry::correct(b_poly);
 
-        }
-
-    }
-    else if (MSH[el_id].size() == 4){
-
+        return boost::geometry::covered_by(b_point(p[0],p[1]),b_poly);
     }
     else if (MSH[el_id].size() == 2){
-        std::vector<double> xv(2);
-        xv[0] = P[MSH[el_id][0]][0];
-        xv[1] = P[MSH[el_id][1]][0];
-        t[0] = (xv[0]-p[0])/(xv[0]-xv[1]);
-        if (t[0]>=0 && t[0]<=1){
-            is_p_in = true;
-            quad = 1;
-        }
+        double x1 = P[MSH[el_id][0]][0];
+        double x2 = P[MSH[el_id][1]][0];
+        double t = (x1-p[0])/(x1-x2);
+        if (t>=0 && t<=1)
+            return true;
         else{
-            if (t[0] > 1){
-                if (std::abs(xv[1] - p[0]) < 0.001){
-                    t[0] = 1;
-                    is_p_in = true;
-                    quad = 1;
+            if (t > 1){
+                if (std::abs(x2 - p[0]) < 0.001){
+                    return true;
                 }
             }
-            else if (t[0] < 0){
-                t[0] = 0;
-                is_p_in = true;
-                quad = 1;
+            else if (t < 0){
+                if (std::abs(x1 - p[0]) < 0.001){
+                    return true;
+                }
             }
         }
     }
-    return is_p_in;
+    return false;
 }
-
-template <int dim>
-void mix_mesh<dim>::parametric_2D_triangle(Point<3> &t, std::vector<double> xv, std::vector<double> yv, Point<dim> p){
-    double D = 1/((xv[1]*yv[2]-xv[2]*yv[1])+xv[0]*(yv[1]-yv[2])+yv[0]*(xv[2]-xv[1]));
-    std::vector<double> CT(9);
-
-    CT[0]=D*( xv[1]*yv[2] - xv[2]*yv[1] ); CT[1]=D*( yv[1] - yv[2] ); CT[2]=D*( xv[2] - xv[1] );
-    CT[3]=D*( xv[2]*yv[0] - xv[0]*yv[2] ); CT[4]=D*( yv[2] - yv[0] ); CT[5]=D*( xv[0] - xv[2] );
-    CT[6]=D*( xv[0]*yv[1] - xv[1]*yv[0] ); CT[7]=D*( yv[0] - yv[1] ); CT[8]=D*( xv[1] - xv[0] );
-    t[0]=CT[0]*1 + CT[1]*p[0] + CT[2]*p[1];
-    t[1]=CT[3]*1 + CT[4]*p[0] + CT[5]*p[1];
-    t[2]=CT[6]*1 + CT[7]*p[0] + CT[8]*p[1];
-
-}
-
-template <int dim>
-bool mix_mesh<dim>::in_triangle_exception(Point<dim-1> p, std::vector<double> xv, std::vector<double> yv){
-    if (dim == 2){
-        std::cerr << "it doesnt make sence to use 'in_triangle_exception' in 2D" << std::endl;
-        return false;
-    }else{
-
-    }
-
-}
-
-
 
 
 
