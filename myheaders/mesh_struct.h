@@ -1089,29 +1089,17 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
         for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
             Point <dim-1> temp_point;
             std::vector<double> values;
-            temp_point[0] = it->second.X;
+            temp_point[0] = it->second.PNT[0];
             if (dim == 3)
-                temp_point[1] = it->second.Y;
+                temp_point[1] = it->second.PNT[1];
              // -----------TOP ELEVATION----------------------
             bool top_found = false;
             if (top_elev.Np > 0 && top_elev.Nel > 0){
                 // sometimes the processor does not own any part of the top or bottom
-                int id_nd = top_elev.find_nearest_node(temp_point);
-                double dst = temp_point.distance(top_elev.P[id_nd]);
-                if (dst < 0.1){
-                    it->second.T = top_elev.data_point[id_nd][0];
-                    top_found = true;
-                }
-                else{
-                    bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
-                }
-
+                bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
             }
-
         }
-
     }
-
 }
 
 

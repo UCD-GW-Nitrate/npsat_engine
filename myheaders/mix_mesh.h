@@ -11,6 +11,7 @@ typedef boost::geometry::model::d2::point_xy<double> b_point;
 typedef boost::geometry::model::polygon<b_point> b_polygon;
 
 #include "helper_functions.h"
+#include "cgal_functions.h"
 
 using namespace dealii;
 
@@ -28,16 +29,16 @@ class mix_mesh{
 public:
     mix_mesh();
 
-    /*! Return the id of the element that containts the point p.
-     * If the returned value is negative then the point is outside of the mesh.
-     * If the element is found the variable t has the parametric
-     * coordinates of the triangle that contains the point. If the element is
-     * quadrilateral the algorithm splits the element into 2 triangles and
-     * the quad will indicate which subtriangle contains the point. quad takes either
-     * 1 or 2. 1 means that the triangle with indices 0 1 2 containts the point. 2 means
-     * that the triangle with indices 1 2 3 containts the point
-     */
-    int find_elem_id(Point<dim> p, Point<3> &t, int &quad);
+//    /*! Return the id of the element that containts the point p.
+//     * If the returned value is negative then the point is outside of the mesh.
+//     * If the element is found the variable t has the parametric
+//     * coordinates of the triangle that contains the point. If the element is
+//     * quadrilateral the algorithm splits the element into 2 triangles and
+//     * the quad will indicate which subtriangle contains the point. quad takes either
+//     * 1 or 2. 1 means that the triangle with indices 0 1 2 containts the point. 2 means
+//     * that the triangle with indices 1 2 3 containts the point
+//     */
+    //int find_elem_id(Point<dim> p, Point<3> &t, int &quad);
 
     //! A vector that contains the vertices of the mesh
     std::vector<Point<dim> >		P;
@@ -63,7 +64,7 @@ public:
     bool add_element(std::vector<int> element_ids);
 
     //!returns the id of the mesh node which is closer to point p.
-    int find_nearest_node(Point<dim> p);
+    //int find_nearest_node(Point<dim> p);
 
     bool interpolate_on_nodes(Point<dim> p, std::vector<double>& values);
 
@@ -120,6 +121,7 @@ bool mix_mesh<dim>::add_element(std::vector<int> element_ids){
     return true;
 }
 
+/*
 template <int dim>
 int mix_mesh<dim>::find_nearest_node(Point<dim> p){
     int id_node=-1;
@@ -134,6 +136,8 @@ int mix_mesh<dim>::find_nearest_node(Point<dim> p){
     }
     return id_node;
 }
+*/
+
 
 template <int dim>
 bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& values){
@@ -156,12 +160,42 @@ bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& valu
     for (int i = 0; i < N_sort; ++i){
         bool is_in = is_point_inside(p, dst[i].id);
         if (is_in){
-            // Calculate the barycentric coordinates
+            if (dim == 1){
+                double x1 = P[MSH[dst[i].id][0]][0];
+                double x2 = P[MSH[dst[i].id][1]][0];
+                double t = (x1-p[0])/(x1-x2);
+                values.clear();
+                for (unsigned int j = 0; j < data_point[0].size(); ++j){
+                    double v = 0;
+                    v = (1 - t) * data_point[MSH[dst[i].id][0]][j] + t * data_point[MSH[dst[i].id][1]][j];
+                    values.push_back(v);
+                }
+            }
+            else if (dim == 2){
+                // Calculate the barycentric coordinates
+                std::vector<double> b_coords, xv, yv;
+                for (unsigned int j = 0; j < MSH[dst[i].id].size(); ++j){
+                    xv.push_back(P[MSH[dst[i].id][j]][0]);
+                    yv.push_back(P[MSH[dst[i].id][j]][1]);
+                }
+                b_coords = barycentricCoords<dim>(xv, yv, p);
+
+                values.clear();
+                for (unsigned int j = 0; j < data_point[0].size(); ++j){
+                    double v = 0;
+                    for (unsigned int k = 0; k < b_coords.size(); ++k){
+                        v += b_coords[k]*data_point[MSH[dst[i].id][k]][j];
+                    }
+                    values.push_back(v);
+                }
+            }
+            return true;
         }
     }
-
+    return false;
 }
 
+/*
 template <int dim>
 int mix_mesh<dim>::find_elem_id(Point<dim> p, Point<3> &t, int &quad){
     int el_id = -1;
@@ -190,6 +224,7 @@ int mix_mesh<dim>::find_elem_id(Point<dim> p, Point<3> &t, int &quad){
     }
     return el_id;
 }
+*/
 
 template <int dim>
 bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){

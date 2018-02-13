@@ -272,12 +272,6 @@ void initTria(dealii::Triangulation<dim-1> &tria){
 
 }
 
-template <int dim>
-void Dist_point_line(dealii::Point<dim> p, double x1, double y1, double x2, double y2, double &r, double &Dst){
-    double Ldst = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
-    r = ((y1 - p[1])*(y1 - y2) - (x1 - p[0])*(x2-x1))/pow(Ldst,2);
-    Dst = std::abs((x2 - x1)*(y1 - p[1]) - (x1 - p[0])*(y2 - y1))/Ldst;
-}
 /*
 template <int dim>
 void Print_Mesh_DofHandler(std::string filename,

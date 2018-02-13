@@ -196,6 +196,7 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             create_dim_1_grids();
+            mesh_struct.assign_top_bottom(top_grid,bottom_grid,pcout,mpi_communicator);
 
 
         }
