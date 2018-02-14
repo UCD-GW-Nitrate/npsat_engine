@@ -3,6 +3,7 @@
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/distributed/grid_refinement.h>
+#include <deal.II/distributed/solution_transfer.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/base/conditional_ostream.h>
@@ -47,6 +48,10 @@ public:
     //! The solve_refine method every iteration first solve and the refines the mesh according to the
     //! error criteria
     void solve_refine();
+
+    //! This method does the actuall refinement and all the required actions that are associated with
+    //! such as transfer the refinement to other processors etc.
+    void do_refinement();
 
 
 
@@ -118,6 +123,7 @@ template <int dim>
 NPSAT<dim>::~NPSAT(){
     dof_handler.clear();
     mesh_dof_handler.clear();
+    mesh_struct.folder_Path = AQProps.Dirs.output;
 }
 
 template <int dim>
@@ -128,7 +134,7 @@ void NPSAT<dim>::make_grid(){
 
     // set display scales only during debuging
     mesh_struct.dbg_set_scales(AQProps.dbg_scale_x, AQProps.dbg_scale_z);
-
+    mesh_struct.prefix = "iter0";
     mesh_struct.updateMeshStruct(mesh_dof_handler,
                                  mesh_fe,
                                  mesh_constraints,
@@ -149,7 +155,7 @@ void NPSAT<dim>::make_grid(){
                                     distributed_mesh_vertices,
                                     mpi_communicator,
                                     pcout);
-    mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
+    //mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
 }
 
 template <int dim>
@@ -195,13 +201,15 @@ void NPSAT<dim>::solve_refine(){
                        GR_funct,
                        top_boundary_ids);
 
-        gw.Simulate(iter, AQProps.sim_prefix, triangulation, AQProps.wells);
+        gw.Simulate(iter,
+                    AQProps.Dirs.output + AQProps.sim_prefix,
+                    triangulation, AQProps.wells);
 
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             create_dim_1_grids();
             mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
-
+            mesh_struct.prefix = "iter" + std::to_string(iter+1);
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             mesh_constraints,
                                             mesh_vertices,
@@ -209,12 +217,19 @@ void NPSAT<dim>::solve_refine(){
                                             mpi_communicator,
                                             pcout);
 
+
             flag_cells_for_refinement();
-
-
+            do_refinement();
+            mesh_struct.updateMeshStruct(mesh_dof_handler,
+                                         mesh_fe,
+                                         mesh_constraints,
+                                         mesh_locally_owned,
+                                         mesh_locally_relevant,
+                                         mesh_vertices,
+                                         distributed_mesh_vertices,
+                                         mpi_communicator, pcout);
 
         }
-
     }
 }
 
@@ -249,7 +264,7 @@ void NPSAT<dim>::create_dim_1_grids(){
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
-        if (cell->is_locally_owned() || cell->is_ghost()){
+        if (cell->is_locally_owned()){// || cell->is_ghost()
             for (unsigned int face=0; face<GeometryInfo<dim>::faces_per_cell; ++face){
                 if(cell->face(face)->at_boundary()){
                     bool is_top = false;
@@ -322,6 +337,7 @@ void NPSAT<dim>::create_dim_1_grids(){
     top_grid.Nel = top_grid.MSH.size();
     bottom_grid.Np = bottom_grid.P.size();
     bottom_grid.Nel = bottom_grid.MSH.size();
+    std::cout << "Rank " << my_rank << " has (" << top_grid.Np << "," << top_grid.Nel << ") top and (" << bottom_grid.Np << "," << bottom_grid.Nel << ") bottom" << std::endl;
 }
 
 template <int dim>
@@ -337,6 +353,48 @@ void NPSAT<dim>::flag_cells_for_refinement(){
                                              estimated_error_per_cell,
                                              AQProps.refine_param.TopFraction,
                                              AQProps.refine_param.BottomFraction);
+}
+
+template <int dim>
+void NPSAT<dim>::do_refinement(){
+    // first prepare the triangulation
+    triangulation.prepare_coarsening_and_refinement();
+
+    //prepare vertices for transfering
+    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector>mesh_trans(mesh_dof_handler);
+    std::vector<const TrilinosWrappers::MPI::Vector *> x_fs_system (1);
+
+    x_fs_system[0] = &mesh_vertices;
+    mesh_trans.prepare_for_coarsening_and_refinement(x_fs_system);
+
+    std::cout << "Number of active cells Before: "
+              << triangulation.n_active_cells()
+              << std::endl;
+    // execute the actual refinement
+    triangulation.execute_coarsening_and_refinement ();
+
+    std::cout << "Number of active cells After: "
+              << triangulation.n_active_cells()
+              << std::endl;
+
+    //For the mesh
+    mesh_dof_handler.distribute_dofs(mesh_fe); // distribute the dofs again
+    mesh_locally_owned = mesh_dof_handler.locally_owned_dofs();
+    DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
+
+    distributed_mesh_vertices.reinit(mesh_locally_owned, mpi_communicator);
+    //distributed_mesh_vertices.compress(VectorOperation::insert);
+
+    std::vector<TrilinosWrappers::MPI::Vector *> mesh_tmp (1);
+    mesh_tmp[0] = &(distributed_mesh_vertices);
+
+    mesh_trans.interpolate (mesh_tmp);
+    mesh_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
+    mesh_vertices = distributed_mesh_vertices;
+    pcout << "moving vertices " << std::endl << std::flush;
+    mesh_struct.move_vertices(mesh_dof_handler,
+                             mesh_vertices);
+
 }
 
 #endif // NPSAT_H

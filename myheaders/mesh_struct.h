@@ -169,12 +169,16 @@ public:
                        TrilinosWrappers::MPI::Vector& mesh_vertices);
     //! Print the mesh to a format readable by a custom python houdini script.
     void printMesh(std::string folder, std::string filename, unsigned int i_proc, DoFHandler<dim>& mesh_dof_handler);
+
+    std::string prefix;
+    std::string folder_Path;
+
 private:
     //! Prints the 2D information of the #PointsMap
     void dbg_meshStructInfo2D(std::string filename, unsigned int n_proc);
 
     //! Prints the 3D information of the #PointsMap
-    void dbg_meshStructInfo3D(std::string filename, unsigned int n_proc);
+    void dbg_meshStructInfo3D(std::string name, unsigned int n_proc);
 
     //! Use this value to scale down the domains in x-y
     double dbg_scale_x;
@@ -259,7 +263,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                                        TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                        MPI_Comm&  mpi_communicator,
                                        ConditionalOStream pcout){
-    std::string prefix = "iter";
+    //std::string prefix = "iter";
     // Use this to time the operation. Note that this is a very expensive operation but nessecary
     std::clock_t begin_t = std::clock();
     // get the rank and processor id just for output display
@@ -450,7 +454,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     //MPI_Barrier(mpi_communicator);
 
     //dbg_meshStructInfo2D("before2D", my_rank);
-   // dbg_meshStructInfo3D("before3D_Struct_" + prefix + "_", my_rank);
+   dbg_meshStructInfo3D("BeforeStruct", my_rank);
 
 
     if (n_proc > 1){
@@ -714,7 +718,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
     make_dof_ij_map();
     set_id_above_below();
-    //dbg_meshStructInfo3D("After3D_Struct_" + prefix + "_", my_rank);
+    dbg_meshStructInfo3D("AfterStruct", my_rank);
 
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
@@ -772,8 +776,8 @@ void Mesh_struct<dim>::dbg_meshStructInfo2D(std::string filename, unsigned int m
 }
 
 template <int dim>
-void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string filename, unsigned int my_rank){
-    const std::string log_file_name = (filename + "_pnt_" +
+void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string name, unsigned int my_rank){
+    const std::string log_file_name = (folder_Path + prefix + "_" + name + "_pnt_" +
                                        Utilities::int_to_string(my_rank+1, 4) +
                                        ".txt");
      std::ofstream log_file;
@@ -834,7 +838,7 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string filename, unsigned int m
      log_file.close();
 
      // Print the lines hopefully these are unique
-     const std::string log_file_name1 = (filename + "_lns_" +
+     const std::string log_file_name1 = (folder_Path + prefix + "_" + name + "_lns_" +
                                         Utilities::int_to_string(my_rank+1, 4) +
                                         ".txt");
 
@@ -873,7 +877,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                            TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                            MPI_Comm&  mpi_communicator,
                                            ConditionalOStream pcout){
-    std::string prefix = "iter";
+    //std::string prefix = "iter";
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
@@ -961,7 +965,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     MPI_Barrier(mpi_communicator);
 
-    dbg_meshStructInfo3D("After3D_Elev_" + prefix + "_", my_rank);
+    dbg_meshStructInfo3D("After3D_Elev" , my_rank);
 
     // The compress sends the data to the processors that owns the data
     distributed_mesh_vertices.compress(VectorOperation::insert);
@@ -1135,6 +1139,8 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
     }
 
     MPI_Barrier(mpi_communicator);
+    //print_size_msg<double>(Xcoord_bot, my_rank);
+
 
     if (n_proc > 1){
         pcout << "Checking top points..." << std::endl << std::flush;
@@ -1143,6 +1149,9 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
         Sent_receive_data<double>(Xcoord_top, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
         if (dim == 3)
             Sent_receive_data<double>(Ycoord_top, points_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        //print_size_msg<double>(Xcoord_top, my_rank);
+
 
         // Now each processor will test those points
         std::vector<std::vector<int> > which_point(n_proc); // This will hold the id in Xcoord_top that the current processor found the top
@@ -1168,6 +1177,9 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 }
             }
         }
+
+        //print_size_msg<double>(top_new, my_rank);
+
 
         MPI_Barrier(mpi_communicator);
         // Now all points should have top but we still need to send them to the right processors
@@ -1234,6 +1246,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 if (which_proc[i][j] == my_rank){
                     it = PointsMap.find(id_bot[which_point[i][j]]);
                     it->second.B = bottom[i][j];
+                    std::cout << "Rank " << my_rank << ":" <<it->second.PNT << " : " << it->second.B << std::endl;
                 }
             }
         }
