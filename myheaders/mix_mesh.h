@@ -63,6 +63,11 @@ public:
 
     bool add_element(std::vector<int> element_ids);
 
+    //! add a point in the mesh without checking if hte point already exists.
+    //! The check should be done before this. This routine, in addition to pushing
+    //! back the point into vector #P recalculates the bounding box
+    void add_point(Point<dim> p);
+
     //!returns the id of the mesh node which is closer to point p.
     //int find_nearest_node(Point<dim> p);
 
@@ -73,11 +78,16 @@ public:
 
 private:
     bool is_point_inside(Point<dim> p, int el_id);
+    Point<dim> MIN;
+    Point<dim> MAX;
 };
 
 template <int dim>
 mix_mesh<dim>::mix_mesh(){
-
+    for (unsigned int i = 0; i < dim; ++i){
+        MIN[i] =  999999999999;
+        MAX[i] = -999999999999;
+    }
 }
 
 template <int dim>
@@ -141,6 +151,12 @@ int mix_mesh<dim>::find_nearest_node(Point<dim> p){
 
 template <int dim>
 bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& values){
+
+    for (unsigned int i = 0; i < dim; ++i){
+        if (p[i] < MIN[i] || p[i] > MAX[i]){
+            return false;
+        }
+    }
 
     std::vector<bary_dst> dst(bary.size());
     for (unsigned int i = 0; i < bary.size(); ++i){
@@ -227,7 +243,19 @@ int mix_mesh<dim>::find_elem_id(Point<dim> p, Point<3> &t, int &quad){
 */
 
 template <int dim>
+void mix_mesh<dim>::add_point(Point<dim> p){
+    P.push_back(p);
+    for (unsigned int i = 0; i < dim; ++i){
+        if (p[i] < MIN[i])
+            MIN[i] = p[i];
+        if (p[i] > MAX[i])
+            MAX[i] = p[i];
+    }
+}
+
+template <int dim>
 bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){
+
     if (MSH[el_id].size() > 2 && dim == 3){
         b_polygon b_poly;
         std::vector<b_point> pnts;

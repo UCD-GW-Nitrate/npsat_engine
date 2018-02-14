@@ -2,6 +2,7 @@
 #define NPSAT_H
 
 #include <deal.II/distributed/tria.h>
+#include <deal.II/distributed/grid_refinement.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/base/conditional_ostream.h>
@@ -14,6 +15,8 @@
 
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/constraint_matrix.h>
+
+#include <deal.II/numerics/error_estimator.h>
 
 #include "user_input.h"
 #include "make_grid.h"
@@ -84,6 +87,7 @@ private:
 
     void make_grid();
     void create_dim_1_grids();
+    void flag_cells_for_refinement();
 
 
 };
@@ -196,7 +200,17 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             create_dim_1_grids();
-            mesh_struct.assign_top_bottom(top_grid,bottom_grid,pcout,mpi_communicator);
+            mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
+
+            mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                            mesh_constraints,
+                                            mesh_vertices,
+                                            distributed_mesh_vertices,
+                                            mpi_communicator,
+                                            pcout);
+
+            flag_cells_for_refinement();
+
 
 
         }
@@ -266,7 +280,7 @@ void NPSAT<dim>::create_dim_1_grids(){
                             }
                             int id = is_point_in_list<dim-1>(temp_point_dim_1, top_grid.P, 1e-3);
                             if (id < 0){
-                                top_grid.P.push_back(temp_point_dim_1);
+                                top_grid.add_point(temp_point_dim_1);
                                 new_old_elev[0] = values[ii];
                                 new_old_elev[1] = temp_point_dim[dim-1];
                                 top_grid.data_point.push_back(new_old_elev);
@@ -289,7 +303,7 @@ void NPSAT<dim>::create_dim_1_grids(){
                             }
                             int id = is_point_in_list<dim-1>(temp_point_dim_1, bottom_grid.P, 1e-3);
                             if (id < 0){
-                                bottom_grid.P.push_back(temp_point_dim_1);
+                                bottom_grid.add_point(temp_point_dim_1);
                                 bottom_grid.data_point.push_back(std::vector<double>(1,temp_point_dim[dim-1]));
                                 tempcell[static_cast<unsigned int>(ind[ii])] = point_counter_bottom;
                                 point_counter_bottom++;
@@ -310,5 +324,19 @@ void NPSAT<dim>::create_dim_1_grids(){
     bottom_grid.Nel = bottom_grid.MSH.size();
 }
 
+template <int dim>
+void NPSAT<dim>::flag_cells_for_refinement(){
+    Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
+    KellyErrorEstimator<dim>::estimate(dof_handler,
+                                     QGauss<dim-1>(3),
+                                     typename FunctionMap<dim>::type(),
+                                     locally_relevant_solution,
+                                     estimated_error_per_cell);
+
+    parallel::distributed::GridRefinement::refine_and_coarsen_fixed_number (triangulation,
+                                             estimated_error_per_cell,
+                                             AQProps.refine_param.TopFraction,
+                                             AQProps.refine_param.BottomFraction);
+}
 
 #endif // NPSAT_H

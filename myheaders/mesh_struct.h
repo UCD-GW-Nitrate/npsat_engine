@@ -879,6 +879,14 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     typename std::map<int , PntsInfo<dim> >::iterator it;
     std::map<int,std::pair<int,int> >::iterator it_dm; // iterator for dof_ij
 
+    // First set the point flags to notset
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz)
+            itz->isZset = false;
+    }
+
+
     while (true){
         int n_not_set = 0;
         for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
@@ -953,7 +961,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     MPI_Barrier(mpi_communicator);
 
-    //dbg_meshStructInfo3D("After3D_Elev_" + prefix + "_", my_rank);
+    dbg_meshStructInfo3D("After3D_Elev_" + prefix + "_", my_rank);
 
     // The compress sends the data to the processors that owns the data
     distributed_mesh_vertices.compress(VectorOperation::insert);
@@ -1074,8 +1082,8 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                                          ConditionalOStream pcout,
                                          MPI_Comm &mpi_communicator){
     pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
-    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
     // First interpolate the points each processor owns and make a list on those that are do not have top or bottom
@@ -1153,8 +1161,8 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                         p_test[1] = Ycoord_top[i][j];
                     bool point_found = top_elev.interpolate_on_nodes(p_test,values);
                     if (point_found){
-                        which_point[my_rank].push_back(j);
-                        which_proc[my_rank].push_back(i);
+                        which_point[my_rank].push_back(static_cast<int>(j));
+                        which_proc[my_rank].push_back(static_cast<int>(i));
                         top_new[my_rank].push_back(values[0]);
                     }
                 }
