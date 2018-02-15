@@ -333,11 +333,16 @@ void NPSAT<dim>::create_dim_1_grids(){
             }
         }
     }
+
     top_grid.Np = top_grid.P.size();
     top_grid.Nel = top_grid.MSH.size();
     bottom_grid.Np = bottom_grid.P.size();
     bottom_grid.Nel = bottom_grid.MSH.size();
     std::cout << "Rank " << my_rank << " has (" << top_grid.Np << "," << top_grid.Nel << ") top and (" << bottom_grid.Np << "," << bottom_grid.Nel << ") bottom" << std::endl;
+
+    for (unsigned int i = 0; i < top_grid.Np; ++i){
+        std::cout << "R( " << my_rank << "): " << top_grid.P[i] << " -> " << top_grid.data_point[i][0] << std::endl;
+    }
 }
 
 template <int dim>
@@ -383,7 +388,7 @@ void NPSAT<dim>::do_refinement(){
     DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
 
     distributed_mesh_vertices.reinit(mesh_locally_owned, mpi_communicator);
-    //distributed_mesh_vertices.compress(VectorOperation::insert);
+    distributed_mesh_vertices.compress(VectorOperation::insert);
 
     std::vector<TrilinosWrappers::MPI::Vector *> mesh_tmp (1);
     mesh_tmp[0] = &(distributed_mesh_vertices);

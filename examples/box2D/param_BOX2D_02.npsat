@@ -29,7 +29,7 @@ subsection B. Geometry
   # The length of the aquifer along the X Y Z directions.
   # In case of 2D the 3rd element is ignored but it should be > 0
   # .This is valid for BOX geometry type
-  set c XYZ dimensions            = 5000,300,300
+  set c XYZ dimensions            = 9000,500,300
 
   # d----------------------------------
   # case BOX:
@@ -41,12 +41,12 @@ subsection B. Geometry
   # e----------------------------------
   # Top elevation function must be either a single value
   # or the name of a file
-  set e Top elevation function    = 30
+  set e Top elevation function    = Top_test02.npsat
 
   # f----------------------------------
   # Bottom elevation function must be either a single value
   # or the name of a file
-  set f Bottom elevation function = -270
+  set f Bottom elevation function = Bottom_test02.npsat
 
   # g----------------------------------
   # Threshold value along the horizontal plane
@@ -62,7 +62,7 @@ subsection C. Discretization
   # a----------------------------------
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be set > 0.
-  set a Nxyz                    = 10,5,3
+  set a Nxyz                    = 20,2,1
 
   # b----------------------------------
   # A list of numbers between 0 and 1 that correspond
@@ -89,7 +89,7 @@ subsection D. Boundary Conditions
   # a----------------------------------
   # The name file of multiple files separated by ;
   # with the constant head boundary conditions
-  set a Dirichlet file name = Dirichlet_BC_box01.npsat
+  set a Dirichlet file name = Dirichlet_BC_box02.npsat
 end
 
 
@@ -97,7 +97,7 @@ subsection E Aquifer Properties
   # a----------------------------------
   # Hydraulic conductivity along the x direction
   # must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = 20
+  set a Hydraulic Conductivity KX = 13
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction
@@ -122,7 +122,7 @@ subsection F. Sources & Sinks
   # a----------------------------------
   # Groundwater recharche function
   # must be either a single value or the name of a file
-  set a Groundwater recharge = 0.0004
+  set a Groundwater recharge = 0.12
 
   # b----------------------------------
   # Stream network
@@ -229,7 +229,7 @@ subsection J. Output Parameters
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix         = box2D01_
+  set a Prefix         = box2D02_
 
   # b----------------------------------
   # This should be roughly equal to the maximum dimension

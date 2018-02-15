@@ -116,6 +116,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
                 return;
             }
         }
+
         {//Read number of points and number of data
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
@@ -148,6 +149,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
                 }
             }
         }// Read data block
+
     }
 }
 
@@ -155,6 +157,20 @@ template <int dim>
 double ScatterInterp<dim>::interpolate(Point<dim> point)const{
     Point<3> pp;
     if (dim == 1){
+        if (point[0] <=X_1D[0]){
+            return V_1D[0];
+        }
+        if(point[0] >= X_1D[X_1D.size()-1]){
+            return  V_1D[V_1D.size()-1];
+        }
+
+        for (unsigned int i = 0; i < X_1D.size()-1; ++i){
+            if (point[0] >= X_1D[i] && point[0] <= X_1D[i+1]){
+                double t = (point[0] - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
+                return V_1D[i]*(1-t) + V_1D[i+1]*t;
+            }
+        }
+
         std::cerr << "Not implemented yet" << std::endl;
         return 0;
     }

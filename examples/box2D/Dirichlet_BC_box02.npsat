@@ -1,0 +1,5 @@
+2 					#Comments (make sure you leave some space between the value and the comment.
+EDGE 0 50 			#In 2D EDGE set the x coordinate and the value in one line
+EDGE 9000 30 			#In 2D EDGE set the x coordinate and the value in one line
+
+

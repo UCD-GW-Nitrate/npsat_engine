@@ -1,6 +1,9 @@
 #ifndef USER_INPUT_H
 #define USER_INPUT_H
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
+
 #include <deal.II/base/mpi.h>
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/parameter_handler.h>
@@ -481,6 +484,7 @@ bool CL_arguments<dim>::read_param_file(){
     {
         input_dir = prm.get("a Input directory");
         output_dir = prm.get("b Output directory");
+
         AQprop.Dirs.input = input_dir;
         AQprop.Dirs.output = output_dir;
     }
