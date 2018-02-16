@@ -53,6 +53,8 @@ public:
     //! such as transfer the refinement to other processors etc.
     void do_refinement();
 
+    void do_refinement1();
+
 
 
 private:
@@ -68,6 +70,7 @@ private:
     FESystem<dim>                              	mesh_fe;
     TrilinosWrappers::MPI::Vector               mesh_vertices;
     TrilinosWrappers::MPI::Vector               distributed_mesh_vertices;
+    TrilinosWrappers::MPI::Vector               mesh_Offset_vertices;
     IndexSet                                    mesh_locally_owned;
     IndexSet                                    mesh_locally_relevant;
     ConstraintMatrix                            mesh_constraints;
@@ -142,6 +145,7 @@ void NPSAT<dim>::make_grid(){
                                  mesh_locally_relevant,
                                  mesh_vertices,
                                  distributed_mesh_vertices,
+                                 mesh_Offset_vertices,
                                  mpi_communicator, pcout);
 
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
@@ -150,9 +154,14 @@ void NPSAT<dim>::make_grid(){
     mesh_struct.compute_initial_elevations(top_function,bottom_function, AQProps.vert_discr);
 
     mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                    triangulation,
+                                    mesh_fe,
                                     mesh_constraints,
+                                    mesh_locally_owned,
+                                    mesh_locally_relevant,
                                     mesh_vertices,
                                     distributed_mesh_vertices,
+                                    mesh_Offset_vertices,
                                     mpi_communicator,
                                     pcout);
     //mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
@@ -205,22 +214,19 @@ void NPSAT<dim>::solve_refine(){
                     AQProps.Dirs.output + AQProps.sim_prefix,
                     triangulation, AQProps.wells);
 
+        //gw.Simulate_refine(iter,
+        //                AQProps.Dirs.output + AQProps.sim_prefix,
+        //                triangulation, AQProps.wells /*,
+        //                SourceSinks::Streams&                      streams*/,
+        //                AQProps.refine_param.TopFraction, AQProps.refine_param.BottomFraction);
+
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
-            flag_cells_for_refinement();
             create_dim_1_grids();
-            mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
-            mesh_struct.prefix = "iter" + std::to_string(iter+1);
-            mesh_struct.updateMeshElevation(mesh_dof_handler,
-                                            mesh_constraints,
-                                            mesh_vertices,
-                                            distributed_mesh_vertices,
-                                            mpi_communicator,
-                                            pcout);
 
+            flag_cells_for_refinement();
+            do_refinement1();
 
-
-            do_refinement();
             mesh_struct.updateMeshStruct(mesh_dof_handler,
                                          mesh_fe,
                                          mesh_constraints,
@@ -228,8 +234,22 @@ void NPSAT<dim>::solve_refine(){
                                          mesh_locally_relevant,
                                          mesh_vertices,
                                          distributed_mesh_vertices,
+                                         mesh_Offset_vertices,
                                          mpi_communicator, pcout);
 
+            mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
+            mesh_struct.prefix = "iter" + std::to_string(iter+1);
+            mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                            triangulation,
+                                            mesh_fe,
+                                            mesh_constraints,
+                                            mesh_locally_owned,
+                                            mesh_locally_relevant,
+                                            mesh_vertices,
+                                            distributed_mesh_vertices,
+                                            mesh_Offset_vertices,
+                                            mpi_communicator,
+                                            pcout);
         }
     }
 }
@@ -402,6 +422,69 @@ void NPSAT<dim>::do_refinement(){
     mesh_struct.move_vertices(mesh_dof_handler,
                              mesh_vertices);
 
+}
+
+template <int dim>
+void NPSAT<dim>::do_refinement1(){
+
+    std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
+    {
+        // Create the boolean input of communicate_locally_moved_vertices method
+        // see implementation of GridTools::get_locally_owned_vertices in grid_tools.cc line 2172 (8.5.0)
+        typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+        cell = triangulation.begin_active(),
+        endc = triangulation.end();
+        for (; cell!=endc; ++cell){
+            if (cell->is_artificial() ||
+                    (cell->is_ghost() && cell->subdomain_id() < triangulation.locally_owned_subdomain() )){
+                for (unsigned int v=0; v<GeometryInfo<dim>::vertices_per_cell; ++v)
+                    locally_owned_vertices[cell->vertex_index(v)] = false;
+
+            }
+        }
+    }
+
+    // Call the methof before
+    triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
+    {
+        std::ofstream out ("test_triaD" + std::to_string(my_rank) + ".vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
+    }
+
+    {// Apply the opposite displacement
+        typename DoFHandler<dim>::active_cell_iterator
+        cell = mesh_dof_handler.begin_active(),
+        endc = mesh_dof_handler.end();
+        for (; cell != endc; ++cell){
+            if (cell->is_locally_owned()){
+                for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+                    Point<dim> &v=cell->vertex(vertex_no);
+                    for (unsigned int dir=0; dir < dim; ++dir){
+                        std::cout << cell->vertex_dof_index(vertex_no, dir) << ": " << v(dir) << ", " << mesh_Offset_vertices(cell->vertex_dof_index(vertex_no, dir)) << std::endl;
+                        v(dir) = v(dir) - mesh_Offset_vertices(cell->vertex_dof_index(vertex_no, dir));
+                        std::cout << v(dir) << std::endl;
+                    }
+                }
+            }
+        }
+    }
+    triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
+
+    {
+        std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
+    }
+
+    // now the mesh should consistent as when it was first created
+    // so we can hopefully refine it
+    triangulation.execute_coarsening_and_refinement ();
+    {
+        std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
+    }
 }
 
 #endif // NPSAT_H

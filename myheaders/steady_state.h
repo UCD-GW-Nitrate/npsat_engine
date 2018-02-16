@@ -2,6 +2,7 @@
 #define STEADY_STATE_H
 
 #include <deal.II/distributed/tria.h>
+#include <deal.II/distributed/grid_refinement.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/trilinos_vector.h>
@@ -15,8 +16,11 @@
 #include <deal.II/base/timer.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/lac/sparsity_tools.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/numerics/data_out.h>
-
+#include <deal.II/numerics/error_estimator.h>
+#include <deal.II/grid/grid_out.h>
 #include "my_functions.h"
 #include "helper_functions.h"
 #include "wells.h"
@@ -41,6 +45,13 @@ public:
                   Well_Set<dim>&                                     wells/*,
                     SourceSinks::Streams&                      streams*/);
 
+    void Simulate_refine(int iter,                                     std::string output_file,
+                         parallel::distributed::Triangulation<dim>& 	triangulation,
+                         Well_Set<dim>&                                     wells/*,
+                         SourceSinks::Streams&                      streams*/,
+                         double top_fraction, double bot_fraction);
+
+
 private:
     MPI_Comm                                    mpi_communicator;
     DoFHandler<dim>&                            dof_handler;
@@ -63,6 +74,8 @@ private:
     void solve();
     void output(int iter, std::string output_file,
                 parallel::distributed::Triangulation<dim>& 	triangulation);
+    void refine (parallel::distributed::Triangulation<dim>& 	triangulation,
+                 double top_fraction, double bot_fraction);
 };
 
 template <int dim>
@@ -314,6 +327,44 @@ void GWFLOW<dim>::Simulate(int iter,                                     std::st
     assemble();
     solve();
     output(iter, output_file, triangulation);
+}
+
+template <int dim>
+void GWFLOW<dim>::Simulate_refine(int iter,                                     std::string output_file,
+                                  parallel::distributed::Triangulation<dim>& 	triangulation,
+                                  Well_Set<dim>&                                     wells/*,
+                                  SourceSinks::Streams&                      streams*/,
+                                  double top_fraction, double bot_fraction){
+
+    Simulate(iter,output_file,triangulation,wells);
+
+    refine(triangulation, top_fraction, bot_fraction);
+
+    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    std::ofstream out ("test_tria" + std::to_string(my_rank) + ".vtk");
+    GridOut grid_out;
+    grid_out.write_ucd(triangulation, out);
+
+}
+
+template <int dim>
+void GWFLOW<dim>::refine(parallel::distributed::Triangulation<dim>& 	triangulation,
+                         double top_fraction, double bot_fraction){
+    TimerOutput::Scope t(computing_timer, "refine");
+    Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
+    KellyErrorEstimator<dim>::estimate (dof_handler,
+                                          QGauss<dim-1>(fe.degree+2),
+                                          typename FunctionMap<dim>::type(),
+                                          locally_relevant_solution,
+                                          estimated_error_per_cell);
+
+    parallel::distributed::GridRefinement::refine_and_coarsen_fixed_number (triangulation,
+                                             estimated_error_per_cell,
+                                             top_fraction,
+                                             bot_fraction);
+
+    triangulation.execute_coarsening_and_refinement ();
+
 }
 
 #endif // STEADY_STATE_H
