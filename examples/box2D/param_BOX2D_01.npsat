@@ -50,7 +50,7 @@ subsection B. Geometry
 
   # g----------------------------------
   # Threshold value along the horizontal plane
-  set g x-y threshold             = 0.1
+  set g x-y threshold             = 0.01
 
   # h----------------------------------
   # Threshold value the vertical plane
@@ -97,7 +97,7 @@ subsection E Aquifer Properties
   # a----------------------------------
   # Hydraulic conductivity along the x direction
   # must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = 20
+  set a Hydraulic Conductivity KX = 10
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction
@@ -140,7 +140,7 @@ subsection G. Solver parameters
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement would occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 11
 
   # b----------------------------------
   # Tolerance of solver

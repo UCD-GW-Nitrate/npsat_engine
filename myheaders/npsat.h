@@ -71,6 +71,7 @@ private:
     TrilinosWrappers::MPI::Vector               mesh_vertices;
     TrilinosWrappers::MPI::Vector               distributed_mesh_vertices;
     TrilinosWrappers::MPI::Vector               mesh_Offset_vertices;
+    TrilinosWrappers::MPI::Vector               distributed_mesh_Offset_vertices;
     IndexSet                                    mesh_locally_owned;
     IndexSet                                    mesh_locally_relevant;
     ConstraintMatrix                            mesh_constraints;
@@ -146,6 +147,7 @@ void NPSAT<dim>::make_grid(){
                                  mesh_vertices,
                                  distributed_mesh_vertices,
                                  mesh_Offset_vertices,
+                                 distributed_mesh_Offset_vertices,
                                  mpi_communicator, pcout);
 
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
@@ -162,6 +164,7 @@ void NPSAT<dim>::make_grid(){
                                     mesh_vertices,
                                     distributed_mesh_vertices,
                                     mesh_Offset_vertices,
+                                    distributed_mesh_Offset_vertices,
                                     mpi_communicator,
                                     pcout);
     //mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
@@ -235,6 +238,7 @@ void NPSAT<dim>::solve_refine(){
                                          mesh_vertices,
                                          distributed_mesh_vertices,
                                          mesh_Offset_vertices,
+                                         distributed_mesh_Offset_vertices,
                                          mpi_communicator, pcout);
 
             mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
@@ -248,8 +252,10 @@ void NPSAT<dim>::solve_refine(){
                                             mesh_vertices,
                                             distributed_mesh_vertices,
                                             mesh_Offset_vertices,
+                                            distributed_mesh_Offset_vertices,
                                             mpi_communicator,
                                             pcout);
+
         }
     }
 }
@@ -453,6 +459,8 @@ void NPSAT<dim>::do_refinement1(){
     }
 
     {// Apply the opposite displacement
+        std::map<types::global_dof_index, bool> set_dof;
+        std::map<types::global_dof_index, bool>::iterator it_set;
         typename DoFHandler<dim>::active_cell_iterator
         cell = mesh_dof_handler.begin_active(),
         endc = mesh_dof_handler.end();
@@ -461,21 +469,26 @@ void NPSAT<dim>::do_refinement1(){
                 for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
                     Point<dim> &v=cell->vertex(vertex_no);
                     for (unsigned int dir=0; dir < dim; ++dir){
-                        std::cout << cell->vertex_dof_index(vertex_no, dir) << ": " << v(dir) << ", " << mesh_Offset_vertices(cell->vertex_dof_index(vertex_no, dir)) << std::endl;
-                        v(dir) = v(dir) - mesh_Offset_vertices(cell->vertex_dof_index(vertex_no, dir));
-                        std::cout << v(dir) << std::endl;
+                        types::global_dof_index dof = cell->vertex_dof_index(vertex_no, dir);
+                        it_set = set_dof.find(dof);
+                        if (it_set == set_dof.end()){
+                            //std::cout << dof << ": " << v(dir) << ", " << mesh_Offset_vertices(dof) << std::endl;
+                            v(dir) = v(dir) - mesh_Offset_vertices(dof);
+                            //std::cout << v(dir) << std::endl;
+                            set_dof[dof] = true;
+                        }
                     }
                 }
             }
         }
     }
-    triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
-
     {
         std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
         GridOut grid_out;
         grid_out.write_ucd(triangulation, out);
     }
+    triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
+
 
     // now the mesh should consistent as when it was first created
     // so we can hopefully refine it

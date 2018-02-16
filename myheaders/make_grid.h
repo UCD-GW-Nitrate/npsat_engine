@@ -90,7 +90,7 @@ namespace AquiferGrid{
             n_cells[dim-1] = geom_param.vert_discr.size()-1;
 
         left_bottom[dim-1] = 0;
-        right_top[dim-1] = 1;
+        right_top[dim-1] = 100;
 
         dealii::GridGenerator::subdivided_hyper_rectangle(triangulation,
                                                           n_cells,

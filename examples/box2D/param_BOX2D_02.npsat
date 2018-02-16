@@ -50,7 +50,7 @@ subsection B. Geometry
 
   # g----------------------------------
   # Threshold value along the horizontal plane
-  set g x-y threshold             = 0.1
+  set g x-y threshold             = 0.01
 
   # h----------------------------------
   # Threshold value the vertical plane
@@ -140,7 +140,7 @@ subsection G. Solver parameters
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement would occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 10
+  set a Nonlinear iterations = 12
 
   # b----------------------------------
   # Tolerance of solver
@@ -159,7 +159,7 @@ subsection H. Refinement Parameters
 
   # b----------------------------------
   # Top refinement fraction
-  set b Top fraction               = 0.3
+  set b Top fraction               = 0.17
 
   # c----------------------------------
   # Bottom refinement fraction

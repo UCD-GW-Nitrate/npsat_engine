@@ -122,6 +122,7 @@ public:
                          TrilinosWrappers::MPI::Vector& mesh_vertices,
                          TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                          TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                         TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
                          MPI_Comm&  mpi_communicator,
                          ConditionalOStream pcout);
 
@@ -138,6 +139,7 @@ public:
                              TrilinosWrappers::MPI::Vector& mesh_vertices,
                              TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                              TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                             TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
                              MPI_Comm&  mpi_communicator,
                              ConditionalOStream pcout);
 
@@ -271,6 +273,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                                        TrilinosWrappers::MPI::Vector& mesh_vertices,
                                        TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                        TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                                       TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
                                        MPI_Comm&  mpi_communicator,
                                        ConditionalOStream pcout){
     //std::string prefix = "iter";
@@ -295,7 +298,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
     mesh_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
     distributed_mesh_vertices.reinit(mesh_locally_owned, mpi_communicator);
-    mesh_Offset_vertices.reinit(mesh_locally_owned, mpi_communicator);
+    mesh_Offset_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
+    distributed_mesh_Offset_vertices.reinit(mesh_locally_owned, mpi_communicator);
 
     const std::vector<Point<dim> > mesh_support_points
                                   = mesh_fe.base_element(0).get_unit_support_points();
@@ -465,7 +469,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     //MPI_Barrier(mpi_communicator);
 
     //dbg_meshStructInfo2D("before2D", my_rank);
-   dbg_meshStructInfo3D("BeforeStruct", my_rank);
+   //dbg_meshStructInfo3D("BeforeStruct", my_rank);
 
 
     if (n_proc > 1){
@@ -729,7 +733,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
     make_dof_ij_map();
     set_id_above_below();
-    dbg_meshStructInfo3D("AfterStruct", my_rank);
+    //dbg_meshStructInfo3D("AfterStruct", my_rank);
 
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
@@ -891,6 +895,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                            TrilinosWrappers::MPI::Vector& mesh_vertices,
                                            TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                            TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                                           TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
                                            MPI_Comm&  mpi_communicator,
                                            ConditionalOStream pcout){
     //std::string prefix = "iter";
@@ -966,8 +971,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                 if (distributed_mesh_vertices.in_local_range(static_cast<unsigned int >(itz->dof))){
                     if (itz->isZset){
                         double dz = itz->z - distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)];
-                        std::cout << itz->dof << ": " << distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] << ", " << itz->z << ", " << dz << std::endl;
-                        mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] = dz;
+                        //std::cout << itz->dof << ": " << distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] << ", " << itz->z << ", " << dz << std::endl;
+                        distributed_mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] = dz;
                         //std::cout << "Displacement: " << mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] << std::endl;
                         distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] += dz;
                     }
@@ -983,31 +988,39 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
             break;
     }
     std::cout << "Rank " << my_rank << " has converged" << std::endl;
-    mesh_Offset_vertices.compress(VectorOperation::insert);
+    distributed_mesh_Offset_vertices.compress(VectorOperation::insert);
+    //std::cout << "Rank " << my_rank << " is AfterCompress!" << std::endl;
     MPI_Barrier(mpi_communicator);
 
-    dbg_meshStructInfo3D("After3D_Elev" , my_rank);
+    //dbg_meshStructInfo3D("After3D_Elev" , my_rank);
 
     // The compress sends the data to the processors that owns the data
     //distributed_mesh_vertices.compress(VectorOperation::insert);
 
     // updates the elevations to the constraint nodes --------------------------
-    mesh_constraints.distribute(distributed_mesh_vertices);
+    //mesh_constraints.distribute(distributed_mesh_vertices);
+    //std::cout  << "1" << std::endl;
     mesh_vertices = distributed_mesh_vertices;
-    mesh_constraints.distribute(mesh_Offset_vertices);
+    //std::cout  << "2" << std::endl;
+    mesh_constraints.distribute(distributed_mesh_Offset_vertices);
+    //std::cout  << "3" << std::endl;
+    mesh_Offset_vertices = distributed_mesh_Offset_vertices;
+
+    //std::cout << "Rank " << my_rank << " is AfterConstraints!" << std::endl;
 
     //int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    std::ofstream outA ("test_triaA" + std::to_string(my_rank) + ".vtk");
-    GridOut grid_outA;
-    grid_outA.write_ucd(triangulation, outA);
+    //std::ofstream outA ("test_triaA" + std::to_string(my_rank) + ".vtk");
+    //GridOut grid_outA;
+    //grid_outA.write_ucd(triangulation, outA);
 
+    //std::cout << "Rank " << my_rank << " is Before MOVE!" << std::endl;
     //move the actual vertices ------------------------------------------------
     move_vertices(mesh_dof_handler,
                   mesh_vertices);
 
-    std::ofstream outB ("test_triaB" + std::to_string(my_rank) + ".vtk");
-    GridOut grid_outB;
-    grid_outB.write_ucd(triangulation, outB);
+    //std::ofstream outB ("test_triaB" + std::to_string(my_rank) + ".vtk");
+    //GridOut grid_outB;
+    //grid_outB.write_ucd(triangulation, outB);
 
     std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
 
@@ -1025,39 +1038,10 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
 
-    /*
-    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector>mesh_trans(mesh_dof_handler);
-    //std::vector<const TrilinosWrappers::MPI::Vector *> x_fs_system (1);
-    //x_fs_system[0] = &mesh_vertices;
-
-    triangulation.prepare_coarsening_and_refinement();
-
-    mesh_trans.prepare_for_coarsening_and_refinement(mesh_vertices);
-
-    triangulation.execute_coarsening_and_refinement ();
-
-    mesh_dof_handler.distribute_dofs(mesh_fe); // distribute the dofs again
-    mesh_locally_owned = mesh_dof_handler.locally_owned_dofs();
-    DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
-
-    distributed_mesh_vertices.reinit(mesh_locally_owned, mpi_communicator);
-    distributed_mesh_vertices.compress(VectorOperation::insert);
-
-    //mesh_dof_handler.distribute_dofs(mesh_fe);
-    std::vector<TrilinosWrappers::MPI::Vector *> mesh_tmp (1);
-    mesh_tmp[0] = &(distributed_mesh_vertices);
-
-    mesh_trans.interpolate (mesh_tmp);
-    mesh_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
-    mesh_vertices = distributed_mesh_vertices;
-    move_vertices(mesh_dof_handler,
-                  mesh_vertices);
-
-    */
-    std::ofstream outC ("test_triaC" + std::to_string(my_rank) + ".vtk");
-    GridOut grid_outC;
-    grid_outC.write_ucd(triangulation, outC);
-
+    //std::ofstream outC ("test_triaC" + std::to_string(my_rank) + ".vtk");
+    //GridOut grid_outC;
+    //grid_outC.write_ucd(triangulation, outC);
+    //std::cout << "Rank " << my_rank << " is here!" << std::endl;
 }
 
 template <int dim>
@@ -1074,7 +1058,7 @@ void Mesh_struct<dim>::move_vertices(DoFHandler<dim>& mesh_dof_handler,
             for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
                 Point<dim> &v=cell->vertex(vertex_no);
                 for (unsigned int dir=0; dir < dim; ++dir){
-                    std::cout << cell->vertex_dof_index(vertex_no, dir) << ": " << v(dir) << ", " << mesh_vertices(cell->vertex_dof_index(vertex_no, dir)) << std::endl;
+                    //std::cout << cell->vertex_dof_index(vertex_no, dir) << ": " << v(dir) << ", " << mesh_vertices(cell->vertex_dof_index(vertex_no, dir)) << std::endl;
                     v(dir) = mesh_vertices(cell->vertex_dof_index(vertex_no, dir));
                 }
             }

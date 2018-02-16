@@ -281,7 +281,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
     cell = triangulation.begin_active(),
     endc = triangulation.end();
     for (; cell!=endc; ++cell){
-        if (cell->is_locally_owned()){
+        if (cell->is_locally_owned() || cell->is_ghost()){
             for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
                 if (cell->face(iface)->at_boundary()){
                     // Here we reset the boundary indicators
