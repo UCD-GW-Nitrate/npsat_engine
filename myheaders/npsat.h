@@ -207,6 +207,7 @@ void NPSAT<dim>::solve_refine(){
 
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
+            flag_cells_for_refinement();
             create_dim_1_grids();
             mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
             mesh_struct.prefix = "iter" + std::to_string(iter+1);
@@ -218,7 +219,7 @@ void NPSAT<dim>::solve_refine(){
                                             pcout);
 
 
-            flag_cells_for_refinement();
+
             do_refinement();
             mesh_struct.updateMeshStruct(mesh_dof_handler,
                                          mesh_fe,
@@ -349,7 +350,7 @@ template <int dim>
 void NPSAT<dim>::flag_cells_for_refinement(){
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
-                                     QGauss<dim-1>(3),
+                                     QGauss<dim-1>(fe.degree+2),
                                      typename FunctionMap<dim>::type(),
                                      locally_relevant_solution,
                                      estimated_error_per_cell);
@@ -394,6 +395,7 @@ void NPSAT<dim>::do_refinement(){
     mesh_tmp[0] = &(distributed_mesh_vertices);
 
     mesh_trans.interpolate (mesh_tmp);
+    //mesh_constraints.distribute(mesh_tmp[0]);
     mesh_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
     mesh_vertices = distributed_mesh_vertices;
     pcout << "moving vertices " << std::endl << std::flush;

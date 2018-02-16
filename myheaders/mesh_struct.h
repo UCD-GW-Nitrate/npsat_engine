@@ -968,7 +968,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     dbg_meshStructInfo3D("After3D_Elev" , my_rank);
 
     // The compress sends the data to the processors that owns the data
-    distributed_mesh_vertices.compress(VectorOperation::insert);
+    //distributed_mesh_vertices.compress(VectorOperation::insert);
 
     // updates the elevations to the constraint nodes --------------------------
     mesh_constraints.distribute(distributed_mesh_vertices);

@@ -101,7 +101,7 @@ void GWFLOW<dim>::setup_system(){
     locally_relevant_solution.reinit (locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
 
     system_rhs.reinit (locally_owned_dofs, mpi_communicator);
-    system_rhs = 0;
+    //system_rhs = 0;
 
     constraints.clear ();
     constraints.reinit (locally_relevant_dofs);
