@@ -365,11 +365,11 @@ void NPSAT<dim>::create_dim_1_grids(){
     top_grid.Nel = top_grid.MSH.size();
     bottom_grid.Np = bottom_grid.P.size();
     bottom_grid.Nel = bottom_grid.MSH.size();
-    std::cout << "Rank " << my_rank << " has (" << top_grid.Np << "," << top_grid.Nel << ") top and (" << bottom_grid.Np << "," << bottom_grid.Nel << ") bottom" << std::endl;
+    //std::cout << "Rank " << my_rank << " has (" << top_grid.Np << "," << top_grid.Nel << ") top and (" << bottom_grid.Np << "," << bottom_grid.Nel << ") bottom" << std::endl;
 
-    for (unsigned int i = 0; i < top_grid.Np; ++i){
-        std::cout << "R( " << my_rank << "): " << top_grid.P[i] << " -> " << top_grid.data_point[i][0] << std::endl;
-    }
+    //for (unsigned int i = 0; i < top_grid.Np; ++i){
+    //    std::cout << "R( " << my_rank << "): " << top_grid.P[i] << " -> " << top_grid.data_point[i][0] << std::endl;
+    //}
 }
 
 template <int dim>
@@ -452,11 +452,11 @@ void NPSAT<dim>::do_refinement1(){
 
     // Call the methof before
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
-    {
-        std::ofstream out ("test_triaD" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("test_triaD" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 
     {// Apply the opposite displacement
         std::map<types::global_dof_index, bool> set_dof;
@@ -482,22 +482,22 @@ void NPSAT<dim>::do_refinement1(){
             }
         }
     }
-    {
-        std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
 
 
     // now the mesh should consistent as when it was first created
     // so we can hopefully refine it
     triangulation.execute_coarsening_and_refinement ();
-    {
-        std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 }
 
 #endif // NPSAT_H

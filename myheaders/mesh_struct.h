@@ -1313,7 +1313,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 if (which_proc[i][j] == my_rank){
                     it = PointsMap.find(id_bot[which_point[i][j]]);
                     it->second.B = bottom[i][j];
-                    std::cout << "Rank " << my_rank << ":" <<it->second.PNT << " : " << it->second.B << std::endl;
+                    //std::cout << "Rank " << my_rank << ":" <<it->second.PNT << " : " << it->second.B << std::endl;
                 }
             }
         }
