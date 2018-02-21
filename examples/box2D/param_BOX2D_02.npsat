@@ -222,6 +222,19 @@ subsection I. Particle tracking
   # k----------------------------------
   # The maximum number of particles that is allowed to run in parallel
   set k N Particles in parallel    = 5000
+    
+  # l----------------------------------
+  # The number of layers that the particles will be distributed around the
+  # well
+  set l Layers per well            = 25
+
+  # m----------------------------------
+  # The number of particles per layers for the wells
+  set m Particles per layer(well)  = 4
+
+  # n----------------------------------
+  # The distance from well that the particles will be realized
+  set n Distance from well         = 50
 end
 
 

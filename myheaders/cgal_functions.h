@@ -33,6 +33,8 @@
 #include <CGAL/Barycentric_coordinates_2/Wachspress_2.h>
 #include <CGAL/Barycentric_coordinates_2/Generalized_barycentric_coordinates_2.h>
 
+
+
 /*! \file cgal_functions.h
     \brief CGAL types and functions.
 
@@ -312,6 +314,41 @@ std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double
         bcoords.push_back(CGAL::to_double(coordinates[j]));
     }
     return bcoords;
+}
+
+template<int dim>
+bool any_point_inside(Range_tree_3_type& Range_tree_3,
+                           dealii::Point<dim> p1,
+                           dealii::Point<dim> p2,
+                           std::vector<int> ids){
+
+    bool outcome = false;
+    std::vector<ine_Key> OutputList;
+
+    ine_Interval win;
+    if (dim == 2){
+        ine_Key a = ine_Key(ine_Pure_key(p1[0], p1[1], -1), 100);
+        ine_Key b = ine_Key(ine_Pure_key(p2[0], p2[1], 1), 101);
+        win = ine_Interval(a, b);
+    }
+    else if (dim == 3){
+        ine_Key a = ine_Key(ine_Pure_key(p1[0], p1[1], p1[2]), 100);
+        ine_Key b = ine_Key(ine_Pure_key(p2[0], p2[1], p2[2]), 101);
+        win = ine_Interval(a, b);
+    }
+
+    Range_tree_3.window_query(win, std::back_inserter(OutputList));
+    if (OutputList.size() == 0){
+        outcome = false;
+    }
+    else{
+        std::vector<ine_Key>::iterator current = OutputList.begin();
+        for (; current != OutputList.end(); ++current){
+            ids.push_back(current->second);
+        }
+        outcome = true;
+    }
+    return outcome;
 }
 
 

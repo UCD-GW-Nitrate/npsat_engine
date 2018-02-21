@@ -6,6 +6,7 @@
 
 #include "interpinterface.h"
 #include "wells.h"
+#include "my_functions.h"
 
 struct Directories{
 public:
@@ -95,6 +96,15 @@ struct ParticleParameters{
 
     //! Number of particles that we execute in parallel
     int Nparallel_particles;
+
+    //! Number of layers per well
+    int Wells_N_Layers;
+
+    //! Number of particles per layer for the wells
+    int Wells_N_per_layer;
+
+    //! Well radius. The distance from the well that the particles will be realized
+    double radius;
 };
 
 
@@ -177,6 +187,8 @@ public:
 
     //! This is a structure that will store the hydraulic conductivity values
     std::vector<InterpInterface<dim> >	HydraulicConductivity;
+
+    MyTensorFunction<dim>*              HK_function;
 
     //! This boolean variable specifies which functions of the AquiferProperties#HydraulicConductivity are actually used.
     //! For example when the aquifer is isotropic the HKuse[0] should be true while the HKuse[1] and HKuse[2] should be set to false.

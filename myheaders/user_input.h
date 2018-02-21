@@ -441,6 +441,18 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry("k N Particles in parallel", "5000", Patterns::Integer(1,10000),
                           "k----------------------------------\n"
                           "The maximum number of particles that is allowed to run in parallel");
+
+        prm.declare_entry("l Layers per well", "25", Patterns::Integer(1,500),
+                          "l----------------------------------\n"
+                          "The number of layers that the particles will be distributed around the well");
+
+        prm.declare_entry("m Particles per layer(well)", "4", Patterns::Integer(1,100),
+                          "m----------------------------------\n"
+                          "The number of particles per layers for the wells");
+
+        prm.declare_entry("n Distance from well", "50", Patterns::Integer(1,1000),
+                          "n----------------------------------\n"
+                          "The distance from well that the particles will be realized");
     }
     prm.leave_subsection ();
 
@@ -611,6 +623,27 @@ bool CL_arguments<dim>::read_param_file(){
             }
         }
 
+        { // Set up the hydraulic conductivity tensor function
+            if (dim == 2){
+                if (AQprop.HKuse[1] == false)
+                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0]);
+                else
+                   AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                                                                   AQprop.HydraulicConductivity[1]);
+            }
+            else if (dim == 3){
+                if (AQprop.HKuse[1] == false && AQprop.HKuse[2] == false)
+                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0]);
+                else if(AQprop.HKuse[1] == false && AQprop.HKuse[2] == true)
+                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                                                                   AQprop.HydraulicConductivity[2]);
+                else if(AQprop.HKuse[1] == true && AQprop.HKuse[2] == true)
+                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                                                                   AQprop.HydraulicConductivity[1],
+                                                                   AQprop.HydraulicConductivity[2]);
+            }
+        }
+
         //Porosity
         std::string por_file = prm.get("d Porosity");
         if (is_input_a_scalar(por_file)){
@@ -685,6 +718,9 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.part_param.simplify_thres = prm.get_double("i Simplify threshold");
         AQprop.part_param.bDoParticleTracking = prm.get_integer("j Do particle tracking");
         AQprop.part_param.Nparallel_particles = prm.get_integer("k N Particles in parallel");
+        AQprop.part_param.Wells_N_Layers = prm.get_integer("l Layers per well");
+        AQprop.part_param.Wells_N_per_layer = prm.get_integer("m Particles per layer(well)");
+        AQprop.part_param.radius = prm.get_integer("n Distance from well");
     }
     prm.leave_subsection ();
 

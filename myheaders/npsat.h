@@ -26,6 +26,8 @@
 #include "dirichlet_boundary.h"
 #include "steady_state.h"
 #include "mix_mesh.h"
+#include "particle_tracking.h"
+#include "streamlines.h"
 
 using namespace dealii;
 
@@ -54,6 +56,8 @@ public:
     void do_refinement();
 
     void do_refinement1();
+
+    void particle_tracking();
 
 
 
@@ -157,10 +161,7 @@ void NPSAT<dim>::make_grid(){
 
     mesh_struct.updateMeshElevation(mesh_dof_handler,
                                     triangulation,
-                                    mesh_fe,
                                     mesh_constraints,
-                                    mesh_locally_owned,
-                                    mesh_locally_relevant,
                                     mesh_vertices,
                                     distributed_mesh_vertices,
                                     mesh_Offset_vertices,
@@ -245,10 +246,7 @@ void NPSAT<dim>::solve_refine(){
             mesh_struct.prefix = "iter" + std::to_string(iter+1);
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
-                                            mesh_fe,
                                             mesh_constraints,
-                                            mesh_locally_owned,
-                                            mesh_locally_relevant,
                                             mesh_vertices,
                                             distributed_mesh_vertices,
                                             mesh_Offset_vertices,
@@ -450,7 +448,7 @@ void NPSAT<dim>::do_refinement1(){
         }
     }
 
-    // Call the methof before
+    // Call the method before
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
     //{
     //    std::ofstream out ("test_triaD" + std::to_string(my_rank) + ".vtk");
@@ -498,6 +496,68 @@ void NPSAT<dim>::do_refinement1(){
     //    GridOut grid_out;
     //    grid_out.write_ucd(triangulation, out);
     //}
+}
+
+template <int dim>
+void NPSAT<dim>::particle_tracking(){
+    pcout << "PARTICLE TRACKING..." << std::endl;
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    MyFunction<dim, dim> porosity_fnc(AQProps.Porosity);
+
+    Particle_Tracking<dim> pt(mpi_communicator,
+                         dof_handler, fe,
+                         locally_relevant_solution,
+                         AQProps.HK_function[0],
+                         porosity_fnc,
+                         AQProps.part_param);
+
+    std::vector<Streamline<dim>> All_streamlines;
+    std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);
+
+    MPI_Barrier(mpi_communicator);
+    if (my_rank == 0){
+        AQProps.wells.distribute_particles(All_streamlines,
+                                           AQProps.part_param.Wells_N_per_layer,
+                                           AQProps.part_param.Wells_N_Layers,
+                                           AQProps.part_param.radius);
+    }
+    MPI_Barrier(mpi_communicator);
+
+
+    int part_done[1];
+    part_done[0] = 0;
+    int particle_iter = 0;
+    while (true){
+        part_of_streamlines[my_rank].clear();
+        MPI_Barrier(mpi_communicator);
+        if (my_rank == 0){
+            std::default_random_engine generator;
+            // create a subvector of streamlines
+            unsigned int N = AQProps.part_param.Nparallel_particles;
+            if (All_streamlines.size() < N + 10){ // This should be 1000, we set it to 10 for debug
+                N = All_streamlines.size();
+            }
+            for (unsigned int i = 0 ; i < N; ++i){
+                if (All_streamlines.size() == 0)
+                    break;
+
+                std::uniform_int_distribution<int> distribution(0, All_streamlines.size()-1);
+                int ii = distribution(generator);
+                part_of_streamlines[my_rank].push_back(All_streamlines[ii]);
+                All_streamlines.erase(All_streamlines.begin() + ii);
+            }
+            if (All_streamlines.size() == 0)
+                part_done[0] = 1;
+        }
+
+        MPI_Barrier(mpi_communicator);
+        Sent_receive_streamlines_all_to_all(part_of_streamlines, my_rank, n_proc, mpi_communicator);
+        std::cout << "I'm proc " << my_rank << " and have " << part_of_streamlines[my_rank].size() << " to trace" << std::endl;
+        MPI_Barrier(mpi_communicator);
+
+
+    }
 }
 
 #endif // NPSAT_H

@@ -4,6 +4,8 @@
 #include <vector>
 #include <mpi.h>
 
+#include "streamlines.h"
+
 //! A method that prints the size of the input vector that my_rank processor has
 //! This is used for debuging only as it will produce alot of output
 template <typename T>
@@ -104,6 +106,101 @@ void Sent_receive_data(std::vector<std::vector<T1> > &data,
             data[i].resize(N_data_per_proc[i]);
             for (int j = 0; j < N_data_per_proc[i]; ++j)
                     data[i][j] = temp_receive[displs[i] +j];
+    }
+
+}
+
+/*!
+ * \brief Sent_receive_streamlines_all_to_all As the name suggests each processor will send the streamline it owns
+ * and receives streamlines from evey other processor
+ * \param streamlines The Vector of streamlines of size n_proc. Each processor will send only the data containted in
+ * streamlines[my_rank]
+ * \param my_rank The rank of the current processor
+ * \param n_proc The total number of processors
+ * \param mpi_communicator The typical MPI communicator
+ */
+template <int dim>
+void Sent_receive_streamlines_all_to_all(std::vector<std::vector<Streamline<dim>>> &streamlines,
+                                         unsigned int my_rank, unsigned int n_proc, MPI_Comm mpi_communicator){
+    std::vector<std::vector<double> > px(n_proc);
+    std::vector<std::vector<double> > py(n_proc);
+    std::vector<std::vector<double> > pz(n_proc);
+    std::vector<std::vector<int> > E_id(n_proc);
+    std::vector<std::vector<int> > S_id(n_proc);
+    std::vector<std::vector<int> > proc_id(n_proc);
+    std::vector<std::vector<int> > p_id(n_proc);
+    std::vector<std::vector<double> > BBlx(n_proc);
+    std::vector<std::vector<double> > BBly(n_proc);
+    std::vector<std::vector<double> > BBlz(n_proc);
+    std::vector<std::vector<double> > BBux(n_proc);
+    std::vector<std::vector<double> > BBuy(n_proc);
+    std::vector<std::vector<double> > BBuz(n_proc);
+
+    // copy the data
+    for (unsigned int i = 0; i < streamlines[my_rank].size(); ++i){
+        px[my_rank].push_back(streamlines[my_rank][i].P[0][0]);
+        py[my_rank].push_back(streamlines[my_rank][i].P[0][1]);
+        if (dim == 3)
+            pz[my_rank].push_back(streamlines[my_rank][i].P[0][2]);
+        E_id[my_rank].push_back(streamlines[my_rank][i].E_id);
+        S_id[my_rank].push_back(streamlines[my_rank][i].S_id);
+        proc_id[my_rank].push_back(streamlines[my_rank][i].proc_id);
+        p_id[my_rank].push_back(streamlines[my_rank][i].p_id[0]);
+        BBlx[my_rank].push_back(streamlines[my_rank][i].BBl[0]);
+        BBly[my_rank].push_back(streamlines[my_rank][i].BBl[1]);
+        if (dim == 3)
+            BBlz[my_rank].push_back(streamlines[my_rank][i].BBl[2]);
+        BBux[my_rank].push_back(streamlines[my_rank][i].BBu[0]);
+        BBuy[my_rank].push_back(streamlines[my_rank][i].BBu[1]);
+        if (dim == 3)
+            BBuz[my_rank].push_back(streamlines[my_rank][i].BBu[2]);
+    }
+    MPI_Barrier(mpi_communicator);
+
+    // Send everything to every processor
+    std::vector<int> data_per_proc;
+    Send_receive_size(static_cast<unsigned int>(px[my_rank].size()), n_proc, data_per_proc, mpi_communicator);
+    Sent_receive_data<double>(px, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(py, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    if (dim == 3)
+        Sent_receive_data<double>(pz, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<int>(E_id, data_per_proc, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<int>(S_id, data_per_proc, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<int>(proc_id, data_per_proc, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<int>(p_id, data_per_proc, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<double>(BBlx, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(BBly, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    if (dim == 3)
+        Sent_receive_data<double>(BBlz, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(BBux, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(BBuy, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+    if (dim == 3)
+        Sent_receive_data<double>(BBuz, data_per_proc, my_rank, mpi_communicator, MPI_DOUBLE);
+
+    // now we loop through the data and get all the data from the other processors
+    for (unsigned int i = 0; i < n_proc; ++i){
+        if (i == my_rank)
+            continue;
+        for (unsigned int j = 0; j < px[i].size(); ++j){
+            dealii::Point<dim> p;
+            p[0] = px[i][j];
+            p[1] = py[i][j];
+            if (dim == 3)
+                p[2] = pz[i][j];
+            Streamline<dim> temp(E_id[i][j], S_id[i][j], p);
+            p[0] = BBlx[i][j];
+            p[1] = BBly[i][j];
+            if (dim == 3)
+                p[2] = BBlz[i][j];
+            temp.BBl = p;
+            p[0] = BBux[i][j];
+            p[1] = BBuy[i][j];
+            if (dim == 3)
+                p[2] = BBuz[i][j];
+            temp.BBu = p;
+            temp.p_id[0] = p_id[i][j];
+            streamlines[my_rank].push_back(temp);
+        }
     }
 
 }
