@@ -204,7 +204,7 @@ subsection I. Particle tracking
   # with the given number. Essensially this number indicates the average
   # number of steps
   # of the algorithm within a cell
-  set g Step size                  = 6
+  set g Step size                  = 10
 
   # h----------------------------------
   # How many neighbor to search for the next point if the point has left the

@@ -38,7 +38,7 @@ private:
     ConditionalOStream                  pcout;
     ParticleParameters                  param;
 
-    bool internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
+    int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell);
     int find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell);
     void Send_receive_particles(std::vector<Streamline<dim>>    new_particles,
@@ -160,13 +160,12 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                                      << streamlines[iprt].S_id << "  \t"
                                      << outcome << "  \t"
                                      << streamlines[iprt].p_id[i] << "  \t"
-                                     << std::setprecision(15)
-                                     << streamlines[iprt].P[i][0] << "  \t"
-                                     << streamlines[iprt].P[i][1] << "  \t"
-                                     << streamlines[iprt].P[i][2] << "  \t"
-                                     << streamlines[iprt].V[i][0] << "  \t"
-                                     << streamlines[iprt].V[i][1] << "  \t"
-                                     << streamlines[iprt].V[i][2] << std::endl;
+                                     << std::setprecision(15);
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                log_file << streamlines[iprt].P[i][idim] << "  \t";
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                log_file << streamlines[iprt].V[i][idim] << "  \t";
+                            log_file << std::endl;
                         }
 
                         if (outcome == 55){
@@ -186,21 +185,29 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
             }
         }
         MPI_Barrier(mpi_communicator);
-        std::cout<< "I'm proc" << my_rank << " and have " << new_particles.size() << " particles to send" << std::endl;
+        std::cout<< "I'm proc" << my_rank << " and have " << new_particles.size() << " particles to send" << std::endl << std::flush;
+        MPI_Barrier(mpi_communicator);
+
         std::vector<int> new_part_per_proc(n_proc);
         Send_receive_size(new_particles.size(), n_proc, new_part_per_proc, mpi_communicator);
 
         int max_N_part = 0;
         for (unsigned int i = 0; i < n_proc; ++i)
             max_N_part += new_part_per_proc[i];
-        pcout << "Number of active particles: " << max_N_part << std::endl << std::flush;
+        MPI_Barrier(mpi_communicator);
+        pcout << "------ Number of active particles: " << max_N_part << " --------" << std::endl << std::flush;
+        //std::cout << my_rank << " : " << max_N_part << std::endl;
+
+        if (trace_iter>3)
+            return;
+
         if (max_N_part == 0)
             break;
 
 
         Send_receive_particles(new_particles, streamlines);
 
-        if (++iter > param.Outmost_iter)
+        if (++trace_iter > param.Outmost_iter)
             break;
     }
     log_file.close();
@@ -208,7 +215,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
 }
 
 template <int dim>
-bool Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
+int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
     // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
     int reason_to_exit= -99;
     int cnt_iter = 0;
@@ -347,19 +354,29 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     }
 
     if (!cell_found){
-        if (p_unit[2] > 1) // the particle exits from the top face which is what we want
+        if (p_unit[dim-1] > 1) // the particle exits from the top face which is what we want
             outcome = 1;
-        else if (p_unit[2] < 0) // the particle exits from the bottom face (BAD BAD BAD!!!)
+        else if (p_unit[dim-1] < 0) // the particle exits from the bottom face (BAD BAD BAD!!!)
             outcome = -9;
         else if(p_unit[0] < 0 || p_unit[0] > 1) // the particle exits from either side in x direction (not ideal but its ok)
             outcome = 2;
-        else if (p_unit[1] < 0 || p_unit[1] > 1) // same as above
-            outcome = 2;
+        else if (dim == 3){
+            if (p_unit[1] < 0 || p_unit[1] > 1) // same as above
+               outcome = 2;
+        }
 
-        if (p_unit[0]>=0 && p_unit[0] <=1 &&
-            p_unit[1]>=0 && p_unit[1] <=1 &&
-                p_unit[2]>=0 && p_unit[2] <=1){
-            cell_found = true;
+        if (dim == 2){
+            if (p_unit[0]>=0 && p_unit[0] <=1 &&
+                p_unit[1]>=0 && p_unit[1] <=1){
+                cell_found = true;
+            }
+        }
+        else if (dim == 3){
+            if (p_unit[0]>=0 && p_unit[0] <=1 &&
+                p_unit[1]>=0 && p_unit[1] <=1 &&
+                    p_unit[2]>=0 && p_unit[2] <=1){
+                cell_found = true;
+            }
         }
     }
 
@@ -513,6 +530,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
             outcome = 55;
         }
         else if (cell->is_locally_owned()){
+            //std::cout << next_point << std::endl;
             streamline.add_point_vel(next_point, temp_velocity, cell->subdomain_id());
         }
     }
