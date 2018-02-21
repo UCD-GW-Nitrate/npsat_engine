@@ -320,7 +320,7 @@ template<int dim>
 bool any_point_inside(Range_tree_3_type& Range_tree_3,
                            dealii::Point<dim> p1,
                            dealii::Point<dim> p2,
-                           std::vector<int> ids){
+                           std::vector<int>& ids){
 
     bool outcome = false;
     std::vector<ine_Key> OutputList;
