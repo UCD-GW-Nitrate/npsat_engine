@@ -68,6 +68,8 @@ public:
 
     void Debug_Prop();
 
+    bool do_gather;
+
 private:
     //! This is the typical MPI communicator
     MPI_Comm                                  mpi_communicator;
@@ -120,6 +122,7 @@ CL_arguments<dim>::CL_arguments()
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
     declare_parameters();
+    nproc_solve = false;
 }
 template<int dim>
 bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
@@ -140,10 +143,42 @@ bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
                     std::cerr << "Error: flag '-p' must be followed by the "
                               << "name of a parameter file."
                               << std::endl;
-                }else{
+                }
+                else{
                     param_file = args.front();
                     args.pop_front();
                     out = true;
+                }
+            }
+            else if (args.front() == "-g"){
+                do_gather = true;
+                args.pop_front();
+                if (args.size() == 0){
+                    do_gather = false;
+                    std::cerr << "Error: flag '-g' must be followed by the "
+                              << "# of processors used during the simulation."
+                              << "and the number of chunks."
+                              << std::endl;
+                }
+                else{
+                    bool tf = is_input_a_scalar(args.front());
+                    if (tf){
+                        nproc_solve = dealii::Utilities::string_to_int(args.front());
+                    }
+                    else{
+                        do_gather = false;
+                        std::cerr << " -g option expects two integers" << std::endl;
+                    }
+                    args.pop_front();
+                    tf = is_input_a_scalar(args.front());
+                    if (tf){
+                        nStreamlineChunks = dealii::Utilities::string_to_int(args.front());
+                    }
+                    else{
+                        do_gather = false;
+                        std::cerr << " -g option expects two integers" << std::endl;
+                    }
+                    args.pop_front();
                 }
             }
             else if (args.front() == "-h"){
@@ -166,9 +201,11 @@ void CL_arguments<dim>::print_usage_message(){
           "NPSAT simulation.\n"
           "\n"
           "Usage:\n"
-          "    ./npsat2d [-p parameter_file] Simulation input file \n"
-          "              [-h] creates a template input file\n"
-          "              [-m or -g] Runs the main simulation or gather particles\n"
+          "    ./npsat [-p parameter_file] Simulation input file \n"
+          "            [-h] creates a template input file\n"
+          "            [-g Nproc] Gather particles from a run with Nproc processors\n"
+          "                       (The parameter file is required. You have to provide\n"
+          "                        -p and -g options to gather particles)\n"
           "\n"
           "The input file has the following format and allows the following\n"
           "values (you can cut and paste this and use it for your own parameter\n"
@@ -737,6 +774,16 @@ bool CL_arguments<dim>::read_param_file(){
     prm.leave_subsection ();
 
     return true;
+}
+
+template <int dim>
+int CL_arguments<dim>::get_np(){
+    return nproc_solve;
+}
+
+template <int dim>
+int CL_arguments<dim>::get_nSc(){
+    return nStreamlineChunks;
 }
 
 template <int dim>

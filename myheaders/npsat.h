@@ -556,7 +556,7 @@ void NPSAT<dim>::particle_tracking(){
         std::cout << "I'm proc " << my_rank << " and have " << part_of_streamlines[my_rank].size() << " to trace" << std::endl;
         MPI_Barrier(mpi_communicator);
 
-        pt.trace_particles(part_of_streamlines[my_rank], particle_iter++, AQProps.sim_prefix);
+        pt.trace_particles(part_of_streamlines[my_rank], particle_iter++, AQProps.Dirs.output + AQProps.sim_prefix);
         return;
         // Processor 0 which is responsible to send out the streamlines will
         // broadcast if there are more streamlines to trace

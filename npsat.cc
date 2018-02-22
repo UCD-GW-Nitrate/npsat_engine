@@ -12,6 +12,7 @@
 #include "myheaders/cgal_functions.h"
 #include "myheaders/interpinterface.h"
 #include "myheaders/npsat.h"
+#include "myheaders/gather_data.h"
 
 using namespace dealii;
 
@@ -24,10 +25,16 @@ int main (int argc, char **argv){
     if (CLI.parse_command_line(argc,argv)){
         bool read_param = CLI.read_param_file();
         if (read_param){
-            CLI.Debug_Prop();
-            NPSAT<_DIM> npsat(CLI.AQprop);
-            npsat.solve_refine();
-            npsat.particle_tracking();
+            if (CLI.do_gather){
+                Gather_Data::gather_particles<_DIM> G;
+                G.gather_streamlines(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.get_np(), CLI.get_nSc());
+            }
+            else{
+                CLI.Debug_Prop();
+                NPSAT<_DIM> npsat(CLI.AQprop);
+                npsat.solve_refine();
+                npsat.particle_tracking();
+            }
         }
     }
 

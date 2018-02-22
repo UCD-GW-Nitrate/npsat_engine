@@ -201,7 +201,7 @@ public:
     InterpInterface<dim-1>              GroundwaterRecharge;
 
     //! This holds the information about the wells in the aquifer
-    Well_Set<dim>                            wells;
+    Well_Set<dim>                       wells;
 
     //! A boolean function which is set to false if there are no wells
     bool                                have_wells;
