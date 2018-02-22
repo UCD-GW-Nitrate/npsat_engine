@@ -122,7 +122,6 @@ CL_arguments<dim>::CL_arguments()
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
     declare_parameters();
-    nproc_solve = false;
 }
 template<int dim>
 bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
@@ -135,6 +134,7 @@ bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
         for (int i = 1; i < argc; ++i)
             args.push_back(argv[i]);
 
+        do_gather = false;
         while (args.size()){
             if (args.front() == "-p"){
                 args.pop_front();

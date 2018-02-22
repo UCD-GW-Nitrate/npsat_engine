@@ -43,6 +43,8 @@ private:
     int find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell);
     void Send_receive_particles(std::vector<Streamline<dim>>    new_particles,
                                 std::vector<Streamline<dim>>	&streamlines);
+
+    double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
 };
 
 template <int dim>
@@ -426,6 +428,10 @@ template <int dim>
 int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
     int outcome = -9999;
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
+    double zmin = cell->minimum_vertex_distance();
+    double xmax = cell->diameter();
+    double ymax =
+    Point
     double step_lenght = cell->diameter()/param.step_size;
     double step_time;
     Point<dim> next_point;
@@ -628,6 +634,32 @@ void Particle_Tracking<dim>::Send_receive_particles(std::vector<Streamline<dim>>
         }
     }
     MPI_Barrier(mpi_communicator);
+}
+
+template <int dim>
+double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel){
+    double xmin, ymin, zmin;
+    xmin = 10000000;
+    ymin = 10000000;
+    zmin = 10000000;
+    if (dim == 2){
+        // x direction
+        double dst = cell->vertex(0).distance(cell->vertex(1));
+        if (dst < xmin) xmin = dst;
+        dst = cell->vertex(2).distance(cell->vertex(3));
+        if (dst < xmin) xmin = dst;
+
+        dst = cell->vertex(0).distance(cell->vertex(2));
+        if (dst < zmin) zmin = dst;
+        dst = cell->vertex(1).distance(cell->vertex(3));
+        if (dst < zmin) zmin = dst;
+        double Vn = Vel.norm_sqr();
+        Vel[0] = Vel[0]/Vn;
+        Vel[1] = Vel[1]/Vn;
+        return xmin*Vel[0] + zmin*Vel[1];
+
+    }
+
 }
 
 

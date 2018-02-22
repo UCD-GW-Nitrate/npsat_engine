@@ -230,11 +230,11 @@ void gather_particles<dim>::calculate_age(bool backward, double unit_convertor){
 template<int dim>
 void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters param){
     std::cout << "Number of particle positions: " << Npos << std::endl;
-    const std::string filename = (basename + "Streamlines.vtk");
+    const std::string filename = (basename + "_Streamlines.vtk");
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
-    std::vector<Point<dim> > vertices;
+    std::vector<Point<3> > vertices;
     std::vector<int> id_start;
     std::vector<int> id_end;
     std::vector<double> age;
@@ -251,14 +251,19 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
                 if (cnt_strm == param.Streaml_freq - 1){
                     typename std::map<int, Gather_Data::particle<dim> >::iterator part_it = strm_it->second.particles.begin();
                     for (; part_it != strm_it->second.particles.end(); ++part_it){
-                        vertices.push_back(part_it->second.P);
+                        if (dim == 2){
+                            vertices.push_back(Point<3>(part_it->second.P[0], part_it->second.P[1], 0.0));
+                        }
+                        else if (dim == 3){
+                            vertices.push_back(Point<3>(part_it->second.P[0], part_it->second.P[1], part_it->second.P[2]));
+                        }
                         velocity.push_back(part_it->second.V.norm());
                         age.push_back(part_it->second.AGE);
                         proc.push_back(part_it->second.proc_id);
                         if (part_it == strm_it->second.particles.begin())
-                            id_start.push_back(vertices.size() - 1);
+                            id_start.push_back(static_cast<int>(vertices.size()) - 1);
                     }
-                    id_end.push_back(vertices.size() - 1);
+                    id_end.push_back(static_cast<int>(vertices.size()) - 1);
                     n_cell_id += 1 + (id_end[id_end.size()-1] - id_start[id_start.size()-1] + 1);
                     cnt_strm = 0;
                 }
@@ -327,9 +332,14 @@ void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
             typename std::map<int, Gather_Data::particle<dim> >::iterator ittt = itt->second.particles.begin();
             std::vector<double> x, y, z;
             for (; ittt != itt->second.particles.end(); ++ittt){
-                if (dim<1) x.push_back(ittt->second.P[0]);
-                if (dim<2) y.push_back(ittt->second.P[1]);
-                if (dim<3) z.push_back(ittt->second.P[2]);
+                x.push_back(ittt->second.P[0]);
+                y.push_back(ittt->second.P[1]);
+                if (dim == 2){
+                    y.push_back(0.0);
+                }
+                else if (dim == 3){
+                    z.push_back(ittt->second.P[2]);
+                }
             }
             simplify_polyline(thres, x, y, z);
             int loc = 0; double dst;
