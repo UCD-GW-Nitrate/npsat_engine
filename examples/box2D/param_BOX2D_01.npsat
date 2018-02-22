@@ -50,11 +50,11 @@ subsection B. Geometry
 
   # g----------------------------------
   # Threshold value along the horizontal plane
-  set g x-y threshold             = 0.01
+  set g x-y threshold             = 0.001
 
   # h----------------------------------
   # Threshold value the vertical plane
-  set h z threshold               = 0.01
+  set h z threshold               = 0.001
 end
 
 
@@ -140,7 +140,7 @@ subsection G. Solver parameters
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement would occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 7
+  set a Nonlinear iterations = 13
 
   # b----------------------------------
   # Tolerance of solver
@@ -204,7 +204,7 @@ subsection I. Particle tracking
   # with the given number. Essensially this number indicates the average
   # number of steps
   # of the algorithm within a cell
-  set g Step size                  = 10
+  set g Step size                  = 4
 
   # h----------------------------------
   # How many neighbor to search for the next point if the point has left the
@@ -234,7 +234,7 @@ subsection I. Particle tracking
 
   # n----------------------------------
   # The distance from well that the particles will be realized
-  set n Distance from well         = 50
+  set n Distance from well         = 5.85
 end
 
 

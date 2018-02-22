@@ -487,7 +487,7 @@ void CL_arguments<dim>::declare_parameters(){
                           "m----------------------------------\n"
                           "The number of particles per layers for the wells");
 
-        prm.declare_entry("n Distance from well", "50", Patterns::Integer(1,1000),
+        prm.declare_entry("n Distance from well", "50.0", Patterns::Double(1,1000),
                           "n----------------------------------\n"
                           "The distance from well that the particles will be realized");
     }
@@ -757,7 +757,7 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.part_param.Nparallel_particles = prm.get_integer("k N Particles in parallel");
         AQprop.part_param.Wells_N_Layers = prm.get_integer("l Layers per well");
         AQprop.part_param.Wells_N_per_layer = prm.get_integer("m Particles per layer(well)");
-        AQprop.part_param.radius = prm.get_integer("n Distance from well");
+        AQprop.part_param.radius = prm.get_double("n Distance from well");
     }
     prm.leave_subsection ();
 

@@ -144,6 +144,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                     int iprt = particle_id_in_cell[jj];
                     bool is_particle_inside = cell->point_inside(streamlines[iprt].P[0]);
                     if (is_particle_inside){
+                        //std::cout << iprt << " : " << streamlines[iprt].E_id << " : " << streamlines[iprt].S_id << std::endl;
                         int outcome = internal_backward_tracking(cell, streamlines[iprt]);
                         if (outcome == -88){// the transformation of the point has failed
                             err_file << "transformation failed" << ",  \t"
@@ -428,11 +429,7 @@ template <int dim>
 int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
     int outcome = -9999;
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
-    double zmin = cell->minimum_vertex_distance();
-    double xmax = cell->diameter();
-    double ymax =
-    Point
-    double step_lenght = cell->diameter()/param.step_size;
+    double step_lenght = cell->minimum_vertex_distance()/param.step_size;
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
