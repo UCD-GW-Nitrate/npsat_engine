@@ -140,7 +140,7 @@ subsection G. Solver parameters
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement would occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 10
+  set a Nonlinear iterations = 12
 
   # b----------------------------------
   # Tolerance of solver
@@ -159,11 +159,11 @@ subsection H. Refinement Parameters
 
   # b----------------------------------
   # Top refinement fraction
-  set b Top fraction               = 0.25
+  set b Top fraction               = 0.15
 
   # c----------------------------------
   # Bottom refinement fraction
-  set c Bottom fraction            = 0.1
+  set c Bottom fraction            = 0.01
 
   # d----------------------------------
   # Minimum element size
@@ -234,7 +234,7 @@ subsection I. Particle tracking
 
   # n----------------------------------
   # The distance from well that the particles will be realized
-  set n Distance from well         = 50
+  set n Distance from well         = 5.85
 end
 
 
