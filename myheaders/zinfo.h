@@ -13,10 +13,40 @@ template<class T>
 bool sort_Zlist(const T A, T B){ return (A.z < B.z); }
 
 
+/*!
+ * \brief The DOFZ struct is a helper struct to hold some information about a given node.
+ * It is used in the #Zinfo class to hold the information about the top and bottom nodes of
+ * a given node
+ */
+struct DOFZ{
+    //! The degree of freedom
+    int dof;
+    //! The Z coordinate
+    double z;
+    //! the id in the Zlist that this node can be found (NOT SURE IF I"LL USE THIS).
+    int id;
+    //! The processor id that this node is locally owned. If the id is negative then
+    //! the node with #dof lives in another processor but we dont know in which
+    //! processor it lives. Therefore if the #proc is negative #z, #id are also negative
+    //! and the #isSet is false.
+    int proc;
+    //! isSet gets true during the #Mesh_struct<dim>::updateMeshElevation method.
+    bool isSet;
+
+    void dummy_values(){
+        dof = -9;
+        z = -9999;
+        id = -9;
+        proc = -9;
+        isSet = false;
+    }
+};
+
+
 
 /*!
  * \brief The Zinfo class contains information regarding the elevation of a
- * mesh node and information about how this node is  connected in the mesh.
+ * mesh node and information about how this node is connected in the mesh.
  * In 2D the elevation is the Y coordinate, while in 3D the elevation is the Z coordinate.
  */
 
@@ -30,7 +60,7 @@ public:
      * However this maybe removed in the future).
      * \param z is the elevation. Y coord in 2D and Z coord in 3D
      * \param dof is the degree of freedom as it is generated from the dof_handler
-     * \param cnstr_nodes is a vector with the dofs of the nodes that constrain the present point.
+     * \param cnstr_nodes is a vector with the dofs of the nodes that constrain this point.
      * If the point is not constraint the vector should be empty. The deal function
      * #ConstraintMatrix::resolve_indices returns a vector of the dofs that constraint a given point
      * in the input vector. The returned vector containts the dof of the point in question as well as the dofs
@@ -61,7 +91,7 @@ public:
      * \param thres When the two elevations are smaller than the threshold are considered equal
      * \return returns true if the elevations are equal
      */
-    bool compare(double z, double thres);
+    //bool compare(double z, double thres);
 
     //! Attempts to add connection to this point. If the connection already exists
     //! nothing is added
@@ -112,17 +142,11 @@ public:
     //! be set.
     int dof_below;
 
-    //! The dof of the node that serves as top for this node.
-    int dof_top;
-
-    //! This is the index of the #dof_top node in the list of the #PntsInfo::Zlist
-    int id_top;
+    //! The dof of the node that serves as top for this node
+    DOFZ Top;
 
     //! The dof of the node that serves as bottom for this node
-    int dof_bot;
-
-    //! This is the index of the #dof_bot node in the list of the #PntsInfo::Zlist
-    int id_bot;
+    DOFZ Bot;
 
     //! A boolean flag that is true if the node lays on the top surface of the mesh
     int isTop;
@@ -144,6 +168,9 @@ public:
     //! This is a flag that is true if the elevetion of this node has been updated at a certain iteration
     //! If it is true you can use this node to calculate the elevation of another node that depends on this one.
     bool isZset;
+
+    //! If the node is owned by the processor who holds it, it is local
+    bool is_local;
 
 };
 
@@ -168,15 +195,14 @@ Zinfo::Zinfo(double z_in, int dof_in, std::vector<int> cnstr_nodes, int istop, i
     dof_above = -9;
     dof_below = -9;
 
-    dof_top = -9;
-    dof_bot= -9;
-    id_top = -9;
-    id_bot = 9;
+    Top.dummy_values();
+    Bot.dummy_values();
+
     rel_pos = -9.0;
     connected_above = false;
     connected_below = false;
     isZset = false;
-
+    is_local = false;
 
     Add_connections(conn);
 }
@@ -206,9 +232,9 @@ void Zinfo::Add_connections(std::vector<int> conn){
 }
 
 
-bool Zinfo::compare(double z_in, double thres){
-    return (std::abs(z_in - z) < thres);
-}
+//bool Zinfo::compare(double z_in, double thres){
+//    return (std::abs(z_in - z) < thres);
+//}
 
 bool Zinfo::connected_with(int dof_in){
     return std::find(dof_conn.begin(), dof_conn.end(), dof_in) != dof_conn.end();
@@ -224,10 +250,8 @@ void Zinfo::reset(){
 
     isZset = false;
 
-    dof_top = -9;
-    dof_bot= -9;
-    id_top = -9;
-    id_bot = -9;
+    Top.dummy_values();
+    Bot.dummy_values();
     rel_pos = -9.0;
     connected_above = false;
     connected_below = false;
