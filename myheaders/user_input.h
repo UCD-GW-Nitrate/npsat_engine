@@ -256,14 +256,14 @@ void CL_arguments<dim>::declare_parameters(){
                           "c----------------------------------\n"
                           "case BOX:\n"
                           "The length of the aquifer along the X Y Z directions.\n"
-                          "In case of 2D the 3rd element is ignored but it should be > 0\n."
+                          "In case of 2D the 3rd element is ignored but it should be present.\n"
                           "This is valid for BOX geometry type");
 
         prm.declare_entry("d Left lower point","0,0,0", Patterns::List(Patterns::Double(-1000000,1000000),3,3,","),
                           "d----------------------------------\n"
                           "case BOX:\n"
                           "The coordinates of the left lower point of the domain.\n"
-                          "In case of 2D the 3rd element is ignored\n."
+                          "In case of 2D the 3rd element is ignored but it should be present.\n"
                           "This is valid for BOX geometry type");
 
         prm.declare_entry ("e Top elevation function", "",Patterns::Anything(),
@@ -294,14 +294,14 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry("a Nxyz","10,10,3", Patterns::List(Patterns::Integer(1,1000),3,3,","),
                           "a----------------------------------\n"
                           "The number of cells along the x, y, z directions, in that order.\n"
-                          "In case of 2D the 3rd element is ignored but it should be set > 0.");
+                          "In case of 2D the 3rd element is ignored but it should be present.");
 
         prm.declare_entry("b Vertical discretization", "", Patterns::Anything(),
                           "b----------------------------------\n"
                           "A list of numbers between 0 and 1 that correspond\n"
-                          "to the vertical distribution of layers separated by "","".\n"
+                          "to the vertical distribution of layers separated by (,).\n"
                           "This parameter, if present, overrides the 3rd or 2nd element of the Nxyz\n"
-                          "in 3D or 2D respecitvely");
+                          "in 3D or 2D respectively");
 
         prm.declare_entry("c Initial Refinement", "0", Patterns::Integer(0,10),
                           "c----------------------------------\n"
@@ -339,19 +339,19 @@ void CL_arguments<dim>::declare_parameters(){
     {
         prm.declare_entry ("a Hydraulic Conductivity KX", "",Patterns::Anything(),
                            "a----------------------------------\n"
-                           "Hydraulic conductivity along the x direction\n"
-                           "must be either a single value or the name of a file");
+                           "Hydraulic conductivity along the x direction.\n"
+                           "It must be either a single value or the name of a file");
 
         prm.declare_entry ("b Hydraulic Conductivity KY", "",Patterns::Anything(),
                            "b----------------------------------\n"
-                           "Hydraulic conductivity along the y direction\n"
-                           "must be either a single value or the name of a file\n"
+                           "Hydraulic conductivity along the y direction.\n"
+                           "It must be either a single value or the name of a file\n"
                            "If KY == KX leave this empty. In 2D this is ignored");
 
         prm.declare_entry ("c Hydraulic Conductivity KZ", "",Patterns::Anything(),
                            "c----------------------------------\n"
-                           "Hydraulic conductivity along the z direction\n"
-                           "must be either a single value or the name of a file\n"
+                           "Hydraulic conductivity along the z direction.\n"
+                           "It must be either a single value or the name of a file\n"
                            "If KZ == KX leave this empty. In 2D this corresponds to the vertical K");
 
         prm.declare_entry("d Porosity", "", Patterns::Anything(),
@@ -391,7 +391,7 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry("a Nonlinear iterations", "10", Patterns::Integer(0,30),
                           "a----------------------------------\n"
                           "Number of nonlinear iterations for solving the unconfined problem\n"
-                          "The refinement would occur during the N Max refinements iterations.");
+                          "The refinement will occur during the N Max refinements iterations.");
 
         prm.declare_entry("b Solver tolerance", "1e-8", Patterns::Double(0,0.001),
                           "b----------------------------------\n"
@@ -415,15 +415,19 @@ void CL_arguments<dim>::declare_parameters(){
 
         prm.declare_entry("b Top fraction", "0.15", Patterns::Double(0,1),
                           "b----------------------------------\n"
-                          "Top refinement fraction");
+                          "Top refinement fraction\n"
+                          "This defines the percentage of cells to be refined");
 
         prm.declare_entry("c Bottom fraction", "0.01", Patterns::Double(0,1),
                           "c----------------------------------\n"
-                          "Bottom refinement fraction");
+                          "Bottom refinement fraction\n"
+                          "This defines the percentage of cells to be coarsen");
 
         prm.declare_entry("d Minimum element size", "1.0", Patterns::Double(0.1,1000),
                           "d----------------------------------\n"
-                          "Minimum element size");
+                          "Minimum element size. Cells with lower diameter\n"
+                          "will not be further refined. This should be greater than the\n"
+                          "thresholds in the geometry subsection");
     }
     prm.leave_subsection();
 
@@ -442,7 +446,7 @@ void CL_arguments<dim>::declare_parameters(){
 
         prm.declare_entry("c Stuck iterations", "50", Patterns::Integer(0,1000),
                           "c----------------------------------\n"
-                          "If the streamline has not been expanded after N iteration stop tracking");
+                          "If the streamline has not been expanded after N iterations, stop tracing this particle");
 
         prm.declare_entry("d Outer iterations", "100", Patterns::Integer(0,1000),
                           "d----------------------------------\n"
@@ -459,8 +463,9 @@ void CL_arguments<dim>::declare_parameters(){
 
         prm.declare_entry("g Step size", "6", Patterns::Double(1,100),
                           "g----------------------------------\n"
-                          "The actual step size for each cell is calculated by dividing the diameter of each cell\n"
-                          " with the given number. Essensially this number indicates the average number of steps\n"
+                          "The actual step size for each cell is calculated by dividing\n "
+                          "the diameter of each cell with the given number.\n"
+                          "Essensially this number indicates the average number of steps\n"
                           "of the algorithm within a cell");
 
         prm.declare_entry("h Search iterations", "3", Patterns::Integer(1,10),
@@ -489,7 +494,7 @@ void CL_arguments<dim>::declare_parameters(){
 
         prm.declare_entry("n Distance from well", "50.0", Patterns::Double(1,1000),
                           "n----------------------------------\n"
-                          "The distance from well that the particles will be realized");
+                          "The distance from well that the particles will be releazed");
     }
     prm.leave_subsection ();
 

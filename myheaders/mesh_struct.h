@@ -223,7 +223,7 @@ void Mesh_struct<dim>::add_new_point(Point<dim-1>p, Zinfo zinfo){
     if ( id < 0 ){
         // this is a new point and we add it to the map
         PntsInfo<dim> tempPnt(p, zinfo);
-        tempPnt.find_id = _counter;
+        //tempPnt.find_id = _counter;
         PointsMap[_counter] = tempPnt;
 
         //... to the Cgal structure
@@ -966,131 +966,105 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         MPI_Barrier(mpi_communicator);
         std::cout << "Proc " << my_rank << " has " << count_not_set << " not set and " << dof_ask_map.size() << " dofs asked so far" << std::endl;
 
-
-
-    }
-
-
-    // First set the point flags to notset
-    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
-        for (; itz != it->second.Zlist.end(); ++itz)
-            itz->isZset = false;
-    }
-
-
-    while (true){
-        int n_not_set = 0;
-        for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-            std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
-            for (; itz != it->second.Zlist.end(); ++itz){
-                if (itz->isZset)
-                    continue;
-
-                if (itz->isTop){// The nodes on the top lsurface gets their values directly
-                    itz->z = it->second.T;
-                    itz->isZset = true;
-                }
-                else if (itz->isBot){ // Same for the nodes on the bottom
-                    itz->z = it->second.B;
-                    itz->isZset = true;
-                }
-                else if (itz->hanging){
-                    // if the node is constraint we get a list of ids that this node depends on
-                    // and average their values only if all of them have been set at this iteration
-                    // The boolean is_complete gets false if any of the nodes has not been set this iteration
-                    bool is_complete = true;
-                    double newz = 0;
-                    double cntz = 0;
-
-                    for (unsigned int ii = 0; ii < itz->cnstr_nds.size(); ++ii){
-                        //find the ij indices in the PointMap structure
-                        it_dm = dof_ij.find(itz->cnstr_nds[ii]);
-                        if (it_dm != dof_ij.end()){
-                            if (PointsMap[it_dm->second.first].Zlist[it_dm->second.second].isZset){
-                                newz += PointsMap[it_dm->second.first].Zlist[it_dm->second.second].z;
-                                cntz = cntz + 1.0;
-                            }
-                            else{
-                                is_complete = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (is_complete){
-                        if (cntz >0){
-                            itz->z = newz / cntz;
-                            itz->isZset = true;
-                        }
-                        else
-                            std::cout << "Rank: " << my_rank << " has constrained dof " << itz->dof << " with 0 constraint nodes" << std::endl;
-                    }
-
-                }
-                else{
-                    if (it->second.Zlist[itz->id_bot].isZset == true && it->second.Zlist[itz->id_top].isZset == true){
-                        if (it->second.Zlist[itz->id_bot].isZset == true && it->second.Zlist[itz->id_top].isZset == true){
-                            itz->z = it->second.Zlist[itz->id_top].z*itz->rel_pos + it->second.Zlist[itz->id_bot].z*(1.0 - itz->rel_pos);
-                            itz->isZset = true;
-                        }
-                    }
-                }
-                if (distributed_mesh_vertices.in_local_range(static_cast<unsigned int >(itz->dof))){
-                    if (itz->isZset){
-                        double dz = itz->z - distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)];
-                        //std::cout << itz->dof << ": " << distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] << ", " << itz->z << ", " << dz << std::endl;
-                        distributed_mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] = dz;
-                        //std::cout << "Displacement: " << mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] << std::endl;
-                        distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] += dz;
-                    }
-                    else{
-                        //std::cout << "R: " << my_rank << " dof " << itz->dof << std::endl;
-                        n_not_set++;
-                    }
-                }
-            }// loop Z points
-        }// loop x-y points
-        std::cout << " proc: " << my_rank << " has " << n_not_set << "points not set yet." << std::endl;
-        if (n_not_set == 0)
+        // Check if all points have been set
+        std::vector<int> points_not_set(n_proc);
+        Send_receive_size(static_cast<unsigned int>(count_not_set), n_proc, points_not_set, mpi_communicator);
+        count_not_set = 0;
+        for (unsigned int i = 0; i < n_proc; ++i)
+            count_not_set = count_not_set + points_not_set[i];
+        if (count_not_set == 0)
             break;
+
+        if (dbg_cnt == 20){
+            std::cout << "updateMeshElevation didnt converge after 20 iterations" << std::endl;
+            return;
+        }
+
+        //copy unknown dofs from map to vector
+        for (unsigned int iproc = 0; iproc < n_proc; ++iproc)
+            dof_ask[iproc].clear();
+        for (std::map<int,int>::iterator itemp = dof_ask_map.begin(); itemp != dof_ask_map.end(); ++itemp)
+            dof_ask[my_rank].push_back(itemp->first);
+
+        MPI_Barrier(mpi_communicator);
+
+        // if there are points that have unkonwn elevations from the local processor
+        // communicate them with the other processors
+        std::vector<int> dof_ask_size(n_proc);
+        Send_receive_size(static_cast<unsigned int>(dof_ask[my_rank].size()), n_proc, dof_ask_size, mpi_communicator);
+        Sent_receive_data<int>(dof_ask, dof_ask_size, my_rank, mpi_communicator, MPI_INT);
+
+        // loop through the requested points and if there are dofs that are local with its elevation set
+        // send them
+        std::vector<std::vector<int>> dof_ask_reply(n_proc);
+        std::vector<std::vector<double>> dof_ask_z(n_proc);
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (i_proc == my_rank)
+                continue;
+            for (unsigned int i = 0; i < dof_ask[i_proc].size(); ++i){
+                it_ij = dof_ij.find(dof_ask[i_proc][i]);
+                if (it_ij != dof_ij.end()){
+                    int ipnt = it_ij->second.first;
+                    int iz = it_ij->second.second;
+                    if (PointsMap[ipnt].Zlist[iz].is_local){
+                        if (PointsMap[ipnt].Zlist[iz].isZset){
+                            dof_ask_reply[my_rank].push_back(dof_ask[i_proc][i]);
+                            dof_ask_z[my_rank].push_back(PointsMap[ipnt].Zlist[iz].z);
+                        }
+                    }
+                }
+            }
+        }
+
+        std::vector<int> reply_size(n_proc);
+        Send_receive_size(static_cast<unsigned int>(dof_ask_reply[my_rank].size()), n_proc, reply_size, mpi_communicator);
+        Sent_receive_data<int>(dof_ask_reply, reply_size, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(dof_ask_z, reply_size, my_rank, mpi_communicator, MPI_DOUBLE);
+        // loop again to collect the new points that have Z.
+        // Each processor collects all of them even if it has not asked them. They might be usefull later
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (i_proc == my_rank)
+                continue;
+            for (unsigned int i = 0; i < dof_ask_reply[i_proc].size(); ++i){
+                elev_asked[dof_ask_reply[i_proc][i]] = dof_ask_z[i_proc][i];
+            }
+        }
+        dbg_cnt++;
     }
+
+    MPI_Barrier(mpi_communicator);
     std::cout << "Rank " << my_rank << " has converged" << std::endl;
-    distributed_mesh_Offset_vertices.compress(VectorOperation::insert);
-    //std::cout << "Rank " << my_rank << " is AfterCompress!" << std::endl;
     MPI_Barrier(mpi_communicator);
 
-    //dbg_meshStructInfo3D("After3D_Elev" , my_rank);
+    // After we have finished with all updates in the z structure we have to copy the---------------------------------------
+    // new values to the distributed vector
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+            if (distributed_mesh_vertices.in_local_range(static_cast<unsigned int >(itz->dof))){
+                double dz = itz->z - distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)];
+                distributed_mesh_Offset_vertices[static_cast<unsigned int >(itz->dof)] = dz;
+                distributed_mesh_vertices[static_cast<unsigned int >(itz->dof)] += dz;
+            }
+        }
+    }
 
     // The compress sends the data to the processors that owns the data
-    //distributed_mesh_vertices.compress(VectorOperation::insert);
+    distributed_mesh_Offset_vertices.compress(VectorOperation::insert);
+    distributed_mesh_vertices.compress(VectorOperation::insert); // This was commented in the original dev code but i dont see any reason
 
-    // updates the elevations to the constraint nodes --------------------------
-    //mesh_constraints.distribute(distributed_mesh_vertices);
-    //std::cout  << "1" << std::endl;
-    mesh_vertices = distributed_mesh_vertices;
-    //std::cout  << "2" << std::endl;
+    // updates the elevations and offsets to the constraint nodes --------------------------
+    // although they should be ok
     mesh_constraints.distribute(distributed_mesh_Offset_vertices);
-    //std::cout  << "3" << std::endl;
     mesh_Offset_vertices = distributed_mesh_Offset_vertices;
 
-    //std::cout << "Rank " << my_rank << " is AfterConstraints!" << std::endl;
+    mesh_constraints.distribute(distributed_mesh_vertices);
+    mesh_vertices = distributed_mesh_vertices;
 
-    //int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    //std::ofstream outA ("test_triaA" + std::to_string(my_rank) + ".vtk");
-    //GridOut grid_outA;
-    //grid_outA.write_ucd(triangulation, outA);
-
-    //std::cout << "Rank " << my_rank << " is Before MOVE!" << std::endl;
     //move the actual vertices ------------------------------------------------
-    move_vertices(mesh_dof_handler,
-                  mesh_vertices);
-
-    //std::ofstream outB ("test_triaB" + std::to_string(my_rank) + ".vtk");
-    //GridOut grid_outB;
-    //grid_outB.write_ucd(triangulation, outB);
+    move_vertices(mesh_dof_handler, mesh_vertices);
 
     std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
-
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
     endc = triangulation.end();
@@ -1099,16 +1073,9 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                 (cell->is_ghost() && cell->subdomain_id() < triangulation.locally_owned_subdomain() )){
             for (unsigned int v=0; v<GeometryInfo<dim>::vertices_per_cell; ++v)
                 locally_owned_vertices[cell->vertex_index(v)] = false;
-
         }
     }
-
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
-
-    //std::ofstream outC ("test_triaC" + std::to_string(my_rank) + ".vtk");
-    //GridOut grid_outC;
-    //grid_outC.write_ucd(triangulation, outC);
-    //std::cout << "Rank " << my_rank << " is here!" << std::endl;
 }
 
 template <int dim>
@@ -1178,10 +1145,10 @@ void Mesh_struct<dim>::dbg_set_scales(double xscale, double zscale){
 }
 
 template <int dim>
-void Mesh_struct<dim>::set_id_above_below(){
+void Mesh_struct<dim>::set_id_above_below(int my_rank){
     typename std::map<int , PntsInfo<dim> >::iterator it;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-        it->second.set_ids_above_below();
+        it->second.set_ids_above_below(my_rank);
     }
 }
 

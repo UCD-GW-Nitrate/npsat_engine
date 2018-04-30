@@ -216,9 +216,6 @@ void PntsInfo<dim>::set_ids_above_below(int my_rank){
                 Zlist[i].Top.z = Zlist[i].z;
                 Zlist[i].Top.proc = my_rank;
             }
-            Zlist[i].dof_top = Zlist[i].dof;
-            Zlist[i].id_top = i;
-
         }else{
             Zlist[i].dof_above = Zlist[i+1].dof;
             Zlist[i].dof_below = Zlist[i-1].dof;

@@ -41,7 +41,7 @@ public:
     //! This is the maximum point of the polygon bounding box
     Point<2> BBmax;
 
-    //! A method that checks if any point in the list is inside this primitive polygon
+    //! A method that checks if any point in the list is inside the bounding box of the primitive polygon
     bool is_any_point_insideBB(std::vector<double> x, std::vector<double> y);
 };
 
@@ -76,9 +76,9 @@ public:
     *
     * Format of the file:
     *
-    * The first line holds the number of boundaries that follows
+    * The first line holds the number of boundaries that follow
     *
-    * Next for each boundary we print the following
+    * Next for each boundary we print the following info
     *
     * TYPE N Value
     *
@@ -93,7 +93,7 @@ public:
     *
     * The next N lines contain the coordinates of the boundary primitive shape
     *
-    * At the time or writting when the type is EDGE the next value must always be 2.
+    * At the moment when the type is EDGE the next value must always be 2.
     *
     */
     void get_from_file(std::string& namefile, std::string& input_dir);
