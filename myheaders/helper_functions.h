@@ -100,6 +100,29 @@ bool is_input_a_scalar(std::string input){
 }
 
 /*!
+ * \brief line_line_intersection
+ * \param b1 intercept of 1st line
+ * \param m1 slope of 1st line
+ * \param b2 intercept of 2nd line
+ * \param m2 slope of 2nd line
+ * \param x coordinate of intersection point
+ * \param y coordinate of intersection point
+ * \return
+ */
+bool line_line_intersection(double b1, double m1, double b2, double m2,
+                            double &x, double &y){
+    if (abs(m1 - m2) < 0.0001){
+        return false;
+    }
+    else{
+        x = (b2 - b1)/(m1 - m2);
+        y = m1*x + b1;
+        return true;
+    }
+}
+
+
+/*!
  * \brief triangle_area Calculates the area of a triangle defined by the three vertices
  * \param A 1st Point of triangle
  * \param B 2nd Point of triangle
