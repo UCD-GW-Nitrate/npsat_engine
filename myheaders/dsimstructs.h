@@ -6,6 +6,7 @@
 
 #include "interpinterface.h"
 #include "wells.h"
+#include "streams.h"
 #include "my_functions.h"
 
 struct Directories{
@@ -114,9 +115,11 @@ struct ParticleParameters{
  *
  */
 template<int dim>
-struct AquiferProperties{
+class AquiferProperties{
 public:
-    // Geometry
+    AquiferProperties();
+
+    //! Geometry
     //! The geometry type of the aquifer. This can be either a BOX or FILE.
     //! In case of BOX the AquiferProperties#Length, AquiferProperties#NXYZ and AquiferProperties#left_lower_point
     //! have to be set. In case of FILE only the AquiferProperties#input_mesh_file is needed.
@@ -200,11 +203,17 @@ public:
     //! This is a 2D interpolation function for the groundwater recharge
     InterpInterface<dim-1>              GroundwaterRecharge;
 
+    //! This holds the information for the streams
+    Streams<dim>                        streams;
+
     //! This holds the information about the wells in the aquifer
     Well_Set<dim>                       wells;
 
-    //! A boolean function which is set to false if there are no wells
+    //! A boolean value which is set to false if there are no wells
     bool                                have_wells;
+
+    //! A boolean value which is set to false if there are no streams
+    bool                                have_streams;
 
     //! Holds the Refinements parameters
     RefinementParameters                refine_param;
@@ -215,5 +224,12 @@ public:
     //! Holds the Solver parameters
     SolverParameters                    solver_param;
 };
+
+template <int dim>
+AquiferProperties<dim>::AquiferProperties(){
+    have_wells = false;
+    have_streams = false;
+}
+
 
 #endif // DSIMSTRUCTS_H

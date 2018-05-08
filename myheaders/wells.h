@@ -589,7 +589,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     cell_rhs_wells = 0;
                     // convert the mid point to unit point
                     Point<dim> p_unit_mid_point;
-                    bool mapping_done = try_mapping(wells[i].mid_point[j], p_unit_mid_point, wells[i].well_cells[j],mapping);
+                    bool mapping_done = try_mapping<dim>(wells[i].mid_point[j], p_unit_mid_point, wells[i].well_cells[j],mapping);
                     if (mapping_done){
                         Quadrature<dim> temp_quadrature(p_unit_mid_point);
                         FEValues<dim> fe_values_temp(fe, temp_quadrature, update_values | update_quadrature_points);

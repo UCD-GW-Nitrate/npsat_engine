@@ -34,7 +34,7 @@ template<int dim>
 class CL_arguments{
 public:
     //! The is the constructor. Besides basic initialization code sets CL_arguments#dim equal 3
-        CL_arguments();
+    CL_arguments();
 
     /*!
     * \brief parse_command_line reads the command line user input
@@ -716,6 +716,12 @@ bool CL_arguments<dim>::read_param_file(){
         std::string well_file = input_dir + prm.get("c Wells");
         if (well_file != ""){
             AQprop.have_wells = AQprop.wells.read_wells(well_file);
+        }
+
+        //Read Rivers
+        std::string stream_file = input_dir + prm.get("b Stream recharge");
+        if (stream_file != ""){
+            AQprop.have_streams = AQprop.streams.read_streams(stream_file);
         }
 
     }

@@ -47,4 +47,12 @@ ignore all the content of file01
 /examples/file01/*
 #unignore the *.npsat files
 !/examples/file01/*.npsat
+# unignore the BoxNPSAT example ----------BoxNPSAT-----------
+!/examples/BoxNPSAT
+ignore all the content of file01
+/examples/BoxNPSAT/*
+#unignore the *.npsat files
+!/examples/BoxNPSAT/*.npsat
+#unignore the *.py files
+!/examples/BoxNPSAT/*.py
 

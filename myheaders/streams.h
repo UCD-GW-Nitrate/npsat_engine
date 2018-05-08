@@ -13,7 +13,7 @@
 //#include "my_functions.h"
 #include "cgal_functions.h"
 #include "helper_functions.h"
-//#include "boost_functions.h"
+#include "boost_functions.h"
 
 using namespace dealii;
 
@@ -379,6 +379,110 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
         }
     }
     return tf;
+}
+
+
+template <int dim>
+void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
+                                     const DoFHandler<dim>& dof_handler,
+                                     const FE_Q<dim>& fe,
+                                     const ConstraintMatrix& constraints,
+                                     std::vector<int> top_boundary_ids){
+
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    Vector<double>       cell_rhs_streams (dofs_per_cell);
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    double QSTRM = 0;
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if(cell->face(i_face)->at_boundary()){
+                    bool isfacetop = false;
+                    for (unsigned int jj = 0; jj < top_boundary_ids.size(); ++jj){
+                        if (top_boundary_ids[jj] == cell->face(i_face)->boundary_id()){
+                            isfacetop = true;
+                            break;
+                        }
+                    }
+
+                    if (isfacetop){
+                        const MappingQ1<dim-1> mapping;
+                        setup_cell(cell->face(i_face));
+                        std::vector<double> xc, yc, Qface;
+                        std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
+                        std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
+                        for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
+                            xface[jj] = cell->face(i_face)->vertex(jj)[0];
+                            yface[jj] = cell->face(i_face)->vertex(jj)[1];
+                        }
+                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface);
+                        if (tf){ // if this cell intersects a stream
+                            cell_rhs_streams = 0;
+                            // construct one point quadrature using the centroid of the intersected area
+                            for (unsigned int k = 0; k < xc.size(); ++k){
+                                Point<dim-1> quad_point;
+                                quad_point[0] = xc[k]; quad_point[1] = yc[k];
+                                Point<dim-1> unit_mid_point;
+                                bool mapping_done = try_mapping<dim-1>(quad_point, unit_mid_point,
+                                                                       tria.begin_active(), mapping);
+                                if (mapping_done){
+                                    double weight = 1.0;
+                                    Quadrature<dim-1>stream_quad(unit_mid_point);
+                                    FEFaceValues<dim>fe_face_stream_values(fe, stream_quad, update_values | update_quadrature_points);
+                                    fe_face_stream_values.reinit(cell, i_face);
+                                    for (unsigned int q_point = 0; q_point < stream_quad.size(); ++q_point){
+                                        for (unsigned int j = 0; j < dofs_per_cell; ++j){
+                                            double Q_temp = weight*Qface[k]*fe_face_stream_values.shape_value(j,q_point);
+                                            cell_rhs_streams(j) += Q_temp;
+                                            QSTRM += Q_temp;
+                                        }
+                                    }
+                                }
+                            }
+                            cell->get_dof_indices (local_dof_indices);
+                            constraints.distribute_local_to_global(cell_rhs_streams,
+                                                                   local_dof_indices,
+                                                                   system_rhs);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << "Q_streams = " << QSTRM << std::endl;
+}
+
+template <int dim>
+void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& triangulation){
+    typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+    cell = triangulation.begin_active(),
+    endc = triangulation.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if(cell->face(i_face)->at_boundary() && cell->face(i_face)->boundary_id() == GeometryInfo<dim>::faces_per_cell-1){
+                    std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
+                    std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
+                    for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
+                        xface[jj] = cell->face(i_face)->vertex(jj)[0];
+                        yface[jj] = cell->face(i_face)->vertex(jj)[1];
+                    }
+
+                    std::vector<int> ids;
+                    bool tf = find_intersection_in_AABB_TREE(stream_tree,
+                                                             stream_triangles,
+                                                             xface, yface, ids);
+                    if (tf){
+                        cell->set_refine_flag ();
+                    }
+                }
+            }
+        }
+    }
 }
 
 
