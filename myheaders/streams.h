@@ -32,6 +32,8 @@ public:
     //! This constructor prepares the necessary data structures
     Streams();
 
+    ~Streams();
+
     /*! \brief Reads the stream input file
      * \param namefile is the name of the stream input file
      * \return True upon successful reading
@@ -67,8 +69,10 @@ public:
     ineTriangle_list            stream_triangles;
     //! A list of stream ids. The stream id depends by the order they are listed in the input file. It set by the program
     std::vector<int>            stream_ids;
-    //! A tree structures which holds the streams
-    ine_Tree                    stream_tree;
+    //! A tree structures which holds the streams.
+    //! (This is a pointer because I was getting compile errors due to calling a private constructor of class.
+    //! Setting this as a point and adding a construction code on the class constructor made the code at least to compile
+    //ine_Tree*                    stream_tree;
     //! The number of line segments
     unsigned int N_seg;
     //! A list of stream outlines. Each stream outline consists of a number of points which define the shape of the stream.
@@ -99,7 +103,7 @@ public:
     //!
     //! \param p The point to calculate the rate.
     //! \return the rate that is associated with the line segments times the intersection area, if the point is found inside the stream outline.
-    double get_stream_rate(Point<dim> p)const;
+    //double get_stream_rate(Point<dim> p)const;
 
     //! Checks if there is any intersection of a triangulation cell with any stream segment
     //! \param xc is a list of the x coordinates of the centroid of the intersected area
@@ -112,7 +116,8 @@ public:
                              std::vector<double>& yc,
                              std::vector<double>& Q,
                              std::vector<double> xp,
-                             std::vector<double> yp);
+                             std::vector<double> yp,
+                             ine_Tree& stream_tree);
 
     //! Calculate the contributions to the Right Hand side vector from the streams
     //!
@@ -137,15 +142,15 @@ public:
 
 private:
     //! a temporary 1-cell triangulation which is used as way to access methods that operate in 2 dimensions
-    Triangulation<dim-1> tria;
+    //Triangulation<dim-1> tria;
     //! a temporary 1-cell triangulation which is used as way to access method that operate in 2 dimensions
-    Triangulation<dim-1> river_rect;
+    //Triangulation<dim-1> river_rect;
     //! This method modifies the shape of the Streams#river_rect triangulation to match the shape of the input outline
     //! \param outline is a list of points which describe a stream segment. The number of points has to be 4
-    void setup_river_rect(std::vector<Point<dim>> outline)const;
+    void setup_river_rect(std::vector<Point<dim>> outline, Triangulation<dim-1> &river_rect )const;
     //! Changes the shape of the cell of the Streams#tria triangulation according to the shape of the top_face
     //! \param top_face is the face of the cell we need to convert into a 2D cell to obtain access to several cell methods
-    void setup_cell(typename DoFHandler<dim>::face_iterator top_face);
+    void setup_cell(typename DoFHandler<dim>::face_iterator top_face, Triangulation<dim-1> &tria);
     //! Converts the stream line segments into rectangular areas
     //!  \param xx are the x coordinates of the rectangular stream
     //! \param yy are the y coordinates of the rectangular stream
@@ -158,30 +163,39 @@ private:
 };
 
 template <int dim>
-Streams<dim>::Streams(){
-    N_seg = 0;
-    std::vector< Point<dim-1> > vertices(GeometryInfo<dim-1>::vertices_per_cell);
-    std::vector< CellData<dim-1> > cells(1);
-    if (dim == 3){
-        vertices[0] = Point<dim-1>(0,0);
-        vertices[1] = Point<dim-1>(1,0);
-        vertices[2] = Point<dim-1>(0,1);
-        vertices[3] = Point<dim-1>(1,1);
+Streams<dim>::Streams()
+    //:
+    //stream_tree(new ine_Tree())
 
-        cells[0].vertices[0] = 0;
-        cells[0].vertices[1] = 1;
-        cells[0].vertices[2] = 2;
-        cells[0].vertices[3] = 3;
-        tria.create_triangulation(vertices, cells, SubCellData());
-        river_rect.create_triangulation(vertices, cells, SubCellData());
-    }
-    else{
-        std::cerr << "Not valid dimension for Streams" << std::endl;
-    }
+{
+    N_seg = 0;
+//    std::vector< Point<dim-1> > vertices(GeometryInfo<dim-1>::vertices_per_cell);
+//    std::vector< CellData<dim-1> > cells(1);
+//    if (dim == 3){
+//        vertices[0] = Point<dim-1>(0,0);
+//        vertices[1] = Point<dim-1>(1,0);
+//        vertices[2] = Point<dim-1>(0,1);
+//        vertices[3] = Point<dim-1>(1,1);
+
+//        cells[0].vertices[0] = 0;
+//        cells[0].vertices[1] = 1;
+//        cells[0].vertices[2] = 2;
+//        cells[0].vertices[3] = 3;
+//        tria.create_triangulation(vertices, cells, SubCellData());
+//        river_rect.create_triangulation(vertices, cells, SubCellData());
+//    }
+//    else{
+//        std::cerr << "Not valid dimension for Streams" << std::endl;
+//    }
 }
 
 template <int dim>
-void Streams<dim>::setup_cell(typename DoFHandler<dim>::face_iterator top_face){
+Streams<dim>::~Streams(){
+    //delete stream_tree;
+}
+
+template <int dim>
+void Streams<dim>::setup_cell(typename DoFHandler<dim>::face_iterator top_face, Triangulation<dim-1> &tria){
     typename Triangulation<dim-1 >::active_cell_iterator cell = tria.begin_active();
     for (unsigned int i=0; i<GeometryInfo<dim-1>::vertices_per_cell; ++i){
         Point<dim-1> &v = cell->vertex(i);
@@ -260,34 +274,34 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 stream_ids.push_back(i);
             }
         }
-        stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
+        //stream_tree->insert(stream_triangles.begin(), stream_triangles.end());
         return true;
     }
 }
 
-template <int dim>
-double Streams<dim>::get_stream_rate(Point<dim> p)const{
-    double stream_rate = 0;
-    // loop through the stream segments
-    for (unsigned int i_seg = 0; i_seg < N_seg; ++i_seg){
-        // if the point in question is inside of the bounding box of the stream
-        // then check whether is inside this stream
-        if (p[0] >= Xmin[i_seg] && p[0] <= Xmax[i_seg] &&
-                p[1] >= Ymin[i_seg] && p[1] <= Ymax[i_seg]){
-            setup_river_rect(river_outline[i_seg]);
-            typename Triangulation<dim-1>::active_cell_iterator cell2D = river_rect.begin_active();
-            bool test = cell2D->point_inside(Point<dim-1>(p[0], p[1]));
-            if (test){
-                stream_rate = Q_rate[i_seg];
-                break;
-            }
-        }
-    }
-    return stream_rate;
-}
+//template <int dim>
+//double Streams<dim>::get_stream_rate(Point<dim> p)const{
+//    double stream_rate = 0;
+//    // loop through the stream segments
+//    for (unsigned int i_seg = 0; i_seg < N_seg; ++i_seg){
+//        // if the point in question is inside of the bounding box of the stream
+//        // then check whether is inside this stream
+//        if (p[0] >= Xmin[i_seg] && p[0] <= Xmax[i_seg] &&
+//                p[1] >= Ymin[i_seg] && p[1] <= Ymax[i_seg]){
+//            setup_river_rect(river_outline[i_seg], river_rect);
+//            typename Triangulation<dim-1>::active_cell_iterator cell2D = river_rect.begin_active();
+//            bool test = cell2D->point_inside(Point<dim-1>(p[0], p[1]));
+//            if (test){
+//                stream_rate = Q_rate[i_seg];
+//                break;
+//            }
+//        }
+//    }
+//    return stream_rate;
+//}
 
 template <int dim>
-void Streams<dim>::setup_river_rect(std::vector<Point<dim> > outline)const{
+void Streams<dim>::setup_river_rect(std::vector<Point<dim> > outline, Triangulation<dim-1> &river_rect)const{
     typename Triangulation<dim-1>::active_cell_iterator cell = river_rect.begin_active();
     for (unsigned int i=0; i<GeometryInfo<dim-1>::vertices_per_cell; ++i){
         Point<dim-1> &v = cell->vertex(i);
@@ -350,7 +364,8 @@ void Streams<dim>::create_river_outline(std::vector<double>& xx,
 template <int dim>
 bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<double>& yc, std::vector<double> &Q,
                                        std::vector<double> xp,
-                                       std::vector<double> yp){
+                                       std::vector<double> yp,
+                                       ine_Tree& stream_tree){
     std::vector<int> ids;
     xc.clear();
     yc.clear();
@@ -389,6 +404,13 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                      const ConstraintMatrix& constraints,
                                      std::vector<int> top_boundary_ids){
 
+    Triangulation<dim-1> tria;
+    initTria<dim>(tria);
+    ine_Tree stream_tree;
+    stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
+
+
+
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     Vector<double>       cell_rhs_streams (dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
@@ -419,7 +441,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             xface[jj] = cell->face(i_face)->vertex(jj)[0];
                             yface[jj] = cell->face(i_face)->vertex(jj)[1];
                         }
-                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface);
+                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree);
                         if (tf){ // if this cell intersects a stream
                             cell_rhs_streams = 0;
                             // construct one point quadrature using the centroid of the intersected area
@@ -458,6 +480,10 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
 template <int dim>
 void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& triangulation){
+
+    ine_Tree stream_tree;
+    stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
+
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
     endc = triangulation.end();

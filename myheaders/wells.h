@@ -230,7 +230,7 @@ void Well_Set<dim>::setup_cell(typename DoFHandler<dim>::active_cell_iterator Ce
 
 template <int dim>
 void Well_Set<dim>::setup_cell(typename parallel::distributed::Triangulation<dim>::active_cell_iterator Cell3D, Triangulation<dim-1>& tria){
-    typename Triangulation<dim>::active_cell_iterator
+    typename Triangulation<dim-1>::active_cell_iterator
     cell = tria.begin_active();
     for (unsigned int i=0; i < GeometryInfo<dim-1>::vertices_per_cell; ++i){
         Point<dim-1> &v = cell->vertex(i);

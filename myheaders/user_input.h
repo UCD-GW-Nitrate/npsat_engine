@@ -16,6 +16,7 @@
 
 #include "dsimstructs.h"
 #include "helper_functions.h"
+#include "cgal_functions.h"
 
 using namespace dealii;
 
@@ -34,7 +35,7 @@ template<int dim>
 class CL_arguments{
 public:
     //! The is the constructor. Besides basic initialization code sets CL_arguments#dim equal 3
-    CL_arguments();
+    CL_arguments(/*ine_Tree   stream_tree_in*/);
 
     /*!
     * \brief parse_command_line reads the command line user input
