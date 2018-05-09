@@ -32,8 +32,6 @@ public:
     //! This constructor prepares the necessary data structures
     Streams();
 
-    ~Streams();
-
     /*! \brief Reads the stream input file
      * \param namefile is the name of the stream input file
      * \return True upon successful reading
@@ -73,7 +71,7 @@ public:
     //! (This is a pointer because I was getting compile errors due to calling a private constructor of class.
     //! Setting this as a point and adding a construction code on the class constructor made the code at least to compile
     //ine_Tree*                    stream_tree;
-    //! The number of line segments
+    //! The number of lie segments
     unsigned int N_seg;
     //! A list of stream outlines. Each stream outline consists of a number of points which define the shape of the stream.
     //! Currently 4-point outlines is used i.e.
@@ -117,7 +115,7 @@ public:
                              std::vector<double>& Q,
                              std::vector<double> xp,
                              std::vector<double> yp,
-                             ine_Tree& stream_tree);
+                             ine_Tree stream_tree);
 
     //! Calculate the contributions to the Right Hand side vector from the streams
     //!
@@ -164,35 +162,10 @@ private:
 
 template <int dim>
 Streams<dim>::Streams()
-    //:
-    //stream_tree(new ine_Tree())
-
 {
     N_seg = 0;
-//    std::vector< Point<dim-1> > vertices(GeometryInfo<dim-1>::vertices_per_cell);
-//    std::vector< CellData<dim-1> > cells(1);
-//    if (dim == 3){
-//        vertices[0] = Point<dim-1>(0,0);
-//        vertices[1] = Point<dim-1>(1,0);
-//        vertices[2] = Point<dim-1>(0,1);
-//        vertices[3] = Point<dim-1>(1,1);
-
-//        cells[0].vertices[0] = 0;
-//        cells[0].vertices[1] = 1;
-//        cells[0].vertices[2] = 2;
-//        cells[0].vertices[3] = 3;
-//        tria.create_triangulation(vertices, cells, SubCellData());
-//        river_rect.create_triangulation(vertices, cells, SubCellData());
-//    }
-//    else{
-//        std::cerr << "Not valid dimension for Streams" << std::endl;
-//    }
 }
 
-template <int dim>
-Streams<dim>::~Streams(){
-    //delete stream_tree;
-}
 
 template <int dim>
 void Streams<dim>::setup_cell(typename DoFHandler<dim>::face_iterator top_face, Triangulation<dim-1> &tria){
@@ -365,7 +338,7 @@ template <int dim>
 bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<double>& yc, std::vector<double> &Q,
                                        std::vector<double> xp,
                                        std::vector<double> yp,
-                                       ine_Tree& stream_tree){
+                                       ine_Tree stream_tree){
     std::vector<int> ids;
     xc.clear();
     yc.clear();
@@ -433,7 +406,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
                     if (isfacetop){
                         const MappingQ1<dim-1> mapping;
-                        setup_cell(cell->face(i_face));
+                        setup_cell(cell->face(i_face), tria);
                         std::vector<double> xc, yc, Qface;
                         std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
                         std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
