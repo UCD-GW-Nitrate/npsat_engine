@@ -216,7 +216,7 @@ void NPSAT<dim>::solve_refine(){
 
         gw.Simulate(iter,
                     AQProps.Dirs.output + AQProps.sim_prefix,
-                    triangulation, AQProps.wells);
+                    triangulation, AQProps.wells, AQProps.streams);
 
         //gw.Simulate_refine(iter,
         //                AQProps.Dirs.output + AQProps.sim_prefix,

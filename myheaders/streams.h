@@ -115,7 +115,7 @@ public:
                              std::vector<double>& Q,
                              std::vector<double> xp,
                              std::vector<double> yp,
-                             ine_Tree stream_tree);
+                             ine_Tree &stream_tree);
 
     //! Calculate the contributions to the Right Hand side vector from the streams
     //!
@@ -338,7 +338,7 @@ template <int dim>
 bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<double>& yc, std::vector<double> &Q,
                                        std::vector<double> xp,
                                        std::vector<double> yp,
-                                       ine_Tree stream_tree){
+                                       ine_Tree& stream_tree){
     std::vector<int> ids;
     xc.clear();
     yc.clear();

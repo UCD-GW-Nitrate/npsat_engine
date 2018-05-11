@@ -40,6 +40,8 @@ struct trianode {
     int isTop;
     //! A flag indicating that this vertex touches the bottom surface
     int isBot;
+    //! A flag indicating if the node is local
+    bool islocal;
     //! A vector of the dofs that constrain the #dof vertex
     std::vector<types::global_dof_index> cnstr_nd;
 };
@@ -386,6 +388,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                 temp.cnstr_nd.push_back(current_dofs[dim-1]);
                 mesh_constraints.resolve_indices(temp.cnstr_nd);
                 temp.spi = spi[dim-1];
+                temp.islocal = distributed_mesh_vertices.in_local_range(temp.dof);
                 temp.isBot = 0;
                 temp.isTop = 0;
                 if (bot_cell){
@@ -420,13 +423,14 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
                 // Now create a zinfo variable
                 Zinfo zinfo(it->second.pnt[dim-1], it->second.dof, temp_cnstr, it->second.isTop, it->second.isBot, connectedNodes);
+                zinfo.is_local = it->second.islocal;
 
                 // and a point
                 Point<dim-1> ptemp;
                 for (unsigned int d = 0; d < dim-1; ++d)
                     ptemp[d] = it->second.pnt[d];
 
-                add_new_point(ptemp, zinfo); // MAYBE WE DONT NEED TO RETURN ANYTHING
+                add_new_point(ptemp, zinfo);
             }
         }
     }
@@ -1176,8 +1180,19 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_fun
         double bot = bot_function.value(it->second.PNT);
         it->second.T = top;
         it->second.B = bot;
-        for (unsigned int k = 0; k < it->second.Zlist.size(); ++k){
-            it->second.Zlist[k].rel_pos = vert_discr[k];
+        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+            if (itz->is_local){
+                itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
+                if (itz->isTop){
+                    itz->z = top;
+                    itz->isZset = true;
+                }
+                if (itz->isBot){
+                    itz->z = bot;
+                    itz->isZset = true;
+                }
+            }
         }
     }
 }

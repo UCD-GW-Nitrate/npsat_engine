@@ -297,10 +297,10 @@ bool polyXpoly(std::vector<double> X1, std::vector<double> Y1,
 
 template <int dim>
 std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double> yv, dealii::Point<dim> p){
-    unsigned int number_of_vertices = xv.size();
-    std::vector<exa_Point2> vertices(number_of_vertices);
-    for (unsigned int i = 0; i < number_of_vertices; ++i)
-        vertices.push_back(exa_Point2(xv[0],yv[0]));
+
+    std::vector<exa_Point2> vertices;
+    for (unsigned int i = 0; i < xv.size(); ++i)
+        vertices.push_back(exa_Point2(xv[i], yv[i]));
 
     // Instantiate the class with Wachspress coordinates for the polygon defined above.
     Wachspress_coordinates wachspress_coordinates(vertices.begin(), vertices.end());
@@ -310,7 +310,7 @@ std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double
     wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::FAST);
 
     std::vector<double> bcoords;
-    for(unsigned int j = 0; j < number_of_vertices; ++j){
+    for(unsigned int j = 0; j < xv.size(); ++j){
         bcoords.push_back(CGAL::to_double(coordinates[j]));
     }
     return bcoords;

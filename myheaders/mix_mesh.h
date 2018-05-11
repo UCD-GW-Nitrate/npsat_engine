@@ -256,7 +256,7 @@ void mix_mesh<dim>::add_point(Point<dim> p){
 template <int dim>
 bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){
 
-    if (MSH[el_id].size() > 2 && dim == 3){
+    if (MSH[el_id].size() > 2 && dim == 2){
         b_polygon b_poly;
         std::vector<b_point> pnts;
         std::vector<double> xv, yv;

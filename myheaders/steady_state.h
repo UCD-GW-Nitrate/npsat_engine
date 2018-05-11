@@ -24,6 +24,7 @@
 #include "my_functions.h"
 #include "helper_functions.h"
 #include "wells.h"
+#include "streams.h"
 
 using namespace dealii;
 
@@ -42,14 +43,14 @@ public:
 
     void Simulate(int iter,                                     std::string output_file,
                   parallel::distributed::Triangulation<dim>& 	triangulation,
-                  Well_Set<dim>&                                     wells/*,
-                    SourceSinks::Streams&                      streams*/);
+                  Well_Set<dim>&                                wells,
+                  Streams<dim>&                                 streams);
 
-    void Simulate_refine(int iter,                                     std::string output_file,
-                         parallel::distributed::Triangulation<dim>& 	triangulation,
-                         Well_Set<dim>&                                     wells/*,
-                         SourceSinks::Streams&                      streams*/,
-                         double top_fraction, double bot_fraction);
+    //void Simulate_refine(int iter,                                     std::string output_file,
+    //                     parallel::distributed::Triangulation<dim>& 	triangulation,
+    //                     Well_Set<dim>&                                     wells/*,
+    //                     SourceSinks::Streams&                      streams*/,
+    //                     double top_fraction, double bot_fraction);
 
 
 private:
@@ -306,8 +307,8 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
 template <int dim>
 void GWFLOW<dim>::Simulate(int iter,                                     std::string output_file,
                            parallel::distributed::Triangulation<dim>& 	triangulation,
-                           Well_Set<dim> &wells/*,
-                           SourceSinks::Streams&                      streams*/){
+                           Well_Set<dim> &wells,
+                           Streams<dim> &streams){
     setup_system();
 
 
@@ -317,35 +318,35 @@ void GWFLOW<dim>::Simulate(int iter,                                     std::st
                             constraints,
                             HK,
                             mpi_communicator);
-/*
+
     streams.add_contributions(system_rhs,
                               dof_handler,
                               fe,
                               constraints,
                               top_boundary_ids);
-    */
+
     assemble();
     solve();
     output(iter, output_file, triangulation);
 }
 
-template <int dim>
-void GWFLOW<dim>::Simulate_refine(int iter,                                     std::string output_file,
-                                  parallel::distributed::Triangulation<dim>& 	triangulation,
-                                  Well_Set<dim>&                                     wells/*,
-                                  SourceSinks::Streams&                      streams*/,
-                                  double top_fraction, double bot_fraction){
+//template <int dim>
+//void GWFLOW<dim>::Simulate_refine(int iter,                                     std::string output_file,
+//                                  parallel::distributed::Triangulation<dim>& 	triangulation,
+//                                  Well_Set<dim>&                                     wells/*,
+//                                  SourceSinks::Streams&                      streams*/,
+//                                  double top_fraction, double bot_fraction){
 
-    Simulate(iter,output_file,triangulation,wells);
+//    Simulate(iter,output_file,triangulation,wells);
 
-    refine(triangulation, top_fraction, bot_fraction);
+//    refine(triangulation, top_fraction, bot_fraction);
 
-    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    std::ofstream out ("test_tria" + std::to_string(my_rank) + ".vtk");
-    GridOut grid_out;
-    grid_out.write_ucd(triangulation, out);
+//    int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+//    std::ofstream out ("test_tria" + std::to_string(my_rank) + ".vtk");
+//    GridOut grid_out;
+//    grid_out.write_ucd(triangulation, out);
 
-}
+//}
 
 template <int dim>
 void GWFLOW<dim>::refine(parallel::distributed::Triangulation<dim>& 	triangulation,
