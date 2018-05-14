@@ -85,6 +85,7 @@ private:
 
 
 
+
     AquiferProperties<dim>                      AQProps;
 
     Mesh_struct<dim>                            mesh_struct;
@@ -318,6 +319,7 @@ void NPSAT<dim>::create_dim_1_grids(){
                             for (unsigned int kk = 0; kk < dim-1; ++kk){
                                 temp_point_dim_1[kk] =temp_point_dim[kk];
                             }
+
                             int id = is_point_in_list<dim-1>(temp_point_dim_1, top_grid.P, 1e-3);
                             if (id < 0){
                                 top_grid.add_point(temp_point_dim_1);
@@ -341,6 +343,7 @@ void NPSAT<dim>::create_dim_1_grids(){
                             for (unsigned int kk = 0; kk < dim-1; ++kk){
                                 temp_point_dim_1[kk] =temp_point_dim[kk];
                             }
+
                             int id = is_point_in_list<dim-1>(temp_point_dim_1, bottom_grid.P, 1e-3);
                             if (id < 0){
                                 bottom_grid.add_point(temp_point_dim_1);

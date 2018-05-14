@@ -1171,6 +1171,8 @@ template <int dim>
 void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_function,
                                                   MyFunction<dim, dim-1> bot_function,
                                                   std::vector<double>& vert_discr){
+    // Any modifications here maybe have to be copied on assign_top_bottom method at the end
+
     //std::vector<double>uniform_dist = linspace(0.0, 1.0, vert_discr.size());
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
@@ -1222,6 +1224,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
             temp_point[1] = it->second.PNT[1];
          // -----------TOP ELEVATION----------------------
         bool top_found = false;
+
         if (top_elev.Np > 0 && top_elev.Nel > 0){
             // sometimes the processor does not own any part of the top or bottom
             bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
@@ -1239,6 +1242,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
 
         //--------------BOTTOM ELEVATION-------------------
         bool bot_found = false;
+
         if (bot_elev.Np > 0 && bot_elev.Nel > 0){
             bool point_found = bot_elev.interpolate_on_nodes(temp_point,values);
             if (point_found){
@@ -1368,6 +1372,37 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
         }
         MPI_Barrier(mpi_communicator);
     }
+
+    // Finally we set the top and bottom nodes with the correct elevations.
+    //At least those that we can set at this point
+    // This part is almost identical with compute_initial_elevations
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+            if (itz->is_local){
+                itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
+                if (itz->isTop){
+                    if (it->second.T < -9998){
+                        std::cout << "This Top has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it->second.T;
+                        itz->isZset = true;
+                    }
+                }
+                if (itz->isBot){
+                    if (it->second.B < -9998){
+                        std::cout << "This Bottom has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it->second.B;
+                        itz->isZset = true;
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 

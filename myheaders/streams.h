@@ -20,11 +20,17 @@ using namespace dealii;
 /*!
  * \brief The Streams class provides the required functionality to deal with stream sources.
  *
- * Although the class is templated it make sence to use it only in 3D. In fact the code has not been tested in 2D,
- * and in fact it will never be tested for 2D.
- * Streams assumed to be polygon entinties that exist on the top of the aquifer.
+ * Although the class is templated it make sence to use it only in 3D. In fact the code is not designed for other than 3D.
+ *
+ * Streams are assumed to be polygon entities that exist on the top of the aquifer.
  * The user defines the streams as line segments where each segment is associated with a stream rate and width.
- * The program converts the line segments into orthogonals.
+ * The program converts the line segments into orthogonal four sided polygons. These polygons are then converted
+ * into triangles because all the spatial queries are designed to work with triangles. This will make easier to adapt
+ * the code to a case where the rivers are actual polygons.
+ *
+ *
+ *
+ *
  */
 template <int dim>
 class Streams{
@@ -103,13 +109,29 @@ public:
     //! \return the rate that is associated with the line segments times the intersection area, if the point is found inside the stream outline.
     //double get_stream_rate(Point<dim> p)const;
 
-    //! Checks if there is any intersection of a triangulation cell with any stream segment
-    //! \param xc is a list of the x coordinates of the centroid of the intersected area
-    //! \param yc is a list of the y coordinates of the centroid of the intersected area
-    //! \param Q is the recharge rate of intersected segment
-    //! \param xp is a list of the x coordinates of the triangulation cell
-    //! \param yp is a list of the y coordinates of the triangulation cell
-    //! \return True if this cell has at least one intersection with any stream.
+    /*! Checks if there is any intersection of a triangulation cell with any stream segment
+     *
+     * First it uses a CGAL method to identify which river triangles, which are stored into the #stream_tree
+     * are intersected with the triangulation cell. The triangulation cell is the top face of a 3D cell, which is also a boundary.
+     * The vectors #xp, #yp contain the coordinates of the tested cell. The order of coordinates should be counterclockwise,
+     * and not in the order that dealii uses because it creates self intersecting polygons.
+     *
+     * Once we have a list of triangles that overlap with the given cell we loop through them.
+     * In the case that rivers are defined as lines which are converted into polygons each polygon is split into
+     * 2 triangles. Therefore, from the list of intersected triangles we make a list of unique river polygons that
+     * intersect the given cell face. Then for each polygon we use boost methods to do a detailed intersection between
+     * the river polygon and the cell face. This will return the centroid of the intersection and the area.
+     * We multiply the intersected area with the stream rate to calculate the stream volume of this river intersection.
+     *
+     *
+    * \param xc is a list of the x coordinates of the centroid of the intersected area
+    * \param yc is a list of the y coordinates of the centroid of the intersected area
+    * \param Q is the recharge rate of intersected segment
+    * \param xp is a list of the x coordinates of the triangulation cell
+    * \param yp is a list of the y coordinates of the triangulation cell
+    * \param stream_tree A list of triangles that represent the river network
+    * \return True if this cell has at least one intersection with any stream.
+    */
     bool get_stream_recharge(std::vector<double>& xc,
                              std::vector<double>& yc,
                              std::vector<double>& Q,
@@ -117,18 +139,22 @@ public:
                              std::vector<double> yp,
                              ine_Tree &stream_tree);
 
-    //! Calculate the contributions to the Right Hand side vector from the streams
-    //!
-    //! The function loops through the triangulation cells. For the cells that the top face is boundary
-    //! the method Streams#get_stream_recharge is used to check whether the current cell intersects any stream segment.
-    //! For each intersection an 1-point quadrature formula is computed and the contrubition for each stream intersection
-    //! is added accordinlgy to the RHS vector system_rhs
-    //!
-    //! \param system_rhs Right hand side vector
-    //! \param dof_handler is the typical deal dof_handler
-    //! \param fe is the typical deal FE_Q
-    //! \param constraints is the typical deal constraint matrix
-    //! \param top_boundary_ids is a list of ids that correspond to the top faces
+    /*! Calculate the contributions to the Right Hand side vector from the streams
+    *
+    * The function loops through the triangulation cells. For the cells that the top face is boundary
+    * the method Streams#get_stream_recharge is used to check whether the current cell intersects any stream segment.
+    * The method returns also the coordinates of the centroids of each river intersection with the tested face abd the rate associated with it
+    *
+    * For each intersection an 1-point quadrature (on the centroid) formula is defined and the contrubition for each stream intersection
+    * is added accordinlgy to the RHS vector system_rhs
+    *
+    *
+    * \param system_rhs Right hand side vector
+    * \param dof_handler is the typical deal dof_handler
+    * \param fe is the typical deal FE_Q
+    * \param constraints is the typical deal constraint matrix
+    * \param top_boundary_ids is a list of ids that correspond to the top faces
+    */
     void add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                            const DoFHandler<dim>& dof_handler,
                            const FE_Q<dim>& fe,
@@ -377,6 +403,18 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                      const ConstraintMatrix& constraints,
                                      std::vector<int> top_boundary_ids){
 
+    std::vector<int> v_nmb;
+    if (dim == 3){
+        v_nmb.push_back(0);
+        v_nmb.push_back(1);
+        v_nmb.push_back(3);
+        v_nmb.push_back(2);
+    }
+    else{
+        std::cout << "You cannot use Streams in other than 3D problem" << std::endl;
+        return;
+    }
+
     Triangulation<dim-1> tria;
     initTria<dim>(tria);
     ine_Tree stream_tree;
@@ -389,6 +427,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     double QSTRM = 0;
+    int dbg_coounter = 0;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -410,10 +449,13 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         std::vector<double> xc, yc, Qface;
                         std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
                         std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
+                        // We have to use the correct order of vertices which is not like dealii vertex numbering
+
                         for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
-                            xface[jj] = cell->face(i_face)->vertex(jj)[0];
-                            yface[jj] = cell->face(i_face)->vertex(jj)[1];
+                            xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
+                            yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
                         }
+                        std::cout << dbg_coounter++ << std::endl;
                         bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree);
                         if (tf){ // if this cell intersects a stream
                             cell_rhs_streams = 0;

@@ -141,8 +141,8 @@ bool find_intersection_in_AABB_TREE(ine_Tree& tree,
                        ine_Point3(xp[2], yp[2], 0.0));
     find_intersection_inner(tree, triangle_list, tria1, ids);
     ine_Triangle tria2(ine_Point3(xp[0], yp[0], 0.0),
-                       ine_Point3(xp[1], yp[1], 0.0),
-                       ine_Point3(xp[2], yp[2], 0.0));
+                       ine_Point3(xp[2], yp[2], 0.0),
+                       ine_Point3(xp[3], yp[3], 0.0));
     find_intersection_inner(tree, triangle_list, tria2, ids);
 
     if (ids.size() > 0)

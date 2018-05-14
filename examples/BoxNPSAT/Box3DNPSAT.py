@@ -113,27 +113,27 @@ plt.show()
 
 # -------------------PRINT FILES--------------------
 # WELL file
-f = open('box01_wells.npsat', 'w+')
-f.write('%d\r\n' % len(wx))
-Gelev = 50
-
-for ii in range(0, len(wx)-1):
-    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.2f\r\n' % (wx[ii], wy[ii], Gelev - Top[ii],  Gelev - Top[ii] -SL[ii], -Q[ii]))
-f.close()
-
-# RIVER file
-f = open('box01_rivers.npsat', 'w+')
-N_riv_seg = len(r1x) - 1 + len(r2x) - 1
-f.write('%d\r\n' % N_riv_seg)
-
-for ii in range(0, len(r1x)-1):
-    Q_riv_seg = Qstrm1*(R_seg_len1[ii]/Riv_len1)/(Riv_len1*50.0)
-    print(Qstrm1*(R_seg_len1[ii]/Riv_len1)/(Riv_len1*50.0))
-    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.6f\t%.2f\r\n' %(r1x[ii], r1y[ii], r1x[ii+1], r1y[ii+1], Q_riv_seg, 50))
-
-for ii in range(0, len(r2x)-1):
-    Q_riv_seg = Qstrm2*(R_seg_len2[ii]/Riv_len2)/(Riv_len2*30.0)
-    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.6f\t%.2f\r\n' %(r2x[ii], r2y[ii], r2x[ii+1], r2y[ii+1], Q_riv_seg, 30))
-
-f.close()
+##f = open('box01_wells.npsat', 'w+')
+##f.write('%d\r\n' % len(wx))
+##Gelev = 50
+##
+##for ii in range(0, len(wx)-1):
+##    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.2f\r\n' % (wx[ii], wy[ii], Gelev - Top[ii],  Gelev - Top[ii] -SL[ii], -Q[ii]))
+##f.close()
+##
+### RIVER file
+##f = open('box01_rivers.npsat', 'w+')
+##N_riv_seg = len(r1x) - 1 + len(r2x) - 1
+##f.write('%d\r\n' % N_riv_seg)
+##
+##for ii in range(0, len(r1x)-1):
+##    Q_riv_seg = Qstrm1*(R_seg_len1[ii]/Riv_len1)/(Riv_len1*50.0)
+##    print(Qstrm1*(R_seg_len1[ii]/Riv_len1)/(Riv_len1*50.0))
+##    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.6f\t%.2f\r\n' %(r1x[ii], r1y[ii], r1x[ii+1], r1y[ii+1], Q_riv_seg, 50))
+##
+##for ii in range(0, len(r2x)-1):
+##    Q_riv_seg = Qstrm2*(R_seg_len2[ii]/Riv_len2)/(Riv_len2*30.0)
+##    f.write('%.2f\t%.2f\t%.2f\t%.2f\t%.6f\t%.2f\r\n' %(r2x[ii], r2y[ii], r2x[ii+1], r2y[ii+1], Q_riv_seg, 30))
+##
+##f.close()
 

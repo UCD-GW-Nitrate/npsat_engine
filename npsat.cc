@@ -21,9 +21,6 @@ int main (int argc, char **argv){
     deallog.depth_console (1);
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
 
-    // This is a weird place to initialize this variable but it didnt compile when that was inside the streams class that actually neede that
-    //static ine_Tree* stream_tree = new ine_Tree();
-
     CL_arguments<_DIM> CLI;
     if (CLI.parse_command_line(argc,argv)){
         bool read_param = CLI.read_param_file();
