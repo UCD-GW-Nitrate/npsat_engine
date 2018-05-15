@@ -296,7 +296,7 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
 template <int dim>
 void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& triangulation){
     Triangulation<dim-1> tria;
-    initTria<dim-1>(tria);
+    initTria<dim>(tria);
 
     const MappingQ1<dim-1> mapping2D;
     Point<dim-1> well_point_2d;

@@ -77,11 +77,11 @@ subsection C. Discretization
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 0
+  set e Stream Refinement       = 2	
 end
 
 
@@ -155,7 +155,7 @@ end
 subsection H. Refinement Parameters
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 5
+  set a Max refinements iterations = 10
 
   # b----------------------------------
   # Top refinement fraction
@@ -221,7 +221,7 @@ subsection I. Particle tracking
 
   # j----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set j Do particle tracking       = 1
+  set j Do particle tracking       = 0
 
   # k----------------------------------
   # The maximum number of particles that is allowed to run in parallel

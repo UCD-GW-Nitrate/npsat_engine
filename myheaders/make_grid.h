@@ -103,7 +103,7 @@ namespace AquiferGrid{
     void GridGenerator<dim>::make_grid(parallel::distributed::Triangulation<dim>& triangulation){
         if (geom_param.geomtype == "BOX"){
             make_box((triangulation));
-
+            triangulation.refine_global(geom_param.N_init_refinement);
         }
         else if (geom_param.geomtype == "FILE"){
             if (dim !=3 ){

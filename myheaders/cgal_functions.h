@@ -307,7 +307,11 @@ std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double
     exa_Point2 p_q(p[0], p[1]);
     std::vector<exa_Kernel::FT> coordinates;
     coordinates.reserve(1);
-    wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::FAST);
+    //try {
+        wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::PRECISE);
+    //} catch (...) {
+        //wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::FAST);
+    //}
 
     std::vector<double> bcoords;
     for(unsigned int j = 0; j < xv.size(); ++j){

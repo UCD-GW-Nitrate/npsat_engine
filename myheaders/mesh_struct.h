@@ -170,11 +170,9 @@ public:
     void make_dof_ij_map();
 
     //! This method calculates the top and bottom elevation on the points of the #PointsMap
-    //! This should be called on the initial grid before any refinement. In additional sets the relative
-    //! positions in the vertical direction according to #vert_discr vector.
+    //! This should be called on the initial grid before any refinement.
     void compute_initial_elevations(MyFunction<dim, dim-1> top_function,
-                                    MyFunction<dim, dim-1> bot_function,
-                                    std::vector<double>& vert_discr);
+                                    MyFunction<dim, dim-1> bot_function);
 
     void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
                            ConditionalOStream pcout,
@@ -1169,11 +1167,8 @@ void Mesh_struct<dim>::make_dof_ij_map(){
 
 template <int dim>
 void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_function,
-                                                  MyFunction<dim, dim-1> bot_function,
-                                                  std::vector<double>& vert_discr){
+                                                  MyFunction<dim, dim-1> bot_function){
     // Any modifications here maybe have to be copied on assign_top_bottom method at the end
-
-    //std::vector<double>uniform_dist = linspace(0.0, 1.0, vert_discr.size());
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
     std::vector<Zinfo>::iterator itz;
@@ -1345,8 +1340,8 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                         p_test[1] = Ycoord_bot[i][j];
                     bool point_found = bot_elev.interpolate_on_nodes(p_test,values);
                     if (point_found){
-                        which_point[my_rank].push_back(j);
-                        which_proc[my_rank].push_back(i);
+                        which_point[my_rank].push_back(static_cast<int>(i));
+                        which_proc[my_rank].push_back(static_cast<int>(i));
                         bottom[my_rank].push_back(values[0]);
                     }
                 }

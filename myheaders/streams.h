@@ -427,7 +427,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     double QSTRM = 0;
-    int dbg_coounter = 0;
+    //int dbg_coounter = 0;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -455,7 +455,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
                             yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
                         }
-                        std::cout << dbg_coounter++ << std::endl;
+                        //std::cout << dbg_coounter++ << std::endl;
                         bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree);
                         if (tf){ // if this cell intersects a stream
                             cell_rhs_streams = 0;

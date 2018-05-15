@@ -600,6 +600,8 @@ bool CL_arguments<dim>::read_param_file(){
 
         AQprop.N_well_refinement = prm.get_integer("d Well Refinement");
 
+        AQprop.N_streams_refinement = prm.get_integer("e Stream Refinement");
+
         std::string temp_str = prm.get("b Vertical discretization");
 
         if (temp_str != ""){

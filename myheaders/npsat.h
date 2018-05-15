@@ -158,7 +158,7 @@ void NPSAT<dim>::make_grid(){
     const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
     const MyFunction<dim, dim-1> bottom_function(AQProps.bottom_elevation);
 
-    mesh_struct.compute_initial_elevations(top_function,bottom_function, AQProps.vert_discr);
+    mesh_struct.compute_initial_elevations(top_function,bottom_function);
 
     mesh_struct.updateMeshElevation(mesh_dof_handler,
                                     triangulation,
@@ -169,7 +169,54 @@ void NPSAT<dim>::make_grid(){
                                     distributed_mesh_Offset_vertices,
                                     mpi_communicator,
                                     pcout);
-    //mesh_struct.printMesh(AQProps.Dirs.output, AQProps.sim_prefix + "0", my_rank, mesh_dof_handler);
+
+    unsigned int count_refinements = 0;
+    while (true){
+        bool done_wells = false;
+        bool done_streams = false;
+
+
+        if (count_refinements < AQProps.N_well_refinement){
+            AQProps.wells.flag_cells_for_refinement(triangulation);
+        }
+        else
+            done_wells = true;
+
+        if(count_refinements < AQProps.N_streams_refinement){
+            AQProps.streams.flag_cells_for_refinement(triangulation);
+        }
+        else
+            done_streams = true;
+
+        if (done_wells && done_streams)
+            break;
+
+        do_refinement1();
+
+        mesh_struct.updateMeshStruct(mesh_dof_handler,
+                                     mesh_fe,
+                                     mesh_constraints,
+                                     mesh_locally_owned,
+                                     mesh_locally_relevant,
+                                     mesh_vertices,
+                                     distributed_mesh_vertices,
+                                     mesh_Offset_vertices,
+                                     distributed_mesh_Offset_vertices,
+                                     mpi_communicator, pcout);
+        mesh_struct.compute_initial_elevations(top_function,bottom_function);
+
+        mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                        triangulation,
+                                        mesh_constraints,
+                                        mesh_vertices,
+                                        distributed_mesh_vertices,
+                                        mesh_Offset_vertices,
+                                        distributed_mesh_Offset_vertices,
+                                        mpi_communicator,
+                                        pcout);
+
+        count_refinements++;
+    }
 }
 
 template <int dim>

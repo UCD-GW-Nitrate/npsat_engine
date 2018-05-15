@@ -194,7 +194,13 @@ bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& valu
                     xv.push_back(P[MSH[dst[i].id][j]][0]);
                     yv.push_back(P[MSH[dst[i].id][j]][1]);
                 }
-                b_coords = barycentricCoords<dim>(xv, yv, p);
+                try{
+                    b_coords = barycentricCoords<dim>(xv, yv, p);
+                }catch (...){
+                    for (unsigned int ii = 0; ii < xv.size(); ++ii){
+                         std::cout << "(" << xv[ii] << ", " << yv[ii] << ")" << std::endl;
+                    }
+                }
 
                 values.clear();
                 for (unsigned int j = 0; j < data_point[0].size(); ++j){
