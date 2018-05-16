@@ -31,6 +31,8 @@
 
 // includes for barycentric coordinates
 #include <CGAL/Barycentric_coordinates_2/Wachspress_2.h>
+#include <CGAL/Barycentric_coordinates_2/Discrete_harmonic_2.h>
+#include <CGAL/Barycentric_coordinates_2/Mean_value_2.h>
 #include <CGAL/Barycentric_coordinates_2/Generalized_barycentric_coordinates_2.h>
 
 
@@ -93,8 +95,12 @@ typedef exa_Kernel::Point_2                                                 exa_
 typedef CGAL::Polygon_2<exa_Kernel>                                         Polygon_2;
 
 //typedefs for Barycentric
-typedef CGAL::Barycentric_coordinates::Wachspress_2<exa_Kernel> Wachspress;
-typedef CGAL::Barycentric_coordinates::Generalized_barycentric_coordinates_2<Wachspress, exa_Kernel> Wachspress_coordinates;
+//typedef CGAL::Barycentric_coordinates::Wachspress_2<exa_Kernel> Wachspress;
+//typedef CGAL::Barycentric_coordinates::Generalized_barycentric_coordinates_2<Wachspress, exa_Kernel> Wachspress_coordinates;
+//typedef CGAL::Barycentric_coordinates::Discrete_harmonic_2<exa_Kernel> Discrete_harmonic;
+//typedef CGAL::Barycentric_coordinates::Generalized_barycentric_coordinates_2<Discrete_harmonic, exa_Kernel> Discrete_harmonic_coordinates;
+typedef CGAL::Barycentric_coordinates::Mean_value_2<ine_Kernel> Mean_value;
+typedef CGAL::Barycentric_coordinates::Generalized_barycentric_coordinates_2<Mean_value, ine_Kernel> Mean_value_coordinates;
 
 
 void find_intersection_inner(ine_Tree& tree,
@@ -298,17 +304,20 @@ bool polyXpoly(std::vector<double> X1, std::vector<double> Y1,
 template <int dim>
 std::vector<double> barycentricCoords(std::vector<double> xv, std::vector<double> yv, dealii::Point<dim> p){
 
-    std::vector<exa_Point2> vertices;
+    std::vector<ine_Point2> vertices;
     for (unsigned int i = 0; i < xv.size(); ++i)
-        vertices.push_back(exa_Point2(xv[i], yv[i]));
+        vertices.push_back(ine_Point2(xv[i], yv[i]));
 
     // Instantiate the class with Wachspress coordinates for the polygon defined above.
-    Wachspress_coordinates wachspress_coordinates(vertices.begin(), vertices.end());
-    exa_Point2 p_q(p[0], p[1]);
-    std::vector<exa_Kernel::FT> coordinates;
+    //Wachspress_coordinates wachspress_coordinates(vertices.begin(), vertices.end());
+    //Discrete_harmonic_coordinates discrete_harmonic_coordinates(vertices.begin(), vertices.end());
+    Mean_value_coordinates mean_value_coordinates(vertices.begin(), vertices.end());
+    ine_Point2 p_q(p[0], p[1]);
+    std::vector<ine_Kernel::FT> coordinates;
     coordinates.reserve(1);
     //try {
-        wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::PRECISE);
+    mean_value_coordinates(p_q, std::back_inserter(coordinates), CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION, CGAL::Barycentric_coordinates::PRECISE);
+    //wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::PRECISE);
     //} catch (...) {
         //wachspress_coordinates(p_q, std::back_inserter(coordinates),CGAL::Barycentric_coordinates::UNSPECIFIED_LOCATION,CGAL::Barycentric_coordinates::FAST);
     //}

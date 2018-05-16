@@ -1240,6 +1240,8 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
 
         if (bot_elev.Np > 0 && bot_elev.Nel > 0){
             bool point_found = bot_elev.interpolate_on_nodes(temp_point,values);
+            //if (std::abs(temp_point[0]-4250.0) < 0.1 && std::abs(temp_point[1]-2250.0) < 0.1)
+            //    std::cout << "$$$$$$$$$$$$$$ Rank " << my_rank << "point_found: " << point_found << std::endl;
             if (point_found){
                 it->second.B = values[0];
                 bot_found = true;
@@ -1284,6 +1286,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                     if (dim == 3)
                         p_test[1] = Ycoord_top[i][j];
                     bool point_found = top_elev.interpolate_on_nodes(p_test,values);
+
                     if (point_found){
                         which_point[my_rank].push_back(static_cast<int>(j));
                         which_proc[my_rank].push_back(static_cast<int>(i));
@@ -1340,7 +1343,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                         p_test[1] = Ycoord_bot[i][j];
                     bool point_found = bot_elev.interpolate_on_nodes(p_test,values);
                     if (point_found){
-                        which_point[my_rank].push_back(static_cast<int>(i));
+                        which_point[my_rank].push_back(static_cast<int>(j));
                         which_proc[my_rank].push_back(static_cast<int>(i));
                         bottom[my_rank].push_back(values[0]);
                     }
@@ -1387,7 +1390,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 }
                 if (itz->isBot){
                     if (it->second.B < -9998){
-                        std::cout << "This Bottom has not been set" << std::endl;
+                        std::cout << "The Bottom at (" << it->second.PNT << ") has not been set" << std::endl;
                     }
                     else{
                         itz->z = it->second.B;

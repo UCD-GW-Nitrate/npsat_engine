@@ -393,6 +393,9 @@ void NPSAT<dim>::create_dim_1_grids(){
 
                             int id = is_point_in_list<dim-1>(temp_point_dim_1, bottom_grid.P, 1e-3);
                             if (id < 0){
+                                //if (std::abs(temp_point_dim_1[0]-4250.0) < 0.1 && std::abs(temp_point_dim_1[1]-2250.0) < 0.1){
+                                //    std::cout << "@$#%&$#%&^@%$&@#%$&#@%$ Rank " << my_rank << " has found point 4250,2250" << std::endl;
+                                //}
                                 bottom_grid.add_point(temp_point_dim_1);
                                 bottom_grid.data_point.push_back(std::vector<double>(1,temp_point_dim[dim-1]));
                                 tempcell[static_cast<unsigned int>(ind[ii])] = point_counter_bottom;
