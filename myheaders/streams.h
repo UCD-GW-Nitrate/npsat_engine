@@ -384,6 +384,11 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
             double d_xc, d_yc;
             try {
                 double area = polyXpoly(xp, yp, Xoutline[it->first], Youtline[it->first], d_xc, d_yc);
+                if (area < 0.1){
+                    int aa = 0;
+                    aa++;
+                    std::cout << "The area " << area << " is too small" << std::endl;
+                }
                 xc.push_back(d_xc);
                 yc.push_back(d_yc);
                 Q.push_back(area * Q_rate[it->first]);
