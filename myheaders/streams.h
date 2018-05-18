@@ -111,8 +111,8 @@ public:
 
     /*! Checks if there is any intersection of a triangulation cell with any stream segment
      *
-     * First it uses a CGAL method to identify which river triangles, which are stored into the #stream_tree
-     * are intersected with the triangulation cell. The triangulation cell is the top face of a 3D cell, which is also a boundary.
+     * First it uses a CGAL method to identify which river triangles, that are stored into the #stream_tree
+     * are intersected with the triangulation cell. The triangulation cell is the top face of a 3D cell, that is also a boundary.
      * The vectors #xp, #yp contain the coordinates of the tested cell. The order of coordinates should be counterclockwise,
      * and not in the order that dealii uses because it creates self intersecting polygons.
      *
@@ -143,7 +143,8 @@ public:
     *
     * The function loops through the triangulation cells. For the cells that the top face is boundary
     * the method Streams#get_stream_recharge is used to check whether the current cell intersects any stream segment.
-    * The method returns also the coordinates of the centroids of each river intersection with the tested face abd the rate associated with it
+    * The method returns also the coordinates of the centroids of each river intersection with the tested face
+    * abd the rate associated with it
     *
     * For each intersection an 1-point quadrature (on the centroid) formula is defined and the contrubition for each stream intersection
     * is added accordinlgy to the RHS vector system_rhs
@@ -384,6 +385,8 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
             double d_xc, d_yc;
             try {
                 double area = polyXpoly(xp, yp, Xoutline[it->first], Youtline[it->first], d_xc, d_yc);
+                print_poly_matlab(xp,yp);
+
                 if (area < 0.1){
                     int aa = 0;
                     aa++;
@@ -530,6 +533,7 @@ void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulatio
         }
     }
 }
+
 
 
 

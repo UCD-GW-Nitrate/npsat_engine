@@ -318,6 +318,16 @@ void initTria(dealii::Triangulation<dim-1> &tria){
 
 }
 
+void print_poly_matlab(std::vector<double> xp, std::vector<double> yp){
+    std::cout << "[";
+    for (unsigned int kk = 0; kk < xp.size(); ++kk)
+        std::cout << xp[kk] << " ";
+    std::cout << "],[";
+    for (unsigned int kk = 0; kk < yp.size(); ++kk)
+        std::cout << yp[kk] << " ";
+    std::cout << "]";
+}
+
 /*
 template <int dim>
 void Print_Mesh_DofHandler(std::string filename,
