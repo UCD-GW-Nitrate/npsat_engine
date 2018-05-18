@@ -13,6 +13,25 @@
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/assign.hpp>
 
+template <typename Point>
+void list_coordinates(Point const& p){
+    using boost::geometry::get;
+    std::cout << "x = " << get<0>(p) << " y = " << get<1>(p) << std::endl;
+}
+
+template <typename Point>
+void list_coordinatesX_oneline(Point const& p){
+    using boost::geometry::get;
+    std::cout << get<0>(p) << " ";
+}
+
+template <typename Point>
+void list_coordinatesY_oneline(Point const& p){
+    using boost::geometry::get;
+    std::cout << get<1>(p) << " ";
+}
+
+
 /*!
  * \brief polyXpoly Finds the intersection between two polygons. This use boost library
  * \param x1 x coordinates of 1st polygon
@@ -53,6 +72,13 @@ double polyXpoly(std::vector<double>& x1, std::vector<double>& y1,
         area = boost::geometry::area(p);
         strm_point cntr(0,0);
         boost::geometry::centroid(p,cntr);
+        // Plot intersction ------------
+        std::cout << "plot([";
+        boost::geometry::for_each_point(p,list_coordinatesX_oneline<strm_point>);
+        std::cout << "],[";
+        boost::geometry::for_each_point(p,list_coordinatesY_oneline<strm_point>);
+        std::cout << "])" << std::endl;
+        //------------------------------
         xc = cntr.x();
         yc = cntr.y();
         break;

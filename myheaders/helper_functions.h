@@ -319,13 +319,13 @@ void initTria(dealii::Triangulation<dim-1> &tria){
 }
 
 void print_poly_matlab(std::vector<double> xp, std::vector<double> yp){
-    std::cout << "[";
+    std::cout << "plot([";
     for (unsigned int kk = 0; kk < xp.size(); ++kk)
         std::cout << xp[kk] << " ";
-    std::cout << "],[";
+    std::cout << xp[0] << "],[";
     for (unsigned int kk = 0; kk < yp.size(); ++kk)
         std::cout << yp[kk] << " ";
-    std::cout << "]";
+    std::cout << yp[0] << "])" << std::endl;
 }
 
 /*

@@ -137,7 +137,8 @@ public:
                              std::vector<double>& Q,
                              std::vector<double> xp,
                              std::vector<double> yp,
-                             ine_Tree &stream_tree);
+                             ine_Tree &stream_tree,
+                             double& ar);
 
     /*! Calculate the contributions to the Right Hand side vector from the streams
     *
@@ -265,12 +266,17 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 stream_triangles.push_back(ine_Triangle(ine_Point3(xx[0], yy[0], 0.0),
                                                         ine_Point3(xx[1], yy[1], 0.0),
                                                         ine_Point3(xx[2], yy[2], 0.0)));
+                std::cout << "plot([" << xx[0] << " " << xx[1] << " " << xx[2] << " " <<xx[0] << "],[";
+                std::cout << yy[0] << " " << yy[1] << " " << yy[2] << " " << yy[0] << "])" << std::endl;
+
 
                 stream_ids.push_back(i);
 
-                stream_triangles.push_back(ine_Triangle(ine_Point3(xx[1], yy[1], 0.0),
+                stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
                                            ine_Point3(xx[3], yy[3], 0.0),
-                                           ine_Point3(xx[2], yy[2], 0.0)));
+                                           ine_Point3(xx[0], yy[0], 0.0)));
+                std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
+                std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
                 stream_ids.push_back(i);
             }
         }
@@ -365,7 +371,8 @@ template <int dim>
 bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<double>& yc, std::vector<double> &Q,
                                        std::vector<double> xp,
                                        std::vector<double> yp,
-                                       ine_Tree& stream_tree){
+                                       ine_Tree& stream_tree,
+                                       double& ar){
     std::vector<int> ids;
     xc.clear();
     yc.clear();
@@ -374,6 +381,7 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
     bool tf = find_intersection_in_AABB_TREE(stream_tree,
                                              stream_triangles,
                                              xp, yp, ids);
+    ar = 0;
     if (tf){
         std::map<int,int> unique_ids;
         // make a unique list of river segment ids
@@ -385,12 +393,17 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
             double d_xc, d_yc;
             try {
                 double area = polyXpoly(xp, yp, Xoutline[it->first], Youtline[it->first], d_xc, d_yc);
-                print_poly_matlab(xp,yp);
+                ar +=area;
+                //std::cout << "Cell: ";
+                //print_poly_matlab(xp,yp);
+                //std::cout << "River: ";
+                //print_poly_matlab(Xoutline[it->first], Youtline[it->first]);
+                //std::cout << /* "Intersected area: " << area << */ "plot(" << d_xc << ", " << d_yc << ", 'x')" << std::endl;
 
                 if (area < 0.1){
                     int aa = 0;
                     aa++;
-                    std::cout << "The area " << area << " is too small" << std::endl;
+                    //std::cout << "The area " << area << " is too small" << std::endl;
                 }
                 xc.push_back(d_xc);
                 yc.push_back(d_yc);
@@ -435,6 +448,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     double QSTRM = 0;
+    double SUMA_AREA = 0;
     //int dbg_coounter = 0;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
@@ -463,8 +477,12 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
                             yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
                         }
+
+                        //print_poly_matlab(xface,yface);
                         //std::cout << dbg_coounter++ << std::endl;
-                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree);
+                        double ar;
+                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree, ar);
+                        SUMA_AREA += ar;
                         if (tf){ // if this cell intersects a stream
                             cell_rhs_streams = 0;
                             // construct one point quadrature using the centroid of the intersected area
@@ -498,7 +516,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             }
         }
     }
-    std::cout << "Q_streams = " << QSTRM << std::endl;
+    std::cout << "Q_streams = " << QSTRM << " and AREA = " << SUMA_AREA << std::endl;
 }
 
 template <int dim>
