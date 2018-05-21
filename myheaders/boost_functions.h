@@ -73,11 +73,11 @@ double polyXpoly(std::vector<double>& x1, std::vector<double>& y1,
         strm_point cntr(0,0);
         boost::geometry::centroid(p,cntr);
         // Plot intersction ------------
-        std::cout << "plot([";
-        boost::geometry::for_each_point(p,list_coordinatesX_oneline<strm_point>);
-        std::cout << "],[";
-        boost::geometry::for_each_point(p,list_coordinatesY_oneline<strm_point>);
-        std::cout << "])" << std::endl;
+        //std::cout << "plot([";
+        //boost::geometry::for_each_point(p,list_coordinatesX_oneline<strm_point>);
+        //std::cout << "],[";
+        //boost::geometry::for_each_point(p,list_coordinatesY_oneline<strm_point>);
+        //std::cout << "])" << std::endl;
         //------------------------------
         xc = cntr.x();
         yc = cntr.y();

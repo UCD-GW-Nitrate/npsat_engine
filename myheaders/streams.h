@@ -266,8 +266,8 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 stream_triangles.push_back(ine_Triangle(ine_Point3(xx[0], yy[0], 0.0),
                                                         ine_Point3(xx[1], yy[1], 0.0),
                                                         ine_Point3(xx[2], yy[2], 0.0)));
-                std::cout << "plot([" << xx[0] << " " << xx[1] << " " << xx[2] << " " <<xx[0] << "],[";
-                std::cout << yy[0] << " " << yy[1] << " " << yy[2] << " " << yy[0] << "])" << std::endl;
+                //std::cout << "plot([" << xx[0] << " " << xx[1] << " " << xx[2] << " " <<xx[0] << "],[";
+                //std::cout << yy[0] << " " << yy[1] << " " << yy[2] << " " << yy[0] << "])" << std::endl;
 
 
                 stream_ids.push_back(i);
@@ -275,8 +275,8 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
                                            ine_Point3(xx[3], yy[3], 0.0),
                                            ine_Point3(xx[0], yy[0], 0.0)));
-                std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
-                std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
+                //std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
+                //std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
                 stream_ids.push_back(i);
             }
         }

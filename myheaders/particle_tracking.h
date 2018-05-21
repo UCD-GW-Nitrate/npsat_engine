@@ -44,6 +44,8 @@ private:
     void Send_receive_particles(std::vector<Streamline<dim>>    new_particles,
                                 std::vector<Streamline<dim>>	&streamlines);
 
+    int check_cell_point(typename DoFHandler<dim>::active_cell_iterator &cell, Point<dim>& p);
+
     double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
 };
 
@@ -248,6 +250,103 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
 }
 
 template <int dim>
+int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p){
+    int outcome = 0;
+    if (cell->point_inside(p)){
+        outcome = 1;
+    }
+    else{
+        bool cell_found = false;
+        // if the point is outside of the cell then search all neighbors until the point is found
+        // or until we have search enough neighbors to make sure that the point is actually outside of the domain
+        std::vector<typename DoFHandler<dim>::active_cell_iterator> tested_cells;
+        std::vector<typename DoFHandler<dim>::active_cell_iterator> adjacent_cells;
+        std::vector<Point<dim>> cells_checked;
+        typename DoFHandler<dim>::active_cell_iterator neighbor_child;
+        tested_cells.push_back(cell);
+        cells_checked.push_back(cell->center());
+        int nSearch = 0;
+        while (nSearch < param.search_iter){
+            for (unsigned int i = 0; i < tested_cells.size(); ++i){
+                // for each face of the tested cell check its neighbors
+                for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
+                    if (tested_cells[i]->at_boundary(j))
+                        continue;
+                    if(tested_cells[i]->neighbor(j)->active()){
+                        // if the neighbor is active then we check first if we have already checked it
+                        bool cell_checked = false;
+                        for (unsigned int ii = 0; ii < cells_checked.size(); ++ii){
+                            double dst = cells_checked[ii].distance(tested_cells[i]->neighbor(j)->center());
+                            if (dst < 0.001){
+                                cell_checked = true;
+                                break;
+                            }
+                        }
+                        if (!cell_checked){
+                            // none of the cell centers of the checked cells is almost identical
+                            // to this neighbor so we will add it to the list of the cells to be check
+                            adjacent_cells.push_back(tested_cells[i]->neighbor(j));
+                        }
+
+                    }
+                    else{
+                        // if the neighbor cell is not active then it has children
+                        // Here we check those children that touch the face of the tested cell
+                        for (unsigned int ichild = 0; ichild < tested_cells[i]->neighbor(j)->n_children(); ++ ichild){
+                            // if the child has children, this child doesnt not touch the test cell and we will examine it later
+                            if(!tested_cells[i]->neighbor(j)->child(ichild)->active())
+                                continue;
+                            neighbor_child = tested_cells[i]->neighbor(j)->child(ichild);
+                            // Check if this cell has been tested
+                            bool cell_checked = false;
+                            for (unsigned int ii = 0; ii < cells_checked.size(); ++ii){
+                                double dst = cells_checked[ii].distance(neighbor_child->center());
+                                if (dst < 0.001){
+                                    cell_checked = true;
+                                    break;
+                                }
+                            }
+                            if (!cell_checked){
+                                adjacent_cells.push_back(neighbor_child);
+                            }
+                        }
+                    }
+                }
+            }
+            // The adjacent_cells is a list of cells that are likely to contain the point
+            tested_cells.clear();
+            for (unsigned int i = 0; i < adjacent_cells.size(); ++i){
+                bool is_in_cell = adjacent_cells[i]->point_inside(p);
+                if (is_in_cell){
+                    cell_found = true;
+                    cell = adjacent_cells[i];
+                    if (cell->is_locally_owned())
+                        outcome = 2;
+                    else if(cell->is_ghost())
+                        outcome = 3;
+                    else if(cell->is_artificial())
+                        outcome = -3;
+                    else
+                        std::cerr << "That cant be right. The cell must be either local, ghost or artificial" << std::endl;
+                    break;
+                }
+                else{
+                    tested_cells.push_back(adjacent_cells[i]);
+                    cells_checked.push_back(adjacent_cells[i]->center());
+                }
+            }
+            if (cell_found){
+                break;
+            }
+            else{
+                nSearch++;
+                adjacent_cells.clear();
+            }
+        }
+    }
+}
+
+template <int dim>
 int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator& cell){
     int outcome = 0;
     Point<dim> p_unit;
@@ -384,42 +483,46 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     }
 
     if (cell_found){
-        //The velocity is equal vx = - Kx*dHx/n
-        // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
-        // For the current cell we will extract the hydraulic head solution
-        QTrapez<dim> trapez_formula;
-        FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
-        fe_values_trapez.reinit(cell);
-        std::vector<double> current_cell_head(dofs_per_cell);
-        fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
-
-        // To compute the head derivatives at the current particle position
-        // we set a quadrature rule at the current point
-        Quadrature<dim> temp_quadrature(p_unit);
-        FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
-        fe_values_temp.reinit(cell);
-
-        // dHead is the head gradient and is initialized to zero
-        Tensor<1,dim> dHead;
-        for (int i = 0; i < dim; ++i){
-            dHead[i] = 0;
+        if (cell->is_ghost() || cell->is_artificial()){
+            outcome = 55;
         }
+        else{
+            //The velocity is equal vx = - Kx*dHx/n
+            // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
+            // For the current cell we will extract the hydraulic head solution
+            QTrapez<dim> trapez_formula;
+            FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+            fe_values_trapez.reinit(cell);
+            std::vector<double> current_cell_head(dofs_per_cell);
+            fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
 
-        for (unsigned int i = 0; i < dofs_per_cell; ++i){
-            Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
-            for (int i_dim = 0; i_dim < dim; ++i_dim){
-                dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+            // To compute the head derivatives at the current particle position
+            // we set a quadrature rule at the current point
+            Quadrature<dim> temp_quadrature(p_unit);
+            FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
+            fe_values_temp.reinit(cell);
+
+            // dHead is the head gradient and is initialized to zero
+            Tensor<1,dim> dHead;
+            for (int i = 0; i < dim; ++i){
+                dHead[i] = 0;
             }
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+                for (int i_dim = 0; i_dim < dim; ++i_dim){
+                    dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+                }
+            }
+
+            // divide dHead with the porosity
+            double por = porosity.value(p);
+            for (int i_dim = 0; i_dim < dim; ++i_dim)
+                dHead[i_dim] = dHead[i_dim]/por;
+            Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
+            for (int i_dim = 0; i_dim < dim; ++i_dim)
+                v[i_dim] = temp_v[i_dim];
         }
-
-        // divide dHead with the porosity
-        double por = porosity.value(p);
-        for (int i_dim = 0; i_dim < dim; ++i_dim)
-            dHead[i_dim] = dHead[i_dim]/por;
-        Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
-        for (int i_dim = 0; i_dim < dim; ++i_dim)
-            v[i_dim] = temp_v[i_dim];
-
     }
     return outcome;
 }
@@ -482,6 +585,18 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         step_time = 0.5*step_lenght/RK_steps[0].norm(); // half step
         for (int i = 0; i < dim; ++i)
             temp_point[i] = streamline.P[last][i] + RK_steps[0][i]*step_time;
+
+        int check_pnt = check_cell_point(cell,temp_point);
+        if (check_pnt < 0){
+
+        }
+        else if (check_pnt > 0){
+
+        }
+        else if (check_pnt == 0){
+
+        }
+
         outcome = compute_point_velocity(temp_point, temp_velocity, cell);
         if (outcome == 0)
             RK_steps.push_back(temp_velocity);
