@@ -44,7 +44,52 @@ private:
     void Send_receive_particles(std::vector<Streamline<dim>>    new_particles,
                                 std::vector<Streamline<dim>>	&streamlines);
 
+    /**
+     * @brief check_cell_point tests the spatial relationship between a gien cell and a given point.
+     *
+     * First checks if the point is inside the cell by calling the dealii method point_inside.
+     *
+     * If the point is not inside the given cell, then we loop through the cell facesto check if any neighbor cells contain the point.
+     *
+     * This is executed using the folloing logic:
+     *
+     * First we create a list of tested cells and a list of adjacent cells. Initially the adjacent list is empty and the tested cells contains only the initial cell.
+     * For each cell in the tested cell list we loop through the cells that touch each of the face of the tested cell and if those cells have not visited already
+     * we add them to the adjacent cell list.
+     * Next we check the cells int the list of adjacent cells if they contain the point. In addition each of the adjacent cells become tested cell for the next iteration.
+     * The number of times we do that is choosen by the user. Typicaly 3 is more than enough.
+     * @param cell This is the initial cell. In the case that the return value is 0  or 1 the cell is the same as the input. If the return valu is 2 or 3 then the
+     * cell reference changes to point the new cell. However if the return value is negative then the cell still points to the original cell.
+     * @param p
+     * @return Returns
+     *      - 0 if te point has not been found inside any cell. THis means that the point is possibly outside the domain
+     *      - 1 if the point is inside the cell.
+     *      - 2 if the point is found inside an adjacent cell that is locally owned
+     *      - 3 if the point is found inside an adjacent cell that is ghost
+     *      - -3 if the point is found inside an adjacent cell that is artificial.
+     * The last case indicates that something wrong happens. For example the step maybe too large so it skips the ghost cell.
+     * That's why when this returns negative values we tell the algorithm to take one very small euler step instead of a larger RK4 step
+     */
     int check_cell_point(typename DoFHandler<dim>::active_cell_iterator &cell, Point<dim>& p);
+
+    /**
+     * @brief compute_point_velocity Computes the velocity of the point p that is found within the cell. This version takes into account the
+     * outcome of the check_cell_point method as the last input.
+     * @param p
+     * @param v
+     * @param cell
+     * @param check_point_status
+     * @return it returns the following values
+     *      - -99 if the cell is artificial.
+     *      - -88 if the mapping transformation has failed to compute the unit coordinates of the p point.
+     *      - 1 if the particle has exited the domain from the top face of the cell. This is the most common case
+     *      - -9 if the particle has exited the domain from the bottom face of the cell. if the bottom was supposed to be impermeable boundary that's very wrong
+     *      - 2 if the point has left the cell from the side. This is normal if the face is lateral flow boundary
+     *      - 0 if the computation of velocity was successful
+     *      - -101 If something else obviously wrong has happened
+     *
+     */
+    int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status);
 
     double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
 };
@@ -320,12 +365,15 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                 if (is_in_cell){
                     cell_found = true;
                     cell = adjacent_cells[i];
-                    if (cell->is_locally_owned())
+                    if (cell->is_locally_owned()){
                         outcome = 2;
-                    else if(cell->is_ghost())
+                    }
+                    else if(cell->is_ghost()){
                         outcome = 3;
-                    else if(cell->is_artificial())
+                    }
+                    else if(cell->is_artificial()){
                         outcome = -3;
+                    }
                     else
                         std::cerr << "That cant be right. The cell must be either local, ghost or artificial" << std::endl;
                     break;
@@ -344,6 +392,106 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
             }
         }
     }
+    return outcome;
+}
+
+template <int dim>
+int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status){
+    int outcome = -101;
+    if (check_point_status < 0 || cell->is_artificial()){
+        std::cerr << "You should not call compute_point_velocity if the check_point_status is negative which means the cell is artificial" << std::endl;
+        outcome = -99;
+        return outcome;
+    }
+
+    Point<dim> p_unit;
+    const MappingQ1<dim> mapping;
+    success = try_mapping(p, p_unit, cell, mapping);
+    if (!success){
+        std::cerr << "P fail:" << p << std::endl;
+        outcome = -88;
+        return outcome;
+    }
+
+
+    if (check_point_status == 0){
+        // no new cell has been found the particle possible has left the domain for ever
+        if (p_unit[dim-1] > 1){ // the particle exits from the top face which is what we want
+            outcome = 1;
+            return outcome;
+        }
+        else if (p_unit[dim-1] < 0){ // the particle exits from the bottom face (BAD BAD BAD!!!)
+            outcome = -9;
+            return outcome;
+        }
+        else if(p_unit[0] < 0 || p_unit[0] > 1){ // the particle exits from either side in x direction (not ideal but its ok)
+            outcome = 2;
+            return outcome;
+        }
+        else if (dim == 3){
+            if (p_unit[1] < 0 || p_unit[1] > 1){ // same as above
+               outcome = 2;
+               return outcome;
+            }
+        }
+
+        // sometimes it may be possible that the check_cell_point fails to identify that the point lies in the cell therefore we allow for
+        // one last chance to change the point status
+        if (dim == 2){
+            if (p_unit[0]>=0 && p_unit[0] <=1 &&
+                p_unit[1]>=0 && p_unit[1] <=1){
+                check_point_status = 1;
+            }
+        }
+        else if (dim == 3){
+            if (p_unit[0]>=0 && p_unit[0] <=1 &&
+                p_unit[1]>=0 && p_unit[1] <=1 &&
+                    p_unit[2]>=0 && p_unit[2] <=1){
+                check_point_status = 1;
+            }
+        }
+    }
+
+    if (check_point_status > 0){
+        //The velocity is equal vx = - Kx*dHx/n
+        // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
+        // For the current cell we will extract the hydraulic head solution
+        const unsigned int dofs_per_cell = fe.dofs_per_cell;
+        QTrapez<dim> trapez_formula;
+        FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+        fe_values_trapez.reinit(cell);
+        std::vector<double> current_cell_head(dofs_per_cell);
+        fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
+
+        // To compute the head derivatives at the current particle position
+        // we set a quadrature rule at the current point
+        Quadrature<dim> temp_quadrature(p_unit);
+        FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
+        fe_values_temp.reinit(cell);
+
+        // dHead is the head gradient and is initialized to zero
+        Tensor<1,dim> dHead;
+        for (int i = 0; i < dim; ++i){
+            dHead[i] = 0;
+        }
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i){
+            Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+            for (int i_dim = 0; i_dim < dim; ++i_dim){
+                dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+            }
+        }
+
+        // divide dHead with the porosity
+        double por = porosity.value(p);
+        for (int i_dim = 0; i_dim < dim; ++i_dim)
+            dHead[i_dim] = dHead[i_dim]/por;
+        Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
+        for (int i_dim = 0; i_dim < dim; ++i_dim)
+            v[i_dim] = temp_v[i_dim];
+        return 0;
+    }
+    return outcome;
 }
 
 template <int dim>
@@ -536,6 +684,8 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
+    typename DoFHandler<dim>::active_cell_iterator init_cell = cell;
+
     if (param.method == 1){
         // Euler method is the simplest one. The next point is computed as function of the previous
         // point only.
@@ -571,7 +721,6 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         }
     }
     else if (param.method == 3){
-        bool dont_continue = false;
         // Fourth order Runge Kutta computes the next point by averaging 4 sampling points
         // The weights of RK4 are
         std::vector<double> RK_weights(4,1);
@@ -581,78 +730,98 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         // The first step uses the velocity of the previous step
         RK_steps.push_back(streamline.V[last]);
         Point<dim> temp_point;
+
+
         // First we compute a point by taking half step using the initial velocity
         step_time = 0.5*step_lenght/RK_steps[0].norm(); // half step
         for (int i = 0; i < dim; ++i)
             temp_point[i] = streamline.P[last][i] + RK_steps[0][i]*step_time;
 
         int check_pnt = check_cell_point(cell,temp_point);
-        if (check_pnt < 0){
+        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
+                           // a simple euler step but very small one. Note that the cell still points to the initial cell
 
         }
-        else if (check_pnt > 0){
-
-        }
-        else if (check_pnt == 0){
-
-        }
-
-        outcome = compute_point_velocity(temp_point, temp_velocity, cell);
-        if (outcome == 0)
-            RK_steps.push_back(temp_velocity);
-        else
-            dont_continue = true;
-
-        if (!dont_continue){
-            //using the velocity of the mid point take another half step from the initial point
-            step_time = 0.5*step_lenght/RK_steps[1].norm(); // half step
-            for (int i = 0; i < dim; ++i)
-                temp_point[i] = streamline.P[last][i] + RK_steps[1][i]*step_time;
-            outcome = compute_point_velocity(temp_point, temp_velocity, cell);
-            if (outcome == 0)
+        else {
+            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
+            if (outcome == 0){
                 RK_steps.push_back(temp_velocity);
-            else
-                dont_continue = true;
-        }
-
-        if (!dont_continue){
-            // using the velocity of the second point take a full step
-            step_time = step_lenght/RK_steps[2].norm();
-            for (int i = 0; i < dim; ++i)
-                temp_point[i] = streamline.P[last][i] + RK_steps[2][i]*step_time;
-            outcome = compute_point_velocity(temp_point, temp_velocity, cell);
-            if (outcome == 0)
-                RK_steps.push_back(temp_velocity);
-            else
-                dont_continue = true;
-        }
-
-        if (!dont_continue){
-            // Finally we average the velocities and take a full step
-            Point<dim> av_vel;
-            for (unsigned int i = 0; i < RK_steps.size(); ++i){
-                for (unsigned int j = 0; j < dim; ++j){
-                    av_vel[j] += RK_steps[i][j]*(RK_weights[i]/6.0);
-                }
             }
-            step_time = step_lenght/av_vel.norm(); // full step
-            for (int i = 0; i < dim; ++i)
-                next_point[i] = streamline.P[last](i) + av_vel[i]*step_time;
-            outcome = compute_point_velocity(next_point, temp_velocity, cell);
+            else{
+                return outcome;
+            }
         }
-    }
 
-    if (outcome == 0){
-        if (cell->is_ghost() || cell->is_artificial()){
-            streamline.add_point(next_point, cell->subdomain_id());
-            outcome = 55;
+        //using the velocity of the mid point take another half step from the initial point
+        step_time = 0.5*step_lenght/RK_steps[1].norm(); // half step
+        for (int i = 0; i < dim; ++i)
+            temp_point[i] = streamline.P[last][i] + RK_steps[1][i]*step_time;
+
+        check_pnt = check_cell_point(cell,temp_point);
+        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
+                           // a simple euler step but very small one. Note that the cell still points to the initial cell
+
         }
-        else if (cell->is_locally_owned()){
-            //std::cout << next_point << std::endl;
-            streamline.add_point_vel(next_point, temp_velocity, cell->subdomain_id());
+        else{
+            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
+            if (outcome == 0){
+                RK_steps.push_back(temp_velocity);
+            }
+            else{
+                return outcome;
+            }
         }
+
+        // using the velocity of the second point take a full step
+        step_time = step_lenght/RK_steps[2].norm();
+        for (int i = 0; i < dim; ++i)
+            temp_point[i] = streamline.P[last][i] + RK_steps[2][i]*step_time;
+
+        check_pnt = check_cell_point(cell,temp_point);
+        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
+                           // a simple euler step but very small one. Note that the cell still points to the initial cell
+
+        }
+        else{
+            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
+            if (outcome == 0){
+                RK_steps.push_back(temp_velocity);
+            }
+            else{
+                return outcome;
+            }
+        }
+
+        // Finally we average the velocities and take a full step
+         Point<dim> av_vel;
+         for (unsigned int i = 0; i < RK_steps.size(); ++i){
+             for (unsigned int j = 0; j < dim; ++j){
+                 av_vel[j] += RK_steps[i][j]*(RK_weights[i]/6.0);
+             }
+         }
+         step_time = step_lenght/av_vel.norm(); // full step
+         for (int i = 0; i < dim; ++i)
+             next_point[i] = streamline.P[last](i) + av_vel[i]*step_time;
+
+         check_pnt = check_cell_point(cell, next_point);
+         if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
+                            // a simple euler step but very small one. Note that the cell still points to the initial cell
+
+         }
+         else{
+             outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
+             if (cell->is_ghost() || cell->is_artificial()){
+                 streamline.add_point(next_point, cell->subdomain_id());
+                 outcome = 55;
+                 return outcome;
+             }
+             else if (cell->is_locally_owned()){
+                 streamline.add_point_vel(next_point, temp_velocity, cell->subdomain_id());
+                 outcome = 0;
+                 return outcome;
+             }
+         }
     }
-    return outcome;
 }
 
 template <int dim>
