@@ -25,6 +25,7 @@ public:
                       MyTensorFunction<dim>& HK_function_in,
                       MyFunction<dim, dim>& porosity_in,
                       ParticleParameters& param_in);
+    ~Particle_Tracking();
 
     void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix);
 
@@ -37,6 +38,10 @@ private:
     MyFunction<dim, dim>                porosity;
     ConditionalOStream                  pcout;
     ParticleParameters                  param;
+
+    bool                                bprint_DBG;
+    std::ofstream                       dbg_file;
+
 
     int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell);
@@ -138,7 +143,19 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
     porosity(porosity_in),
     param(param_in),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
-{}
+{
+
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    const std::string dbg_file_name = ("particles_dbg" +
+                                       Utilities::int_to_string(my_rank, 4) +
+                                       ".m");
+    dbg_file.open(dbg_file_name.c_str());
+}
+
+template <int dim>
+Particle_Tracking<dim>::~Particle_Tracking(){
+    dbg_file.close();
+}
 
 template <int dim>
 void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix){
