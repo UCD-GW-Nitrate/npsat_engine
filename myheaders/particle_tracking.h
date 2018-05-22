@@ -45,24 +45,25 @@ private:
                                 std::vector<Streamline<dim>>	&streamlines);
 
     /**
-     * @brief check_cell_point tests the spatial relationship between a gien cell and a given point.
+     * @brief check_cell_point tests the spatial relationship between a given cell and a given point.
      *
      * First checks if the point is inside the cell by calling the dealii method point_inside.
      *
-     * If the point is not inside the given cell, then we loop through the cell facesto check if any neighbor cells contain the point.
+     * If the point is not inside the input cell, then we loop through the cell faces to check if any neighbor cells contain the point.
      *
-     * This is executed using the folloing logic:
+     * This is executed using the following logic:
      *
      * First we create a list of tested cells and a list of adjacent cells. Initially the adjacent list is empty and the tested cells contains only the initial cell.
      * For each cell in the tested cell list we loop through the cells that touch each of the face of the tested cell and if those cells have not visited already
      * we add them to the adjacent cell list.
      * Next we check the cells int the list of adjacent cells if they contain the point. In addition each of the adjacent cells become tested cell for the next iteration.
      * The number of times we do that is choosen by the user. Typicaly 3 is more than enough.
-     * @param cell This is the initial cell. In the case that the return value is 0  or 1 the cell is the same as the input. If the return valu is 2 or 3 then the
-     * cell reference changes to point the new cell. However if the return value is negative then the cell still points to the original cell.
+     * @param cell This is the initial cell. In the case that the return value is 0  or 1 the cell is the same as the input.
+     * If the return value is 2 or 3 then the cell reference changes to point the new cell.
+     * However if the return value is negative then the cell still points to the original cell.
      * @param p
      * @return Returns
-     *      - 0 if te point has not been found inside any cell. THis means that the point is possibly outside the domain
+     *      - 0 if the point has not been found inside any cell. This means that the point is possibly outside the domain
      *      - 1 if the point is inside the cell.
      *      - 2 if the point is found inside an adjacent cell that is locally owned
      *      - 3 if the point is found inside an adjacent cell that is ghost
@@ -92,6 +93,32 @@ private:
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status);
 
     double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
+
+    /**
+     * @brief add_streamline_point Adds the point and velocity to the streamline. First checks if the cell is locally owned.
+     * If yes adds the point and the velocity. If not adds only the point. This particle position will transfer to other processors
+     * and the one that onws the cell that this particle is will the compute the velocity.
+     * @param cell
+     * @param streamline
+     * @param p
+     * @param vel
+     * @return
+     *      - 0  if the cell is locally owned
+     *      - 55 if the cell is artificial or ghost
+     */
+    int add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
+                             Streamline<dim> &streamline,
+                             Point<dim> p, Point<dim> vel, int return_value);
+
+    int take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
+                        double step_weight, double step_length,
+                        Point<dim> P_prev, Point<dim> V_prev,
+                        Point<dim>& P_next, Point<dim>& V_next, int& count_nest);
+
+    void plot_cell(typename DoFHandler<dim>::active_cell_iterator cell);
+    void plot_point(Point<dim> p);
+    void plot_segment(Point<dim> A, Point<dim> B);
+
 };
 
 template <int dim>
@@ -277,6 +304,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
                 return  reason_to_exit;
             else{
                 streamline.V.push_back(v);
+                //plot_cell(cell);
             }
         }
         // if this is not the starting point we already know the velocity at the current point
@@ -364,11 +392,14 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                 bool is_in_cell = adjacent_cells[i]->point_inside(p);
                 if (is_in_cell){
                     cell_found = true;
-                    cell = adjacent_cells[i];
                     if (cell->is_locally_owned()){
+                        cell = adjacent_cells[i];
+                        //plot_cell(cell);
                         outcome = 2;
                     }
                     else if(cell->is_ghost()){
+                        cell = adjacent_cells[i];
+                        //plot_cell(cell);
                         outcome = 3;
                     }
                     else if(cell->is_artificial()){
@@ -406,7 +437,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
 
     Point<dim> p_unit;
     const MappingQ1<dim> mapping;
-    success = try_mapping(p, p_unit, cell, mapping);
+    bool success = try_mapping(p, p_unit, cell, mapping);
     if (!success){
         std::cerr << "P fail:" << p << std::endl;
         outcome = -88;
@@ -681,6 +712,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
     int outcome = -9999;
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
     double step_lenght = cell->minimum_vertex_distance()/param.step_size;
+    // CONSIDER REDUCING THE STEP IF THE CELL HAS FACES THAT ARE BOUNDARIES
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
@@ -730,97 +762,39 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         // The first step uses the velocity of the previous step
         RK_steps.push_back(streamline.V[last]);
         Point<dim> temp_point;
-
-
+        int count_nest = 0;
         // First we compute a point by taking half step using the initial velocity
-        step_time = 0.5*step_lenght/RK_steps[0].norm(); // half step
-        for (int i = 0; i < dim; ++i)
-            temp_point[i] = streamline.P[last][i] + RK_steps[0][i]*step_time;
-
-        int check_pnt = check_cell_point(cell,temp_point);
-        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
-                           // a simple euler step but very small one. Note that the cell still points to the initial cell
-
-        }
-        else {
-            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
-            if (outcome == 0){
-                RK_steps.push_back(temp_velocity);
-            }
-            else{
-                return outcome;
-            }
-        }
-
-        //using the velocity of the mid point take another half step from the initial point
-        step_time = 0.5*step_lenght/RK_steps[1].norm(); // half step
-        for (int i = 0; i < dim; ++i)
-            temp_point[i] = streamline.P[last][i] + RK_steps[1][i]*step_time;
-
-        check_pnt = check_cell_point(cell,temp_point);
-        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
-                           // a simple euler step but very small one. Note that the cell still points to the initial cell
-
+        int out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[0], temp_point, temp_velocity, count_nest);
+        if (out != 0){
+            return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
         }
         else{
-            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
-            if (outcome == 0){
-                RK_steps.push_back(temp_velocity);
+            RK_steps.push_back(temp_velocity);
+             //using the velocity of the mid point take another half step from the initial point
+            out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[1], temp_point, temp_velocity, count_nest);
+            if (out !=0 ){
+                return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
             }
             else{
-                return outcome;
-            }
-        }
-
-        // using the velocity of the second point take a full step
-        step_time = step_lenght/RK_steps[2].norm();
-        for (int i = 0; i < dim; ++i)
-            temp_point[i] = streamline.P[last][i] + RK_steps[2][i]*step_time;
-
-        check_pnt = check_cell_point(cell,temp_point);
-        if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
-                           // a simple euler step but very small one. Note that the cell still points to the initial cell
-
-        }
-        else{
-            outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
-            if (outcome == 0){
                 RK_steps.push_back(temp_velocity);
-            }
-            else{
-                return outcome;
+                // using the velocity of the second point take a full step
+                out = take_euler_step(cell, 1.0, step_lenght, streamline.P[last], RK_steps[2], temp_point, temp_velocity, count_nest);
+                if (out !=0){
+                    return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
+                }
+                else{
+                    // Finally we average the velocities and take a full step
+                    Point<dim> av_vel;
+                    for (unsigned int i = 0; i < RK_steps.size(); ++i){
+                        for (unsigned int j = 0; j < dim; ++j){
+                            av_vel[j] += RK_steps[i][j]*(RK_weights[i]/6.0);
+                        }
+                    }
+                    out = take_euler_step(cell, 1.0, step_lenght, streamline.P[last], av_vel, temp_point, temp_velocity, count_nest);
+                    return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
+                }
             }
         }
-
-        // Finally we average the velocities and take a full step
-         Point<dim> av_vel;
-         for (unsigned int i = 0; i < RK_steps.size(); ++i){
-             for (unsigned int j = 0; j < dim; ++j){
-                 av_vel[j] += RK_steps[i][j]*(RK_weights[i]/6.0);
-             }
-         }
-         step_time = step_lenght/av_vel.norm(); // full step
-         for (int i = 0; i < dim; ++i)
-             next_point[i] = streamline.P[last](i) + av_vel[i]*step_time;
-
-         check_pnt = check_cell_point(cell, next_point);
-         if (check_pnt < 0){// If the return value is negative the point was found inside an artifical cell therefore we execute
-                            // a simple euler step but very small one. Note that the cell still points to the initial cell
-
-         }
-         else{
-             outcome = compute_point_velocity(temp_point, temp_velocity, cell, check_pnt);
-             if (cell->is_ghost() || cell->is_artificial()){
-                 streamline.add_point(next_point, cell->subdomain_id());
-                 outcome = 55;
-                 return outcome;
-             }
-             else if (cell->is_locally_owned()){
-                 streamline.add_point_vel(next_point, temp_velocity, cell->subdomain_id());
-                 outcome = 0;
-                 return outcome;
-             }
-         }
     }
 }
 
@@ -943,5 +917,170 @@ double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_c
 
 }
 
+template <int dim>
+int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
+                                                 Streamline<dim> &streamline,
+                                                 Point<dim> p, Point<dim> vel,
+                                                 int return_value){
+
+    if (return_value == 0 || return_value == -1){ // Either the computation has been normal or with reduced step
+        if (cell->is_ghost() || cell->is_artificial()){
+            streamline.add_point(p, cell->subdomain_id());
+            return 55;
+        }
+        else if (cell->is_locally_owned()){
+            //plot_segment(streamline.P[streamline.P.size()-1], p);
+            streamline.add_point_vel(p, vel, cell->subdomain_id());
+            return 0;
+        }
+    }
+    else{
+        return return_value;
+    }
+}
+
+template <int dim>
+int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
+                                            double step_weight, double step_length,
+                                            Point<dim> P_prev, Point<dim> V_prev,
+                                            Point<dim>& P_next, Point<dim>& V_next, int& count_nest){
+    double step_time = step_weight * step_length / V_prev.norm();
+    int outcome;
+
+    for (int i = 0; i < dim; ++i){
+        P_next[i] = P_prev[i] + V_prev[i] * step_time;
+    }
+    //plot_point(P_next);
+
+    int check_pnt = check_cell_point(cell, P_next);
+    if (check_pnt < 0){
+        step_length = step_length/5.0;
+        count_nest++;
+        outcome = take_euler_step(cell, step_weight, step_length, P_prev, V_prev, P_next, V_next, count_nest);
+    }
+    else{
+        outcome = compute_point_velocity(P_next, V_next, cell, check_pnt);
+    }
+
+    if (count_nest == 0)
+        return outcome;
+    else{
+        if (outcome == 0)
+            return -1;
+        else
+            return outcome;
+
+    }
+}
+
+template <int dim>
+void Particle_Tracking<dim>::plot_cell(typename DoFHandler<dim>::active_cell_iterator cell){
+    std::vector<Point<dim>> verts;
+    for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+        verts.push_back(cell->vertex(vertex_no));
+    }
+    if (dim == 3){
+        std::cout << "plot3([" << verts[0][0] << " "
+                               << verts[1][0] << " "
+                               << verts[3][0] << " "
+                               << verts[2][0] << " "
+                               << verts[0][0] << "],["
+                               << verts[0][1] << " "
+                               << verts[1][1] << " "
+                               << verts[3][1] << " "
+                               << verts[2][1] << " "
+                               << verts[0][1] << "],["
+                               << verts[0][2] << " "
+                               << verts[1][2] << " "
+                               << verts[3][2] << " "
+                               << verts[2][2] << " "
+                               << verts[0][2] << "])" << std::endl;
+
+        std::cout << "plot3([" << verts[4][0] << " "
+                               << verts[5][0] << " "
+                               << verts[7][0] << " "
+                               << verts[6][0] << " "
+                               << verts[4][0] << "],["
+                               << verts[4][1] << " "
+                               << verts[5][1] << " "
+                               << verts[7][1] << " "
+                               << verts[6][1] << " "
+                               << verts[4][1] << "],["
+                               << verts[4][2] << " "
+                               << verts[5][2] << " "
+                               << verts[7][2] << " "
+                               << verts[6][2] << " "
+                               << verts[4][2] << "])" << std::endl;
+
+        std::cout << "plot3([" << verts[0][0] << " "
+                               << verts[4][0] << "],["
+                               << verts[0][1] << " "
+                               << verts[4][1] << "],["
+                               << verts[0][2] << " "
+                               << verts[4][2] << "])" << std::endl;
+
+        std::cout << "plot3([" << verts[1][0] << " "
+                               << verts[5][0] << "],["
+                               << verts[1][1] << " "
+                               << verts[5][1] << "],["
+                               << verts[1][2] << " "
+                               << verts[5][2] << "])" << std::endl;
+
+        std::cout << "plot3([" << verts[3][0] << " "
+                               << verts[7][0] << "],["
+                               << verts[3][1] << " "
+                               << verts[7][1] << "],["
+                               << verts[3][2] << " "
+                               << verts[7][2] << "])" << std::endl;
+
+        std::cout << "plot3([" << verts[2][0] << " "
+                               << verts[6][0] << "],["
+                               << verts[2][1] << " "
+                               << verts[6][1] << "],["
+                               << verts[2][2] << " "
+                               << verts[6][2] << "])" << std::endl;
+
+    }
+    else if (dim == 2){
+        std::cout << "plot3([" << verts[0][0] << " "
+                               << verts[1][0] << " "
+                               << verts[3][0] << " "
+                               << verts[2][0] << " "
+                               << verts[0][0] << "],["
+                               << verts[0][1] << " "
+                               << verts[1][1] << " "
+                               << verts[3][1] << " "
+                               << verts[2][1] << " "
+                               << verts[0][1] << "])" << std::endl;
+    }
+}
+
+template <int dim>
+void Particle_Tracking<dim>::plot_point(Point<dim> p){
+    if (dim == 3)
+        std::cout << "plot3(" << p[0] << ", " << p[1] << ", " << p[2] << ", 'x')" << std::endl;
+    else if (dim == 2)
+        std::cout << "plot(" << p[0] << ", " << p[1] << ", x')" << std::endl;
+}
+
+template <int dim>
+void Particle_Tracking<dim>::plot_segment(Point<dim> A, Point<dim> B){
+    if (dim == 3){
+        std::cout << "plot3([" << A[0] << " "
+                               << B[0] << "],["
+                               << A[1] << " "
+                               << B[1] << "],["
+                               << A[2] << " "
+                               << B[2] << "], 'o-r')" << std::endl;
+
+    }
+    else if (dim == 2){
+        std::cout << "plot([" << A[0] << " "
+                              << B[0] << "],["
+                              << A[1] << " "
+                              << B[1] << "], 'o-r')" << std::endl;
+
+    }
+}
 
 #endif // PARTICLE_TRACKING_H
