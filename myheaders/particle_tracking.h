@@ -41,6 +41,8 @@ private:
 
     bool                                bprint_DBG;
     std::ofstream                       dbg_file;
+    int                                 dbg_i_strm;
+    int                                 dbg_i_step;
 
 
     int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
@@ -120,9 +122,29 @@ private:
                         Point<dim> P_prev, Point<dim> V_prev,
                         Point<dim>& P_next, Point<dim>& V_next, int& count_nest);
 
+    /**
+     * @brief time_step_multiplier calculates a step multiplier for the imput step.
+     * In general the step is defined by the user by setting  the #ParticleParameters::step_size
+     * variable via the input file "g Step size". This method further reduces the this time step
+     * if certain criteria are met. For example if any face of this cell is at boundary then the
+     * time step is reduces by 90%. If any neighbor cells is ghost or artificial the time step reduces
+     * by 75%. Last if any neighbor cell touch the boundary the the time step is reduced by 50%.
+     * If more than two criteria are met then the time multiplier returns the smallest value.
+     *
+     * Note that this is called once at the begin of the #find_next_point method.
+     *
+     * @param cell
+     * @return returns the time step multiplier.
+     */
+    double time_step_multiplier(typename DoFHandler<dim>::active_cell_iterator cell);
+
     void plot_cell(typename DoFHandler<dim>::active_cell_iterator cell);
     void plot_point(Point<dim> p);
     void plot_segment(Point<dim> A, Point<dim> B);
+    void print_Cell_var(typename DoFHandler<dim>::active_cell_iterator cell, int cell_type);
+    void print_point_var(Point<dim> p, int r);
+    void print_strm_exit_info(int r);
+    int cell_type(typename DoFHandler<dim>::active_cell_iterator cell);
 
 };
 
@@ -145,11 +167,16 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
 
-    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    const std::string dbg_file_name = ("particles_dbg" +
-                                       Utilities::int_to_string(my_rank, 4) +
-                                       ".m");
-    dbg_file.open(dbg_file_name.c_str());
+    bprint_DBG = true;
+    if (bprint_DBG){
+        unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+        const std::string dbg_file_name = ("particles_dbg" +
+                                           Utilities::int_to_string(my_rank, 4) +
+                                           ".m");
+        dbg_file.open(dbg_file_name.c_str());
+        dbg_i_step = 1;
+        dbg_i_strm = 1;
+    }
 }
 
 template <int dim>
@@ -219,9 +246,9 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                 for (unsigned int ii = 0; ii < GeometryInfo<dim>::vertices_per_cell; ++ii){
                     for (unsigned int jj = 0; jj < dim; ++jj){
                         if (ll[jj] > cell->vertex(ii)[jj])
-                            ll[jj] = cell->vertex(ii)[jj]-10;
+                            ll[jj] = cell->vertex(ii)[jj]-1;
                         if (uu[jj] < cell->vertex(ii)[jj])
-                            uu[jj] = cell->vertex(ii)[jj]+10;
+                            uu[jj] = cell->vertex(ii)[jj]+1;
                     }
                 }
 
@@ -313,6 +340,10 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
     // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
     int reason_to_exit= -99;
     int cnt_iter = 0;
+    if (bprint_DBG){
+        print_Cell_var(cell, cell_type(cell));
+        print_point_var(streamline.P[streamline.P.size()-1], 1000);
+    }
     while(cnt_iter < param.streaml_iter){
         if (cnt_iter == 0){ // If this is the starting point of the streamline we need to compute the velocity
             Point<dim> v;
@@ -336,6 +367,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
             break;
         cnt_iter++;
     }
+    print_strm_exit_info(reason_to_exit);
     return  reason_to_exit;
 }
 
@@ -409,6 +441,7 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                 bool is_in_cell = adjacent_cells[i]->point_inside(p);
                 if (is_in_cell){
                     cell_found = true;
+                    print_Cell_var(adjacent_cells[i],cell_type(adjacent_cells[i]));
                     if (cell->is_locally_owned()){
                         cell = adjacent_cells[i];
                         //plot_cell(cell);
@@ -728,8 +761,7 @@ template <int dim>
 int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
     int outcome = -9999;
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
-    double step_lenght = cell->minimum_vertex_distance()/param.step_size;
-    // CONSIDER REDUCING THE STEP IF THE CELL HAS FACES THAT ARE BOUNDARIES
+    double step_lenght = time_step_multiplier(cell) *(cell->minimum_vertex_distance()/param.step_size);
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
@@ -940,6 +972,10 @@ int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::activ
                                                  Point<dim> p, Point<dim> vel,
                                                  int return_value){
 
+    if (bprint_DBG){
+        print_point_var(p,return_value);
+    }
+
     if (return_value == 0 || return_value == -1){ // Either the computation has been normal or with reduced step
         if (cell->is_ghost() || cell->is_artificial()){
             streamline.add_point(p, cell->subdomain_id());
@@ -1098,6 +1134,109 @@ void Particle_Tracking<dim>::plot_segment(Point<dim> A, Point<dim> B){
                               << B[1] << "], 'o-r')" << std::endl;
 
     }
+}
+
+template <int dim>
+void Particle_Tracking<dim>::print_Cell_var(typename DoFHandler<dim>::active_cell_iterator cell, int cell_type){
+    std::vector<Point<dim>> verts;
+    for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+        verts.push_back(cell->vertex(vertex_no));
+    }
+
+    if (dim == 3){
+        dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).Nodes = ["
+                 << verts[0][0] << " " << verts[0][1] << " " << verts[0][2] << ";"
+                 << verts[1][0] << " " << verts[1][1] << " " << verts[1][2] << ";"
+                 << verts[3][0] << " " << verts[3][1] << " " << verts[3][2] << ";"
+                 << verts[2][0] << " " << verts[2][1] << " " << verts[2][2] << ";"
+                 << verts[4][0] << " " << verts[4][1] << " " << verts[4][2] << ";"
+                 << verts[5][0] << " " << verts[5][1] << " " << verts[5][2] << ";"
+                 << verts[7][0] << " " << verts[7][1] << " " << verts[7][2] << ";"
+                 << verts[6][0] << " " << verts[6][1] << " " << verts[6][2] << "];" << std::endl;
+    }
+    else if (dim == 2) {
+        dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).nodes = ["
+                 << verts[0][0] << " " << verts[0][1] << " " << verts[0][2] << ";"
+                 << verts[1][0] << " " << verts[1][1] << " " << verts[1][2] << ";"
+                 << verts[3][0] << " " << verts[3][1] << " " << verts[3][2] << ";"
+                 << verts[2][0] << " " << verts[2][1] << " " << verts[2][2] << "];" << std::endl;
+    }
+
+    dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).Type = " << cell_type << ";" << std::endl;
+
+}
+
+template <int dim>
+void Particle_Tracking<dim>::print_point_var(Point<dim> p, int r){
+    if (dim == 3)
+        dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).XYZ = ["
+                 << p[0] << " " << p[1] << " " << p[2] <<"];" << std::endl;
+    else if (dim == 2)
+        dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",:) = ["
+                 << p[0] << " " << p[1] << " " << p[2] <<"];" << std::endl;
+    dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).type = " << r << ";" << std::endl;
+    dbg_i_step++;
+}
+
+template <int dim>
+void Particle_Tracking<dim>::print_strm_exit_info(int r){
+    dbg_file << "S(" << dbg_i_strm << ",1).Exit =" << r << ";" << std::endl;
+    dbg_i_strm++;
+    dbg_i_step = 1;
+    dbg_file << "%-----------------------------------------------------------------------" << std::endl;
+}
+
+template <int dim>
+int Particle_Tracking<dim>::cell_type(typename DoFHandler<dim>::active_cell_iterator cell){
+    if (cell->is_locally_owned())
+        return 0;
+    else if (cell->is_ghost())
+        return 1;
+    else if (cell->is_artificial())
+        return 2;
+}
+
+template <int dim>
+double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::active_cell_iterator cell){
+    double time_step = 1.0;
+    if (!cell->is_locally_owned())
+        time_step = 0.5;
+
+    for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
+        if (cell->at_boundary(j)){
+            if (time_step > 0.1)
+                time_step = 0.1;
+        }
+        else{
+            if (cell->neighbor(j)->active()){
+                if (!cell->neighbor(j)->is_locally_owned()){
+                    if (time_step > 0.25)
+                        time_step = 0.25;
+                }
+                for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
+                    if(cell->neighbor(j)->at_boundary(k))
+                        if (time_step > 0.5)
+                            time_step = 0.5;
+                }
+            }
+            else{
+                for (unsigned int ichild = 0; ichild < cell->neighbor(j)->n_children(); ++ ichild){
+                    if(cell->neighbor(j)->child(ichild)->active()){
+                        if (!cell->neighbor(j)->child(ichild)->is_locally_owned())
+                            if (time_step > 0.25)
+                                time_step = 0.25;
+
+                        for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
+                            if(cell->neighbor(j)->child(ichild)->at_boundary(k))
+                                if (time_step > 0.5)
+                                    time_step = 0.5;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return time_step;
 }
 
 #endif // PARTICLE_TRACKING_H
