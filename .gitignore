@@ -24,6 +24,13 @@
 # unignore the houdini python scripts
 !/Vis/*.py
 
+# unignore the matlab folder =========matlab========
+!/matlab
+# now ignore all the content of the folder
+/matlab/*
+#unignore the *.m files
+!/matlab/*.m
+
 
 # unignore the example folder =========Examples========
 !/examples

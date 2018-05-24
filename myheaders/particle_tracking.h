@@ -25,7 +25,7 @@ public:
                       MyTensorFunction<dim>& HK_function_in,
                       MyFunction<dim, dim>& porosity_in,
                       ParticleParameters& param_in);
-    ~Particle_Tracking();
+
 
     void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix);
 
@@ -169,19 +169,9 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
 
     bprint_DBG = true;
     if (bprint_DBG){
-        unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-        const std::string dbg_file_name = ("particles_dbg" +
-                                           Utilities::int_to_string(my_rank, 4) +
-                                           ".m");
-        dbg_file.open(dbg_file_name.c_str());
         dbg_i_step = 1;
         dbg_i_strm = 1;
     }
-}
-
-template <int dim>
-Particle_Tracking<dim>::~Particle_Tracking(){
-    dbg_file.close();
 }
 
 template <int dim>
@@ -191,16 +181,30 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
 
     //This is the name file where all particle trajectories are written
     const std::string log_file_name = (prefix + "_" +
-                                           Utilities::int_to_string(iter, 4) +
-                                           "_particles_"	+
-                                           Utilities::int_to_string(my_rank, 4) +
-                                           ".traj");
+                                       Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
+                                       "_particles_"	+
+                                       Utilities::int_to_string(my_rank, 4) +
+                                       ".traj");
+
     //This is the name file where we print info of particles that terminate abnornamly
     const std::string err_file_name = (prefix + "_" +
-                                       Utilities::int_to_string(iter, 4) +
+                                       Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                        "_particle_errors_"	+
                                        Utilities::int_to_string(my_rank, 4) +
                                        ".traj");
+
+    if (bprint_DBG){
+        // This is the name file where the particles in matlab code format will be saved
+        const std::string dbg_file_name = (prefix + "_" +
+                                           Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
+                                           "_particles_dbg_" +
+                                           Utilities::int_to_string(my_rank, 4) +
+                                           ".m");
+        dbg_file.open(dbg_file_name.c_str());
+    }
+
+
+
     std::ofstream log_file;
     std::ofstream err_file;
     log_file.open(log_file_name.c_str());
@@ -333,6 +337,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
     }
     log_file.close();
     err_file.close();
+    dbg_file.close();
 }
 
 template <int dim>
