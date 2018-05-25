@@ -117,6 +117,23 @@ private:
                              Streamline<dim> &streamline,
                              Point<dim> p, Point<dim> vel, int return_value);
 
+    /**
+     * @brief take_euler_step Computes the position and the velocity if possible of the next point
+     * @param cell is the Cell that the particle is currently moving. However if the particle has to move to
+     * an adjacent cell then this method returns the new cell.
+     * @param step_weight This is the weight for the step. In RK 4 for example the first trial point has weight 0.5 to take half step.
+     * @param step_length The step length.
+     * @param P_prev The coordinates of the current point
+     * @param V_prev The Velocity of the current point. This have been calculated from the previous iteration
+     * @param P_next The coordinates of the points after taking the step
+     * @param V_next The velocity of the new point if its possible to calculate. Whether the velocity calculation was possible
+     * is dictated by the return statement
+     * @param count_nest This method can call it self if the step was too big so that it skipped two cells and found an artificial.
+     * It calles it self by reducing the step to half.
+     * @return This function returns an integer which can be any of the following
+     *  - -1 The method has called it self one or more times. This is very unsusuall by the way.
+     *  - The same list as the return codes of the #compute_point_velocity returns
+     */
     int take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
                         double step_weight, double step_length,
                         Point<dim> P_prev, Point<dim> V_prev,
@@ -143,7 +160,7 @@ private:
     void plot_segment(Point<dim> A, Point<dim> B);
     void print_Cell_var(typename DoFHandler<dim>::active_cell_iterator cell, int cell_type);
     void print_point_var(Point<dim> p, int r);
-    void print_strm_exit_info(int r);
+    void print_strm_exit_info(int r, int Eid, int Sid);
     int cell_type(typename DoFHandler<dim>::active_cell_iterator cell);
 
 };
@@ -372,7 +389,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
             break;
         cnt_iter++;
     }
-    print_strm_exit_info(reason_to_exit);
+    print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
     return  reason_to_exit;
 }
 
@@ -412,7 +429,8 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                         if (!cell_checked){
                             // none of the cell centers of the checked cells is almost identical
                             // to this neighbor so we will add it to the list of the cells to be check
-                            adjacent_cells.push_back(tested_cells[i]->neighbor(j));
+                            if (!tested_cells[i]->neighbor(j)->is_artificial())
+                                adjacent_cells.push_back(tested_cells[i]->neighbor(j));
                         }
 
                     }
@@ -434,7 +452,8 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                                 }
                             }
                             if (!cell_checked){
-                                adjacent_cells.push_back(neighbor_child);
+                                if (neighbor_child->is_artificial())
+                                    adjacent_cells.push_back(neighbor_child);
                             }
                         }
                     }
@@ -819,7 +838,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         int count_nest = 0;
         // First we compute a point by taking half step using the initial velocity
         int out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[0], temp_point, temp_velocity, count_nest);
-        if (out != 0){
+        if (out != 0 ){
             return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
         }
         else{
@@ -1011,6 +1030,7 @@ int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cel
     //plot_point(P_next);
 
     int check_pnt = check_cell_point(cell, P_next);
+
     if (check_pnt < 0){
         step_length = step_length/5.0;
         count_nest++;
@@ -1184,8 +1204,10 @@ void Particle_Tracking<dim>::print_point_var(Point<dim> p, int r){
 }
 
 template <int dim>
-void Particle_Tracking<dim>::print_strm_exit_info(int r){
+void Particle_Tracking<dim>::print_strm_exit_info(int r, int Eid, int Sid){
     dbg_file << "S(" << dbg_i_strm << ",1).Exit =" << r << ";" << std::endl;
+    dbg_file << "S(" << dbg_i_strm << ",1).Eid =" << Eid << ";" << std::endl;
+    dbg_file << "S(" << dbg_i_strm << ",1).Sid =" << Sid << ";" << std::endl;
     dbg_i_strm++;
     dbg_i_step = 1;
     dbg_file << "%-----------------------------------------------------------------------" << std::endl;
@@ -1203,20 +1225,21 @@ int Particle_Tracking<dim>::cell_type(typename DoFHandler<dim>::active_cell_iter
 
 template <int dim>
 double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::active_cell_iterator cell){
+
     double time_step = 1.0;
     if (!cell->is_locally_owned())
         time_step = 0.5;
 
     for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
         if (cell->at_boundary(j)){
-            if (time_step > 0.1)
-                time_step = 0.1;
+            if (time_step > 0.2)
+                time_step = 0.2;
         }
         else{
             if (cell->neighbor(j)->active()){
                 if (!cell->neighbor(j)->is_locally_owned()){
-                    if (time_step > 0.25)
-                        time_step = 0.25;
+                    if (time_step > 0.3)
+                        time_step = 0.3;
                 }
                 for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
                     if(cell->neighbor(j)->at_boundary(k))
@@ -1228,8 +1251,8 @@ double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::ac
                 for (unsigned int ichild = 0; ichild < cell->neighbor(j)->n_children(); ++ ichild){
                     if(cell->neighbor(j)->child(ichild)->active()){
                         if (!cell->neighbor(j)->child(ichild)->is_locally_owned())
-                            if (time_step > 0.25)
-                                time_step = 0.25;
+                            if (time_step > 0.3)
+                                time_step = 0.3;
 
                         for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
                             if(cell->neighbor(j)->child(ichild)->at_boundary(k))

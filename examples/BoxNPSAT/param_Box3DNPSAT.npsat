@@ -77,11 +77,11 @@ subsection C. Discretization
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 5
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 0
+  set e Stream Refinement       = 5
 end
 
 
@@ -225,7 +225,7 @@ subsection I. Particle tracking
 
   # k----------------------------------
   # The maximum number of particles that is allowed to run in parallel
-  set k N Particles in parallel    = 1000
+  set k N Particles in parallel    = 5000
 
   # l----------------------------------
   # The number of layers that the particles will be distributed around the
