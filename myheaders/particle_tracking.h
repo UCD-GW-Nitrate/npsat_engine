@@ -43,6 +43,8 @@ private:
     std::ofstream                       dbg_file;
     int                                 dbg_i_strm;
     int                                 dbg_i_step;
+    int                                 dbg_curr_Eid;
+    int                                 dbg_curr_Sid;
 
 
     int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
@@ -359,6 +361,9 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
 
 template <int dim>
 int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
+    dbg_curr_Eid = streamline.E_id;
+    dbg_curr_Sid = streamline.S_id;
+
     // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
     int reason_to_exit= -99;
     int cnt_iter = 0;
@@ -504,7 +509,11 @@ template <int dim>
 int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status){
     int outcome = -101;
     if (check_point_status < 0 || cell->is_artificial()){
-        std::cerr << "You should not call compute_point_velocity if the check_point_status is negative which means the cell is artificial" << std::endl;
+        std::cerr << "You attempt compute_point_velocity for point ("
+                  << p[0] << "," << p[1] << "," << p[2]
+                  << "), for Eid: " << dbg_curr_Eid << " and Sid: "
+                  << dbg_curr_Sid
+                  << " however the check_point_status is negative which means the cell is artificial" << std::endl;
         outcome = -99;
         return outcome;
     }
