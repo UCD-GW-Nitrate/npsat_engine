@@ -45,6 +45,7 @@ private:
     int                                 dbg_i_step;
     int                                 dbg_curr_Eid;
     int                                 dbg_curr_Sid;
+    int                                 dbg_my_rank;
 
 
     int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
@@ -157,6 +158,8 @@ private:
      */
     double time_step_multiplier(typename DoFHandler<dim>::active_cell_iterator cell);
 
+    bool cell_exists(std::vector<Point<dim>> PointList, Point<dim> test_point);
+
     void plot_cell(typename DoFHandler<dim>::active_cell_iterator cell);
     void plot_point(Point<dim> p);
     void plot_segment(Point<dim> A, Point<dim> B);
@@ -197,6 +200,7 @@ template <int dim>
 void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix){
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    dbg_my_rank = my_rank;
 
     //This is the name file where all particle trajectories are written
     const std::string log_file_name = (prefix + "_" +
@@ -375,8 +379,10 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
         if (cnt_iter == 0){ // If this is the starting point of the streamline we need to compute the velocity
             Point<dim> v;
             reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell);
-            if (reason_to_exit != 0)
+            if (reason_to_exit != 0){
+                print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
                 return  reason_to_exit;
+            }
             else{
                 streamline.V.push_back(v);
                 //plot_cell(cell);
@@ -387,6 +393,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
         reason_to_exit = find_next_point(streamline, cell);
         if (streamline.times_not_expanded > param.Stuck_iter){
             reason_to_exit = -66;
+            print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
             return reason_to_exit;
         }
 
@@ -400,17 +407,30 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
 
 template <int dim>
 int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p){
+    Point<dim> testp(745.55, 2313.79, -107.618);
+    bool dbg_pnt = false;
+    if (testp.distance(p) < 0.1){
+        std::cout << "Debug this point" << std::endl;
+        dbg_pnt = true;
+    }
     int outcome = 0;
     if (cell->point_inside(p)){
         outcome = 1;
+        if (dbg_pnt){
+            std::cout << "Point found inside cell" << std::endl;
+        }
     }
     else{
+        if (dbg_pnt){
+            std::cout << "Point is NOT found inside cell" << std::endl;
+        }
         bool cell_found = false;
         // if the point is outside of the cell then search all neighbors until the point is found
         // or until we have search enough neighbors to make sure that the point is actually outside of the domain
         std::vector<typename DoFHandler<dim>::active_cell_iterator> tested_cells;
         std::vector<typename DoFHandler<dim>::active_cell_iterator> adjacent_cells;
         std::vector<Point<dim>> cells_checked;
+        std::vector<Point<dim>> cells2check;
         typename DoFHandler<dim>::active_cell_iterator neighbor_child;
         tested_cells.push_back(cell);
         cells_checked.push_back(cell->center());
@@ -419,46 +439,34 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
             for (unsigned int i = 0; i < tested_cells.size(); ++i){
                 // for each face of the tested cell check its neighbors
                 for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
-                    if (tested_cells[i]->at_boundary(j))
-                        continue;
-                    if(tested_cells[i]->neighbor(j)->active()){
-                        // if the neighbor is active then we check first if we have already checked it
-                        bool cell_checked = false;
-                        for (unsigned int ii = 0; ii < cells_checked.size(); ++ii){
-                            double dst = cells_checked[ii].distance(tested_cells[i]->neighbor(j)->center());
-                            if (dst < 0.001){
-                                cell_checked = true;
-                                break;
-                            }
-                        }
-                        if (!cell_checked){
-                            // none of the cell centers of the checked cells is almost identical
-                            // to this neighbor so we will add it to the list of the cells to be check
-                            if (!tested_cells[i]->neighbor(j)->is_artificial())
-                                adjacent_cells.push_back(tested_cells[i]->neighbor(j));
-                        }
-
-                    }
-                    else{
-                        // if the neighbor cell is not active then it has children
-                        // Here we check those children that touch the face of the tested cell
-                        for (unsigned int ichild = 0; ichild < tested_cells[i]->neighbor(j)->n_children(); ++ ichild){
-                            // if the child has children, this child doesnt not touch the test cell and we will examine it later
-                            if(!tested_cells[i]->neighbor(j)->child(ichild)->active())
-                                continue;
-                            neighbor_child = tested_cells[i]->neighbor(j)->child(ichild);
-                            // Check if this cell has been tested
-                            bool cell_checked = false;
-                            for (unsigned int ii = 0; ii < cells_checked.size(); ++ii){
-                                double dst = cells_checked[ii].distance(neighbor_child->center());
-                                if (dst < 0.001){
-                                    cell_checked = true;
-                                    break;
+                    if (!tested_cells[i]->at_boundary(j)){
+                        if(tested_cells[i]->neighbor(j)->active()){
+                            // if the neighbor is active then we check first if we have already checked it
+                            // or have already marked it for check and then we add it accordingly
+                            if (!cell_exists(cells_checked, tested_cells[i]->neighbor(j)->center()) &
+                                    !cell_exists(cells2check, tested_cells[i]->neighbor(j)->center())){
+                                if (!tested_cells[i]->neighbor(j)->is_artificial()){
+                                    adjacent_cells.push_back(tested_cells[i]->neighbor(j));
+                                    cells2check.push_back(tested_cells[i]->neighbor(j)->center());
                                 }
                             }
-                            if (!cell_checked){
-                                if (neighbor_child->is_artificial())
-                                    adjacent_cells.push_back(neighbor_child);
+                        }
+                        else{
+                            // if the neighbor cell is not active then it has children
+                            // Here we check those children that touch the face of the tested cell
+                            for (unsigned int ichild = 0; ichild < tested_cells[i]->neighbor(j)->n_children(); ++ichild){
+                                // if the child has children, this child doesnt not touch the test cell and we will examine it later
+                                // However if the child is active we will add it this iteration even if it doesnt touch the cell in question
+                                if(tested_cells[i]->neighbor(j)->child(ichild)->active()){
+                                    neighbor_child = tested_cells[i]->neighbor(j)->child(ichild);
+                                    if (!cell_exists(cells_checked, neighbor_child->center()) &
+                                            !cell_exists(cells2check, neighbor_child->center())){
+                                        if (!neighbor_child->is_artificial()){
+                                            adjacent_cells.push_back(neighbor_child);
+                                            cells2check.push_back(neighbor_child->center());
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -466,7 +474,26 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
             }
             // The adjacent_cells is a list of cells that are likely to contain the point
             tested_cells.clear();
+            if (dbg_pnt)
+                std::cout << "^^^^^^^^^^^^ [" << nSearch << "] ^^^^^^^^^^^^^^" << std::endl;
             for (unsigned int i = 0; i < adjacent_cells.size(); ++i){
+                if (dbg_pnt){
+                    Point<dim> minp(10000, 10000, 10000);
+                    Point<dim> maxp(-10000, -10000, -10000);
+                    Point <dim> ttt;
+                    for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+                        ttt = adjacent_cells[i]->vertex(vertex_no);
+                        for (unsigned int iii = 0; iii < dim; ++iii){
+                            if (ttt[iii] < minp[iii])
+                                minp[iii] = ttt[iii];
+                            if (ttt[iii] > maxp[iii])
+                                maxp[iii] = ttt[iii];
+                        }
+                    }
+                    std::cout << "cell: [" << minp[0] << " " << minp[1] << " " << minp[2] << "], ["
+                              << maxp[0] << " " << maxp[1] << " " << maxp[2] << "]" << std::endl;
+
+                }
                 bool is_in_cell = adjacent_cells[i]->point_inside(p);
                 if (is_in_cell){
                     cell_found = true;
@@ -499,6 +526,7 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
             else{
                 nSearch++;
                 adjacent_cells.clear();
+                cells2check.clear();
             }
         }
     }
@@ -509,11 +537,11 @@ template <int dim>
 int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status){
     int outcome = -101;
     if (check_point_status < 0 || cell->is_artificial()){
-        std::cerr << "You attempt compute_point_velocity for point ("
+        std::cerr << "Proc " << dbg_my_rank << " attempts compute_point_velocity for point ("
                   << p[0] << "," << p[1] << "," << p[2]
                   << "), for Eid: " << dbg_curr_Eid << " and Sid: "
                   << dbg_curr_Sid
-                  << " however the check_point_status is negative which means the cell is artificial" << std::endl;
+                  << " however the check_point_status is negative" << std::endl;
         outcome = -99;
         return outcome;
     }
@@ -647,7 +675,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                         if(!tested_cells[i]->neighbor(j)->active()){
                             // if the neighbor cell is not active then it has children
                             // Here we check those children that touch the face of the tested cell
-                            for (unsigned int ichild = 0; ichild < tested_cells[i]->neighbor(j)->n_children(); ++ ichild){
+                            for (unsigned int ichild = 0; ichild < tested_cells[i]->neighbor(j)->n_children(); ++ichild){
                                 // if the child has children, this child doesnt not touch the test cell and we will examine it later
                                 if(!tested_cells[i]->neighbor(j)->child(ichild)->active())
                                     continue;
@@ -1274,6 +1302,16 @@ double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::ac
         }
     }
     return time_step;
+}
+
+template <int dim>
+bool Particle_Tracking<dim>::cell_exists(std::vector<Point<dim>> PointList, Point<dim> test_point){
+    for (unsigned int i = 0; i < PointList.size(); ++i){
+        if (test_point.distance(PointList[i]) < 0.001)
+            return true;
+    }
+
+    return false;
 }
 
 #endif // PARTICLE_TRACKING_H
