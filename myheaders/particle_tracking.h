@@ -367,6 +367,7 @@ template <int dim>
 int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
     dbg_curr_Eid = streamline.E_id;
     dbg_curr_Sid = streamline.S_id;
+    //std::cout << "Eid: " << streamline.E_id << ", Sid: " << streamline.S_id << std::endl;
 
     // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
     int reason_to_exit= -99;
@@ -407,7 +408,9 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
 
 template <int dim>
 int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p){
-    Point<dim> testp(745.55, 2313.79, -107.618);
+    Point<dim> testp(327.79903158960485,
+                     859.7581620110702,
+                     10.91061720969245);
     bool dbg_pnt = false;
     if (testp.distance(p) < 0.1){
         std::cout << "Debug this point" << std::endl;
@@ -1269,32 +1272,32 @@ double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::ac
 
     for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
         if (cell->at_boundary(j)){
-            if (time_step > 0.2)
-                time_step = 0.2;
+            if (time_step > 0.3)
+                time_step = 0.3;
         }
         else{
             if (cell->neighbor(j)->active()){
                 if (!cell->neighbor(j)->is_locally_owned()){
-                    if (time_step > 0.3)
-                        time_step = 0.3;
+                    if (time_step > 0.5)
+                        time_step = 0.5;
                 }
                 for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
                     if(cell->neighbor(j)->at_boundary(k))
-                        if (time_step > 0.5)
-                            time_step = 0.5;
+                        if (time_step > 0.75)
+                            time_step = 0.75;
                 }
             }
             else{
                 for (unsigned int ichild = 0; ichild < cell->neighbor(j)->n_children(); ++ ichild){
                     if(cell->neighbor(j)->child(ichild)->active()){
                         if (!cell->neighbor(j)->child(ichild)->is_locally_owned())
-                            if (time_step > 0.3)
-                                time_step = 0.3;
+                            if (time_step > 0.5)
+                                time_step = 0.5;
 
                         for (unsigned int k = 0; k < GeometryInfo<dim>::faces_per_cell; ++k){
                             if(cell->neighbor(j)->child(ichild)->at_boundary(k))
-                                if (time_step > 0.5)
-                                    time_step = 0.5;
+                                if (time_step > 0.75)
+                                    time_step = 0.75;
                         }
                     }
                 }

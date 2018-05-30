@@ -238,7 +238,7 @@ subsection I. Particle tracking
 
   # n----------------------------------
   # The distance from well that the particles will be releazed
-  set n Distance from well         = 20.0
+  set n Distance from well         = 18.7862
 end
 
 
