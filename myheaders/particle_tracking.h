@@ -4,6 +4,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_system.h>
 #include <deal.II/base/conditional_ostream.h>
 
 #include "my_functions.h"
@@ -28,6 +29,9 @@ public:
 
 
     void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix);
+    void print_all_cell_velocity();
+    void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
+                                FESystem<dim>& velocity_fe);
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -39,8 +43,15 @@ private:
     ConditionalOStream                  pcout;
     ParticleParameters                  param;
 
+    // Velocity computation
+    //DoFHandler<dim>&                             vel_dof_handler;
+    //FESystem<dim>&                               vel_fe;
+    //TrilinosWrappers::MPI::Vector               velocity;
+    //TrilinosWrappers::MPI::Vector               distributed_velocity;
+
     bool                                bprint_DBG;
     std::ofstream                       dbg_file;
+    std::ofstream                       dbg_cell_file;
     int                                 dbg_i_strm;
     int                                 dbg_i_step;
     int                                 dbg_curr_Eid;
@@ -186,6 +197,8 @@ private:
                            Point<dim> p,
                            Point<dim>& vel);
 
+
+
 };
 
 template <int dim>
@@ -242,6 +255,16 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                                            Utilities::int_to_string(my_rank, 4) +
                                            ".m");
         dbg_file.open(dbg_file_name.c_str());
+
+        const std::string dbg_cell_file_name = (prefix + "_" +
+                                                Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
+                                                "_cellInfo_dbg_" +
+                                                Utilities::int_to_string(my_rank, 4) +
+                                                ".txt");
+        dbg_cell_file.open(dbg_cell_file_name);
+
+        print_all_cell_velocity();
+
     }
 
 
@@ -350,6 +373,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                 }
             }
         }
+
         MPI_Barrier(mpi_communicator);
         std::cout<< "I'm proc" << my_rank << " and have " << new_particles.size() << " particles to send" << std::endl << std::flush;
         MPI_Barrier(mpi_communicator);
@@ -376,9 +400,14 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         if (++trace_iter > param.Outmost_iter)
             break;
     }
+
     log_file.close();
     err_file.close();
-    dbg_file.close();
+
+    if (bprint_DBG){
+        dbg_file.close();
+        dbg_cell_file.close();
+    }
 }
 
 template <int dim>
@@ -1349,7 +1378,10 @@ void Particle_Tracking<dim>::print_cell_velocity(std::vector<Point<dim>> p){
                 if (p[ii].distance(cell->center()) < 0.01){
                     std::vector<Point<dim>> verts;
                     std::vector<Point<dim>> vel;
-                    calculate_cell_velocity(cell, verts, vell);
+                    calculate_cell_velocity(cell, verts, vel);
+                    for (unsigned int jj = 0; jj < verts.size(); ++jj){
+                        dbg_cell_file << verts[0] << ", " << verts[1] << ", " << verts[2] << ", " << vel[0] << ", " << vel[1] << ", " << vel[2] << std::endl;
+                    }
                     break;
                 }
             }
@@ -1361,6 +1393,7 @@ template <int dim>
 void Particle_Tracking<dim>::calculate_cell_velocity(typename DoFHandler<dim>::active_cell_iterator& cell,
                                                      std::vector<Point<dim>>& p,
                                                      std::vector<Point<dim>>& vel){
+
     p.clear();
     vel.clear();
     for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
@@ -1375,8 +1408,8 @@ void Particle_Tracking<dim>::calculate_cell_velocity(typename DoFHandler<dim>::a
 
 template<int dim>
 bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_cell_iterator& cell,
-                                                    Point<dim> p,
-                                                    Point<dim>& vel){
+                                               Point<dim> p,
+                                               Point<dim>& vel){
 
     Point<dim> p_unit;
     const MappingQ1<dim> mapping;
@@ -1424,6 +1457,108 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
         vel[i_dim] = KdH[i_dim] / por;
     }
     return true;
+}
+
+template <int dim>
+void Particle_Tracking<dim>::print_all_cell_velocity(){
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            std::vector<Point<dim>> verts;
+            std::vector<Point<dim>> vel;
+            calculate_cell_velocity(cell, verts, vel);
+            for (unsigned int jj = 0; jj < verts.size(); ++jj){
+                dbg_cell_file << verts[jj][0] << ", " << verts[jj][1] << ", " << verts[jj][2] << ", " << vel[jj][0] << ", " << vel[jj][1] << ", " << vel[jj][2] << std::endl;
+            }
+        }
+    }
+}
+
+template <int dim>
+void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
+                                                    FESystem<dim>& velocity_fe){
+    MPI_Barrier(mpi_communicator);
+    const MappingQ1<dim> mapping;
+
+    pcout << "Average Velocity field" << std::endl << std::flush;
+    velocity_dof_handler.distribute_dofs(velocity_fe);
+
+    IndexSet    velocity_locally_owned;
+    IndexSet    velocity_locally_relevant;
+
+    velocity_locally_owned = velocity_dof_handler.locally_owned_dofs();
+    DoFTools::extract_locally_relevant_dofs(velocity_dof_handler, velocity_locally_relevant);
+
+    TrilinosWrappers::MPI::Vector               velocity_vector;
+    TrilinosWrappers::MPI::Vector               distributed_velocity_vector;
+    velocity_vector.reinit(velocity_locally_owned, velocity_locally_relevant, mpi_communicator);
+    distributed_velocity_vector.reinit(velocity_locally_owned, velocity_locally_relevant, mpi_communicator);
+
+    const std::vector<Point<dim> > velocity_support_points
+                                  = velocity_fe.base_element(0).get_unit_support_points();
+
+    FEValues<dim> fe_velocities (mapping,
+                                 velocity_fe,
+                                 velocity_support_points,
+                                 update_quadrature_points);
+
+    ConstraintMatrix    velocity_constraints;
+    velocity_constraints.clear();
+    velocity_constraints.reinit(velocity_locally_relevant);
+    DoFTools::make_hanging_node_constraints(velocity_dof_handler, velocity_constraints);
+    velocity_constraints.close();
+
+    std::map<int, std::vector<double>> VelocityMap;
+    std::map<int, std::vector<double>>::iterator vel_it;
+
+    MPI_Barrier(mpi_communicator);
+    std::vector<unsigned int> cell_dof_indices (velocity_fe.dofs_per_cell);
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = velocity_dof_handler.begin_active(),
+    endc = velocity_dof_handler.end();
+
+    typename DoFHandler<dim>::active_cell_iterator cell_sol = dof_handler.begin_active();
+
+
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned() || cell->is_ghost()){
+            fe_velocities.reinit(cell);
+            cell->get_dof_indices (cell_dof_indices);
+
+            for (unsigned int idof = 0; idof < velocity_fe.base_element(0).dofs_per_cell; ++idof){
+                Point <dim> current_node;
+                std::vector<unsigned int> current_dofs(dim);
+                for (unsigned int dir = 0; dir < dim; ++dir){
+                    unsigned int support_point_index = velocity_fe.component_to_system_index(dir, idof );
+                    current_dofs[dir] = cell_dof_indices[support_point_index];
+                    current_node[dir] = fe_velocities.quadrature_point(idof)[dir];
+                }
+                Point<dim> vel;
+                calc_vel_on_point(cell_sol, current_node, vel);
+                for (unsigned int dir = 0; dir < dim; ++dir){
+                    vel_it = VelocityMap.find(current_dofs[dir]);
+                    if (vel_it != VelocityMap.end()){
+                        vel_it->second.push_back(vel[dir]);
+                    }
+                    else{
+                        std::vector<double> temp;
+                        temp.push_back(vel[dir]);
+                        VelocityMap.insert(std::pair<int,std::vector<double>>(current_dofs[dir], temp));
+                    }
+                }
+            }
+        }
+        ++cell_sol;
+        int test = 2;
+        test++;
+    }
+
+
+
+
+
 }
 
 #endif // PARTICLE_TRACKING_H

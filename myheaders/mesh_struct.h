@@ -330,9 +330,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     pcout << "Update XYZ structure...for: " << prefix  << std::endl << std::flush;
     std::vector<unsigned int> cell_dof_indices (mesh_fe.dofs_per_cell);
     typename DoFHandler<dim>::active_cell_iterator
-        cell = mesh_dof_handler.begin_active(),
-        endc = mesh_dof_handler.end();
-    MPI_Barrier(mpi_communicator);
+    cell = mesh_dof_handler.begin_active(),
+    endc = mesh_dof_handler.end();
     for (; cell != endc; ++cell){
         if (cell->is_locally_owned() || cell->is_ghost()){
             bool top_cell = false;

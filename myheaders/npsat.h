@@ -82,7 +82,8 @@ private:
     mix_mesh<dim-1>                             top_grid;
     mix_mesh<dim-1>                             bottom_grid;
 
-
+    DoFHandler<dim>                             velocity_dof_handler;
+    FESystem<dim>                              	velocity_fe;
 
 
 
@@ -118,6 +119,8 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     fe (1),
     mesh_dof_handler (triangulation),
     mesh_fe (FE_Q<dim>(1),dim),
+    velocity_dof_handler (triangulation),
+    velocity_fe (FE_Q<dim>(1),dim),
     AQProps(AQP),
     mesh_struct(AQP.xy_thres, AQP.z_thres),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
@@ -564,6 +567,8 @@ void NPSAT<dim>::particle_tracking(){
                          AQProps.HK_function[0],
                          porosity_fnc,
                          AQProps.part_param);
+
+    pt.average_velocity_field(velocity_dof_handler,velocity_fe);
 
     std::vector<Streamline<dim>> All_streamlines;
     std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);
