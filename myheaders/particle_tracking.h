@@ -167,6 +167,24 @@ private:
     void print_point_var(Point<dim> p, int r);
     void print_strm_exit_info(int r, int Eid, int Sid);
     int cell_type(typename DoFHandler<dim>::active_cell_iterator cell);
+    void print_cell_velocity(std::vector<Point<dim>> p);
+    void calculate_cell_velocity(typename DoFHandler<dim>::active_cell_iterator& cell,
+                                 std::vector<Point<dim>>& p,
+                                 std::vector<Point<dim>>& vel);
+    /**
+     * @brief calc_vel_on_point Calculates the velocity on a point that is inside the cell.
+     *
+     * Note that this method assumes that the point exists inside the cell and doesnt do any check to
+     * test if the point is inside.
+     * @param cell
+     * @param p
+     * @param vel This is the returned velocity
+     * @return Returns true if the velocity was successfull and false if not. This can be false if the
+     *  mapping from real to unit point has failed
+     */
+    bool calc_vel_on_point(typename DoFHandler<dim>::active_cell_iterator& cell,
+                           Point<dim> p,
+                           Point<dim>& vel);
 
 };
 
@@ -1315,6 +1333,97 @@ bool Particle_Tracking<dim>::cell_exists(std::vector<Point<dim>> PointList, Poin
     }
 
     return false;
+}
+
+template <int dim>
+void Particle_Tracking<dim>::print_cell_velocity(std::vector<Point<dim>> p){
+
+
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int ii = 0; ii < p.size(); ++ii){
+                if (p[ii].distance(cell->center()) < 0.01){
+                    std::vector<Point<dim>> verts;
+                    std::vector<Point<dim>> vel;
+                    calculate_cell_velocity(cell, verts, vell);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+template <int dim>
+void Particle_Tracking<dim>::calculate_cell_velocity(typename DoFHandler<dim>::active_cell_iterator& cell,
+                                                     std::vector<Point<dim>>& p,
+                                                     std::vector<Point<dim>>& vel){
+    p.clear();
+    vel.clear();
+    for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+        Point<dim> pp = cell->vertex(vertex_no);
+        Point<dim> vv;
+        if (calc_vel_on_point(cell, pp, vv)){
+            p.push_back(pp);
+            vel.push_back(vv);
+        }
+    }
+}
+
+template<int dim>
+bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_cell_iterator& cell,
+                                                    Point<dim> p,
+                                                    Point<dim>& vel){
+
+    Point<dim> p_unit;
+    const MappingQ1<dim> mapping;
+    bool success = try_mapping(p, p_unit, cell, mapping);
+    if (!success)
+        return false;
+
+    //The velocity is equal vx = - Kx*dHx/n
+    // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
+    // For the current cell we will extract the hydraulic head solution
+
+
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+
+    // The trapezoid formula evaluate the solution at the corner of the cell
+    QTrapez<dim> trapez_formula;
+    FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+    fe_values_trapez.reinit(cell);
+    std::vector<double> current_cell_head(dofs_per_cell);
+    fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
+
+
+    // To compute the head derivatives at the current unit position
+    // we set a quadrature rule at the current point
+    Quadrature<dim> temp_quadrature(p_unit);
+    FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
+    fe_values_temp.reinit(cell);
+
+    // dHead is the head gradient and is initialized to zero
+    Tensor<1,dim> dHead;
+    //for (int i = 0; i < dim; ++i){
+    //    dHead[i] = 0;
+    //}
+    for (unsigned int i = 0; i < dofs_per_cell; ++i){
+        Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+        for (int i_dim = 0; i_dim < dim; ++i_dim){
+            dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+        }
+    }
+
+    // divide dHead with the porosity
+    double por = porosity.value(p);
+    Tensor<1,dim> KdH = HK_function.value(p)*dHead;
+    for (int i_dim = 0; i_dim < dim; ++i_dim){
+        vel[i_dim] = KdH[i_dim] / por;
+    }
+    return true;
 }
 
 #endif // PARTICLE_TRACKING_H
