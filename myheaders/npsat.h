@@ -66,6 +66,7 @@ private:
     parallel::distributed::Triangulation<dim> 	triangulation;
     DoFHandler<dim>                             dof_handler;
     FE_Q<dim>                                 	fe;
+    ConstraintMatrix                          	Headconstraints;
 
     TrilinosWrappers::MPI::Vector               locally_relevant_solution;
 
@@ -135,6 +136,7 @@ template <int dim>
 NPSAT<dim>::~NPSAT(){
     dof_handler.clear();
     mesh_dof_handler.clear();
+    velocity_dof_handler.clear();
     mesh_struct.folder_Path = AQProps.Dirs.output;
 }
 
@@ -259,6 +261,7 @@ void NPSAT<dim>::solve_refine(){
         GWFLOW<dim> gw(mpi_communicator,
                        dof_handler,
                        fe,
+                       Headconstraints,
                        locally_relevant_solution,
                        dirichlet_boundary,
                        HK_function[0],
@@ -563,12 +566,14 @@ void NPSAT<dim>::particle_tracking(){
 
     Particle_Tracking<dim> pt(mpi_communicator,
                          dof_handler, fe,
+                         Headconstraints,
                          locally_relevant_solution,
                          AQProps.HK_function[0],
                          porosity_fnc,
                          AQProps.part_param);
 
-    pt.average_velocity_field(velocity_dof_handler,velocity_fe);
+    //pt.average_velocity_field(velocity_dof_handler,velocity_fe);
+    pt.average_velocity_field();
 
     std::vector<Streamline<dim>> All_streamlines;
     std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);

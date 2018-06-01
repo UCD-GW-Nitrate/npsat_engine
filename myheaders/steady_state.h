@@ -34,6 +34,7 @@ public:
     GWFLOW(MPI_Comm&                            mpi_communicator_in,
            DoFHandler<dim>&                     dof_handler,
            const FE_Q<dim>&                     fe,
+           ConstraintMatrix&                    constraints,
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
@@ -62,7 +63,7 @@ private:
     TrilinosWrappers::MPI::Vector& 				locally_relevant_solution;
     TrilinosWrappers::SparseMatrix 			  	system_matrix;
     TrilinosWrappers::MPI::Vector       	  	system_rhs;
-    ConstraintMatrix                          	constraints;
+    ConstraintMatrix&                          	constraints;
     typename FunctionMap<dim>::type				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim-1> 						GWRCH;
@@ -83,6 +84,7 @@ template <int dim>
 GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
                     DoFHandler<dim>&                     dof_handler_in,
                     const FE_Q<dim>&                     fe_in,
+                    ConstraintMatrix&                    constraints_in,
                     TrilinosWrappers::MPI::Vector&       locally_relevant_solution_in,
                     typename FunctionMap<dim>::type&     dirichlet_boundary_in,
                     MyTensorFunction<dim>&               HK_function,
@@ -92,6 +94,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
       mpi_communicator(mpi_communicator_in),
       dof_handler(dof_handler_in),
       fe(fe_in),
+      constraints(constraints_in),
       locally_relevant_solution(locally_relevant_solution_in),
       dirichlet_boundary(dirichlet_boundary_in),
       HK(HK_function),

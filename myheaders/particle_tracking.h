@@ -17,11 +17,46 @@
 using namespace dealii;
 
 template <int dim>
+class AverageVel{
+public:
+    AverageVel(bool local, int dof_in, Point<dim> v, std::vector<types::global_dof_index> c);
+    void Addvelocity(Point<dim> v);
+    std::vector<types::global_dof_index> cnstr;
+    std::vector<Point<dim>> V;
+    bool is_local;
+    int dof;
+    Point<dim> av_vel;
+    bool is_averaged;
+
+};
+
+template <int dim>
+AverageVel<dim>::AverageVel(bool local, int dof_in, Point<dim> v, std::vector<types::global_dof_index> c){
+    is_local = local;
+    dof = dof_in;
+    V.push_back(v);
+    for (unsigned int ii = 0; ii < c.size(); ++ii){
+        if (static_cast<int>(c[ii]) != dof)
+            cnstr.push_back(c[ii]);
+    }
+    is_averaged = false;
+    for (unsigned int idim = 0; idim < dim; ++idim)
+        av_vel[idim] = -9999.9;
+}
+
+template <int dim>
+void AverageVel<dim>::Addvelocity(Point<dim> v){
+    V.push_back(v);
+}
+
+
+template <int dim>
 class Particle_Tracking{
 public:
     Particle_Tracking(MPI_Comm& mpi_communicator_in,
                       DoFHandler<dim>& dof_handler_in,
                       FE_Q<dim>& fe_in,
+                      ConstraintMatrix& constraints_in,
                       TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                       MyTensorFunction<dim>& HK_function_in,
                       MyFunction<dim, dim>& porosity_in,
@@ -30,24 +65,22 @@ public:
 
     void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix);
     void print_all_cell_velocity();
-    void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
-                                FESystem<dim>& velocity_fe);
+    //void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
+    //                            FESystem<dim>& velocity_fe);
+    void average_velocity_field();
 
 private:
     MPI_Comm                            mpi_communicator;
     DoFHandler<dim>&                    dof_handler;
     FE_Q<dim>&                          fe;
+    ConstraintMatrix&                   Headconstraints;
     TrilinosWrappers::MPI::Vector       locally_relevant_solution;
     MyTensorFunction<dim>               HK_function;
     MyFunction<dim, dim>                porosity;
     ConditionalOStream                  pcout;
     ParticleParameters                  param;
 
-    // Velocity computation
-    //DoFHandler<dim>&                             vel_dof_handler;
-    //FESystem<dim>&                               vel_fe;
-    //TrilinosWrappers::MPI::Vector               velocity;
-    //TrilinosWrappers::MPI::Vector               distributed_velocity;
+    std::map<unsigned int, AverageVel<dim>> VelocityMap;
 
     bool                                bprint_DBG;
     std::ofstream                       dbg_file;
@@ -58,7 +91,16 @@ private:
     int                                 dbg_curr_Sid;
     int                                 dbg_my_rank;
 
-
+    /**
+     * @brief internal_backward_tracking
+     * @param cell
+     * @param streamline
+     * @return
+     * - -99 Exit because the number of steps have exceeded the maximum allowable number defined by the user
+     * - -88 For some reason the starting point if the streamline was not found inside the cell.
+     * - -66 The particle has stuck in the flow field. After a certain amount of steps the bounding box
+     * of the streamline has not been expanded
+     */
     int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell);
     int find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell);
@@ -205,6 +247,7 @@ template <int dim>
 Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
                                           DoFHandler<dim>& dof_handler_in,
                                           FE_Q<dim> &fe_in,
+                                          ConstraintMatrix& constraints_in,
                                           TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                                           MyTensorFunction<dim>& HK_function_in,
                                           MyFunction<dim, dim>& porosity_in,
@@ -213,13 +256,13 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
     mpi_communicator(mpi_communicator_in),
     dof_handler(dof_handler_in),
     fe(fe_in),
+    Headconstraints(constraints_in),
     locally_relevant_solution(locally_relevant_solution_in),
     HK_function(HK_function_in),
     porosity(porosity_in),
     param(param_in),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
-
     bprint_DBG = true;
     if (bprint_DBG){
         dbg_i_step = 1;
@@ -256,6 +299,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                                            ".m");
         dbg_file.open(dbg_file_name.c_str());
 
+        /*
         const std::string dbg_cell_file_name = (prefix + "_" +
                                                 Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                                 "_cellInfo_dbg_" +
@@ -264,6 +308,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         dbg_cell_file.open(dbg_cell_file_name);
 
         print_all_cell_velocity();
+        */
 
     }
 
@@ -425,8 +470,14 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
     }
     while(cnt_iter < param.streaml_iter){
         if (cnt_iter == 0){ // If this is the starting point of the streamline we need to compute the velocity
+            int check_id = check_cell_point(cell, streamline.P[streamline.P.size()-1]);
             Point<dim> v;
-            reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell);
+            if (check_id == 1){
+                reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell, check_id);
+            }
+            else{
+                reason_to_exit = -88;
+            }
             if (reason_to_exit != 0){
                 print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
                 return  reason_to_exit;
@@ -645,43 +696,71 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     }
 
     if (check_point_status > 0){
-        //The velocity is equal vx = - Kx*dHx/n
-        // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
-        // For the current cell we will extract the hydraulic head solution
-        const unsigned int dofs_per_cell = fe.dofs_per_cell;
-        QTrapez<dim> trapez_formula;
-        FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
-        fe_values_trapez.reinit(cell);
-        std::vector<double> current_cell_head(dofs_per_cell);
-        fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
+        bool new_way = true;
+        if (new_way){
+            for (unsigned int idim = 0; idim < dim; ++idim)
+                v[idim] = 0;
+            typename std::map<unsigned int, AverageVel<dim>>::iterator vel_it;
+            const unsigned int dofs_per_cell = fe.dofs_per_cell;
+            std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+            cell->get_dof_indices (local_dof_indices);
 
-        // To compute the head derivatives at the current particle position
-        // we set a quadrature rule at the current point
-        Quadrature<dim> temp_quadrature(p_unit);
-        FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
-        fe_values_temp.reinit(cell);
+            Quadrature<dim> temp_quadrature(p_unit);
+            FEValues<dim> fe_values_temp(fe, temp_quadrature, update_values);
+            fe_values_temp.reinit(cell);
+            for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                double N = fe_values_temp.shape_value(i,0);
+                vel_it = VelocityMap.find(local_dof_indices[i]);
+                if (vel_it != VelocityMap.end()){
+                    for (unsigned int idim = 0; idim < dim; ++idim)
+                        v[idim] += N * vel_it->second.av_vel[idim];
 
-        // dHead is the head gradient and is initialized to zero
-        Tensor<1,dim> dHead;
-        for (int i = 0; i < dim; ++i){
-            dHead[i] = 0;
-        }
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i){
-            Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
-            for (int i_dim = 0; i_dim < dim; ++i_dim){
-                dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+                }
+                else {
+                    return -98;
+                }
             }
+            return 0;
         }
+        else {
+            //The velocity is equal vx = - Kx*dHx/n
+            // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
+            // For the current cell we will extract the hydraulic head solution
+            const unsigned int dofs_per_cell = fe.dofs_per_cell;
+            QTrapez<dim> trapez_formula;
+            FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+            fe_values_trapez.reinit(cell);
+            std::vector<double> current_cell_head(dofs_per_cell);
+            fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
 
-        // divide dHead with the porosity
-        double por = porosity.value(p);
-        for (int i_dim = 0; i_dim < dim; ++i_dim)
-            dHead[i_dim] = dHead[i_dim]/por;
-        Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
-        for (int i_dim = 0; i_dim < dim; ++i_dim)
-            v[i_dim] = temp_v[i_dim];
-        return 0;
+            // To compute the head derivatives at the current particle position
+            // we set a quadrature rule at the current point
+            Quadrature<dim> temp_quadrature(p_unit);
+            FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
+            fe_values_temp.reinit(cell);
+
+            // dHead is the head gradient and is initialized to zero
+            Tensor<1,dim> dHead;
+            for (int i = 0; i < dim; ++i){
+                dHead[i] = 0;
+            }
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+                for (int i_dim = 0; i_dim < dim; ++i_dim){
+                    dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+                }
+            }
+
+            // divide dHead with the porosity
+            double por = porosity.value(p);
+            for (int i_dim = 0; i_dim < dim; ++i_dim)
+                dHead[i_dim] = dHead[i_dim]/por;
+            Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
+            for (int i_dim = 0; i_dim < dim; ++i_dim)
+                v[i_dim] = temp_v[i_dim];
+            return 0;
+        }
     }
     return outcome;
 }
@@ -1476,6 +1555,7 @@ void Particle_Tracking<dim>::print_all_cell_velocity(){
     }
 }
 
+/*
 template <int dim>
 void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
                                                     FESystem<dim>& velocity_fe){
@@ -1510,8 +1590,8 @@ void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_do
     DoFTools::make_hanging_node_constraints(velocity_dof_handler, velocity_constraints);
     velocity_constraints.close();
 
-    std::map<int, std::vector<double>> VelocityMap;
-    std::map<int, std::vector<double>>::iterator vel_it;
+    //std::map<unsigned int, AverageVel> VelocityMap;
+    std::map<unsigned int, AverageVel>::iterator vel_it, vel_it2;
 
     MPI_Barrier(mpi_communicator);
     std::vector<unsigned int> cell_dof_indices (velocity_fe.dofs_per_cell);
@@ -1540,25 +1620,167 @@ void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_do
                 for (unsigned int dir = 0; dir < dim; ++dir){
                     vel_it = VelocityMap.find(current_dofs[dir]);
                     if (vel_it != VelocityMap.end()){
-                        vel_it->second.push_back(vel[dir]);
+                        vel_it->second.Addvelocity(vel[dir]);
                     }
                     else{
-                        std::vector<double> temp;
-                        temp.push_back(vel[dir]);
-                        VelocityMap.insert(std::pair<int,std::vector<double>>(current_dofs[dir], temp));
+                        std::vector<types::global_dof_index> temp_cnstr;
+                        temp_cnstr.push_back(current_dofs[dir]);
+                        velocity_constraints.resolve_indices(temp_cnstr);
+                        VelocityMap.insert(std::pair<unsigned int, AverageVel>(current_dofs[dir],
+                                                                               AverageVel(distributed_velocity_vector.in_local_range(current_dofs[dir]),
+                                                                                          current_dofs[dir],
+                                                                                          vel[dir],
+                                                                                          temp_cnstr)));
                     }
                 }
             }
         }
         ++cell_sol;
-        int test = 2;
-        test++;
     }
 
+    // Average Velocities
+    while (true){
+        int count_non_average = 0;
+        vel_it = VelocityMap.begin();
+        for (; vel_it != VelocityMap.end(); ++vel_it){
+            if (vel_it->second.is_local && !vel_it->second.is_averaged){
+                if (vel_it->second.cnstr.size() == 0){
+                    // if its not constraint
+                    double sum = 0;
+                    for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii){
+                        sum += vel_it->second.V[ii];
+                    }
+                    vel_it->second.av_vel = sum / vel_it->second.V.size();
+                    vel_it->second.is_averaged = true;
+                }
+                else{
+                    double sum = 0;
+                    bool can_average = true;
+                    for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+                        vel_it2 = VelocityMap.find(vel_it->second.cnstr[ii]);
+                        if (vel_it2 != VelocityMap.end()){
+                            if (vel_it2->second.is_averaged){
+                                sum += vel_it2->second.av_vel;
+                            }
+                            else{
+                                can_average = false;
+                                break;
+                            }
+                        }
 
+                    }
+                    if (can_average){
+                        vel_it->second.av_vel = sum/vel_it->second.cnstr.size();
+                        vel_it->second.is_averaged = true;
+                    }
+                    else{
+                        count_non_average++;
+                    }
+                }
+            }
+        }
+        std::cout << "velocities to average: " << count_non_average << std::endl;
+        if (count_non_average == 0)
+            break;
 
+    }
 
+    // just a check
+    vel_it = VelocityMap.begin();
+    int count = 0;
+    for (; vel_it != VelocityMap.end(); ++vel_it){
+        if (!vel_it->second.is_averaged)
+            count++;
+    }
+    std::cout << "Not averaged " << count << std::endl;
+}
+*/
 
+template <int dim>
+void Particle_Tracking<dim>::average_velocity_field(){
+    MPI_Barrier(mpi_communicator);
+    pcout << "Calculating Velocities..." << std::endl << std::flush;
+
+    typename std::map<unsigned int, AverageVel<dim>>::iterator vel_it, vel_it2;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    // Calculate velocities
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned() || cell->is_ghost()){
+            //fe.reinit(cell);
+            cell->get_dof_indices (local_dof_indices);
+            for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
+                Point<dim> vel;
+                calc_vel_on_point(cell, cell->vertex(ii), vel);
+                vel_it = VelocityMap.find(local_dof_indices[ii]);
+                if (vel_it != VelocityMap.end()){
+                    vel_it->second.Addvelocity(vel);
+                }
+                else{
+                    std::vector<types::global_dof_index> temp_cnstr;
+                    temp_cnstr.push_back(local_dof_indices[ii]);
+                    Headconstraints.resolve_indices(temp_cnstr);
+                    VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(local_dof_indices[ii],
+                                       AverageVel<dim>(locally_relevant_solution.in_local_range(local_dof_indices[ii]),
+                                                       local_dof_indices[ii], vel, temp_cnstr)));
+                }
+
+            }
+        }
+    }
+
+    // Average Velocities
+    pcout << "Averaging Velocities..." << std::endl << std::flush;
+    while (true){
+        int count_non_average = 0;
+        vel_it = VelocityMap.begin();
+        for (; vel_it != VelocityMap.end(); ++vel_it){
+            if (vel_it->second.is_local && !vel_it->second.is_averaged){
+                if (vel_it->second.cnstr.size() == 0){ // if its not constraint
+                    Point<dim> sum;
+                    for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii){
+                        for (unsigned int idim = 0; idim < dim; ++idim)
+                            sum[idim] += vel_it->second.V[ii][idim];
+                    }
+                    for (unsigned int idim = 0; idim < dim; ++idim)
+                        vel_it->second.av_vel[idim] = sum[idim]/vel_it->second.V.size();
+                    vel_it->second.is_averaged = true;
+                }
+                else{
+                    Point<dim> sum;
+                    bool can_average = true;
+                    for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+                        vel_it2 = VelocityMap.find(vel_it->second.cnstr[ii]);
+                        if (vel_it2 != VelocityMap.end()){
+                            if (vel_it2->second.is_averaged){
+                                for (unsigned int idim = 0; idim < dim; ++idim)
+                                    sum[idim] += vel_it2->second.av_vel[idim];
+                            }
+                            else{
+                                can_average = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (can_average){
+                        for (unsigned int idim = 0; idim < dim; ++idim)
+                            vel_it->second.av_vel[idim] = sum[idim] / vel_it->second.cnstr.size();
+                        vel_it->second.is_averaged = true;
+                    }
+                    else{
+                        count_non_average++;
+                    }
+                }
+            }
+        }
+        if (count_non_average == 0)
+            break;
+    }
 }
 
 #endif // PARTICLE_TRACKING_H
