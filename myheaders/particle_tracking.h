@@ -506,25 +506,25 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
 
 template <int dim>
 int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p){
-    Point<dim> testp(327.79903158960485,
-                     859.7581620110702,
-                     10.91061720969245);
-    bool dbg_pnt = false;
-    if (testp.distance(p) < 0.1){
-        std::cout << "Debug this point" << std::endl;
-        dbg_pnt = true;
-    }
+    //Point<dim> testp(327.79903158960485,
+    //                 859.7581620110702,
+    //                 10.91061720969245);
+    //bool dbg_pnt = false;
+    //if (testp.distance(p) < 0.1){
+    //    std::cout << "Debug this point" << std::endl;
+    //    dbg_pnt = true;
+    //}
     int outcome = 0;
     if (cell->point_inside(p)){
         outcome = 1;
-        if (dbg_pnt){
-            std::cout << "Point found inside cell" << std::endl;
-        }
+        //if (dbg_pnt){
+        //    std::cout << "Point found inside cell" << std::endl;
+        //}
     }
     else{
-        if (dbg_pnt){
-            std::cout << "Point is NOT found inside cell" << std::endl;
-        }
+        //if (dbg_pnt){
+        //    std::cout << "Point is NOT found inside cell" << std::endl;
+        //}
         bool cell_found = false;
         // if the point is outside of the cell then search all neighbors until the point is found
         // or until we have search enough neighbors to make sure that the point is actually outside of the domain
@@ -575,26 +575,26 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
             }
             // The adjacent_cells is a list of cells that are likely to contain the point
             tested_cells.clear();
-            if (dbg_pnt)
-                std::cout << "^^^^^^^^^^^^ [" << nSearch << "] ^^^^^^^^^^^^^^" << std::endl;
+            //if (dbg_pnt)
+            //    std::cout << "^^^^^^^^^^^^ [" << nSearch << "] ^^^^^^^^^^^^^^" << std::endl;
             for (unsigned int i = 0; i < adjacent_cells.size(); ++i){
-                if (dbg_pnt){
-                    Point<dim> minp(10000, 10000, 10000);
-                    Point<dim> maxp(-10000, -10000, -10000);
-                    Point <dim> ttt;
-                    for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
-                        ttt = adjacent_cells[i]->vertex(vertex_no);
-                        for (unsigned int iii = 0; iii < dim; ++iii){
-                            if (ttt[iii] < minp[iii])
-                                minp[iii] = ttt[iii];
-                            if (ttt[iii] > maxp[iii])
-                                maxp[iii] = ttt[iii];
-                        }
-                    }
-                    std::cout << "cell: [" << minp[0] << " " << minp[1] << " " << minp[2] << "], ["
-                              << maxp[0] << " " << maxp[1] << " " << maxp[2] << "]" << std::endl;
+                //if (dbg_pnt){
+                    //Point<dim> minp(10000, 10000, 10000);
+                    //Point<dim> maxp(-10000, -10000, -10000);
+                    //Point <dim> ttt;
+                    //for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+                    //    ttt = adjacent_cells[i]->vertex(vertex_no);
+                    //    for (unsigned int iii = 0; iii < dim; ++iii){
+                    //        if (ttt[iii] < minp[iii])
+                    //            minp[iii] = ttt[iii];
+                    //        if (ttt[iii] > maxp[iii])
+                    //            maxp[iii] = ttt[iii];
+                    //    }
+                    //}
+                    //std::cout << "cell: [" << minp[0] << " " << minp[1] << " " << minp[2] << "], ["
+                    //          << maxp[0] << " " << maxp[1] << " " << maxp[2] << "]" << std::endl;
 
-                }
+                //}
                 bool is_in_cell = adjacent_cells[i]->point_inside(p);
                 if (is_in_cell){
                     cell_found = true;
@@ -1346,11 +1346,11 @@ void Particle_Tracking<dim>::print_Cell_var(typename DoFHandler<dim>::active_cel
                  << verts[6][0] << " " << verts[6][1] << " " << verts[6][2] << "];" << std::endl;
     }
     else if (dim == 2) {
-        dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).nodes = ["
-                 << verts[0][0] << " " << verts[0][1] << " " << verts[0][2] << ";"
-                 << verts[1][0] << " " << verts[1][1] << " " << verts[1][2] << ";"
-                 << verts[3][0] << " " << verts[3][1] << " " << verts[3][2] << ";"
-                 << verts[2][0] << " " << verts[2][1] << " " << verts[2][2] << "];" << std::endl;
+        dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).Nodes = ["
+                 << verts[0][0] << " " << verts[0][1] << ";"
+                 << verts[1][0] << " " << verts[1][1] << ";"
+                 << verts[3][0] << " " << verts[3][1] << ";"
+                 << verts[2][0] << " " << verts[2][1] << "];" << std::endl;
     }
 
     dbg_file << "S(" << dbg_i_strm << ",1).Cells(" << dbg_i_step << ",1).Type = " << cell_type << ";" << std::endl;
@@ -1361,10 +1361,10 @@ template <int dim>
 void Particle_Tracking<dim>::print_point_var(Point<dim> p, int r){
     if (dim == 3)
         dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).XYZ = ["
-                 << p[0] << " " << p[1] << " " << p[2] <<"];" << std::endl;
+                 << p[0] << " " << p[1] << " " << p[2] << "];" << std::endl;
     else if (dim == 2)
-        dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",:) = ["
-                 << p[0] << " " << p[1] << " " << p[2] <<"];" << std::endl;
+        dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).XYZ = ["
+                 << p[0] << " " << p[1] << "];" << std::endl;
     dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).type = " << r << ";" << std::endl;
     dbg_i_step++;
 }
@@ -1459,7 +1459,10 @@ void Particle_Tracking<dim>::print_cell_velocity(std::vector<Point<dim>> p){
                     std::vector<Point<dim>> vel;
                     calculate_cell_velocity(cell, verts, vel);
                     for (unsigned int jj = 0; jj < verts.size(); ++jj){
-                        dbg_cell_file << verts[0] << ", " << verts[1] << ", " << verts[2] << ", " << vel[0] << ", " << vel[1] << ", " << vel[2] << std::endl;
+                        if (dim == 3)
+                            dbg_cell_file << verts[0] << ", " << verts[1] << ", " << verts[2] << ", " << vel[0] << ", " << vel[1] << ", " << vel[2] << std::endl;
+                        else if (dim == 2)
+                            dbg_cell_file << verts[0] << ", " << verts[1] << ", " << vel[0] << ", " << vel[1] << std::endl;
                     }
                     break;
                 }
@@ -1698,6 +1701,13 @@ void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_do
 
 template <int dim>
 void Particle_Tracking<dim>::average_velocity_field(){
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    const std::string vField_file_name = ("VelField_"	+
+                                       Utilities::int_to_string(my_rank, 4) +
+                                       ".dbg");
+    std::ofstream vField_file;
+    vField_file.open(vField_file_name);
+
     MPI_Barrier(mpi_communicator);
     pcout << "Calculating Velocities..." << std::endl << std::flush;
 
@@ -1706,6 +1716,8 @@ void Particle_Tracking<dim>::average_velocity_field(){
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     // Calculate velocities
+
+    IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
 
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
@@ -1725,8 +1737,9 @@ void Particle_Tracking<dim>::average_velocity_field(){
                     std::vector<types::global_dof_index> temp_cnstr;
                     temp_cnstr.push_back(local_dof_indices[ii]);
                     Headconstraints.resolve_indices(temp_cnstr);
+
                     VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(local_dof_indices[ii],
-                                       AverageVel<dim>(locally_relevant_solution.in_local_range(local_dof_indices[ii]),
+                                       AverageVel<dim>(locally_owned_indices.is_element(local_dof_indices[ii]),
                                                        local_dof_indices[ii], vel, temp_cnstr)));
                 }
 
@@ -1734,53 +1747,86 @@ void Particle_Tracking<dim>::average_velocity_field(){
         }
     }
 
+    // DEBUG--------------------
+    vel_it = VelocityMap.begin();
+    for (; vel_it != VelocityMap.end(); ++vel_it){
+        vField_file << vel_it->second.dof << "\t"
+                    << vel_it->second.is_local << "\t"
+                    << vel_it->second.V.size() << "\t"
+                    << vel_it->second.cnstr.size() << "\t";
+        if (vel_it->second.cnstr.size() > 0){
+            vField_file << "| ";
+            for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+                vField_file << vel_it->second.cnstr[ii] << " | ";
+            }
+        }
+        vField_file << std::endl;
+    }
+    vField_file.close();
+    return;
+
+    // DEBUG--------------------
+
+
     // Average Velocities
     pcout << "Averaging Velocities..." << std::endl << std::flush;
+    int count_iter = 0;
     while (true){
+        std::vector<int> notset_id;
         int count_non_average = 0;
         vel_it = VelocityMap.begin();
         for (; vel_it != VelocityMap.end(); ++vel_it){
-            if (vel_it->second.is_local && !vel_it->second.is_averaged){
-                if (vel_it->second.cnstr.size() == 0){ // if its not constraint
-                    Point<dim> sum;
-                    for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii){
-                        for (unsigned int idim = 0; idim < dim; ++idim)
-                            sum[idim] += vel_it->second.V[ii][idim];
-                    }
-                    for (unsigned int idim = 0; idim < dim; ++idim)
-                        vel_it->second.av_vel[idim] = sum[idim]/vel_it->second.V.size();
-                    vel_it->second.is_averaged = true;
-                }
-                else{
-                    Point<dim> sum;
-                    bool can_average = true;
-                    for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
-                        vel_it2 = VelocityMap.find(vel_it->second.cnstr[ii]);
-                        if (vel_it2 != VelocityMap.end()){
-                            if (vel_it2->second.is_averaged){
-                                for (unsigned int idim = 0; idim < dim; ++idim)
-                                    sum[idim] += vel_it2->second.av_vel[idim];
-                            }
-                            else{
-                                can_average = false;
-                                break;
-                            }
+            if (vel_it->second.is_local){
+                if (!vel_it->second.is_averaged){
+                    if (vel_it->second.cnstr.size() == 0){ // if its not constraint
+                        Point<dim> sum;
+                        for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii){
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                sum[idim] += vel_it->second.V[ii][idim];
                         }
-                    }
-                    if (can_average){
                         for (unsigned int idim = 0; idim < dim; ++idim)
-                            vel_it->second.av_vel[idim] = sum[idim] / vel_it->second.cnstr.size();
+                            vel_it->second.av_vel[idim] = sum[idim]/vel_it->second.V.size();
                         vel_it->second.is_averaged = true;
                     }
                     else{
-                        count_non_average++;
+                        Point<dim> sum;
+                        bool can_average = true;
+                        for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+                            vel_it2 = VelocityMap.find(vel_it->second.cnstr[ii]);
+                            if (vel_it2 != VelocityMap.end()){
+                                if (vel_it2->second.is_averaged){
+                                    for (unsigned int idim = 0; idim < dim; ++idim)
+                                        sum[idim] += vel_it2->second.av_vel[idim];
+                                }
+                                else{
+                                    can_average = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (can_average){
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                vel_it->second.av_vel[idim] = sum[idim] / vel_it->second.cnstr.size();
+                            vel_it->second.is_averaged = true;
+                        }
+                        else{
+                            count_non_average++;
+                        }
                     }
                 }
+            }
+            else {
+                // if the velocity its not local then we should get it from the processor that it has as local
+                notset_id.push_back(vel_it->second.dof);
             }
         }
         if (count_non_average == 0)
             break;
+        count_iter++;
+        if (count_iter >= 0)
+            break;
     }
+
 }
 
 #endif // PARTICLE_TRACKING_H

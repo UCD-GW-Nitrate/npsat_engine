@@ -442,6 +442,18 @@ void NPSAT<dim>::flag_cells_for_refinement(){
                                              estimated_error_per_cell,
                                              AQProps.refine_param.TopFraction,
                                              AQProps.refine_param.BottomFraction);
+
+    typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+    cell = triangulation.begin_active(),
+    endc = triangulation.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            double min_dim = cell->minimum_vertex_distance();
+            if (min_dim/2 < AQProps.refine_param.MinElementSize)
+                cell->clear_refine_flag();
+        }
+    }
+
 }
 
 template <int dim>
@@ -574,7 +586,7 @@ void NPSAT<dim>::particle_tracking(){
 
     //pt.average_velocity_field(velocity_dof_handler,velocity_fe);
     pt.average_velocity_field();
-
+return;
     std::vector<Streamline<dim>> All_streamlines;
     std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);
 

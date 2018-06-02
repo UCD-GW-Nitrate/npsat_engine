@@ -36,7 +36,7 @@ subsection B. Geometry
   # The coordinates of the left lower point of the domain.
   # In case of 2D the 3rd element is ignored
   # .This is valid for BOX geometry type
-  set d Left lower point          = 0,0,0
+  set d Left lower point          = 550,0,0
 
   # e----------------------------------
   # Top elevation function must be either a single value
@@ -140,7 +140,7 @@ subsection G. Solver parameters
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement would occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 12
+  set a Nonlinear iterations = 4
 
   # b----------------------------------
   # Tolerance of solver
@@ -155,15 +155,15 @@ end
 subsection H. Refinement Parameters
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 1
+  set a Max refinements iterations = 10
 
   # b----------------------------------
   # Top refinement fraction
-  set b Top fraction               = 0.15
+  set b Top fraction               = 0.3
 
   # c----------------------------------
   # Bottom refinement fraction
-  set c Bottom fraction            = 0.01
+  set c Bottom fraction            = 0.1
 
   # d----------------------------------
   # Minimum element size
