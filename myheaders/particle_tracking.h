@@ -20,6 +20,7 @@ template <int dim>
 class AverageVel{
 public:
     AverageVel(bool local, int dof_in, Point<dim> v, std::vector<types::global_dof_index> c);
+    AverageVel(int dof_in, Point<dim> av_vel_in);
     void Addvelocity(Point<dim> v);
     std::vector<types::global_dof_index> cnstr;
     std::vector<Point<dim>> V;
@@ -42,6 +43,16 @@ AverageVel<dim>::AverageVel(bool local, int dof_in, Point<dim> v, std::vector<ty
     is_averaged = false;
     for (unsigned int idim = 0; idim < dim; ++idim)
         av_vel[idim] = -9999.9;
+}
+
+template <int dim>
+AverageVel::AverageVel(int dof_in, Point<dim> av_vel_in){
+    dof = dof_in;
+    av_vel = av_vel_in;
+    is_averaged = true;
+    is_local = false;
+    cnstr.clear();
+    V.clear();
 }
 
 template <int dim>
