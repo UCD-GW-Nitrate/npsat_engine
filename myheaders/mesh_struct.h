@@ -1380,7 +1380,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
                 itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
                 if (itz->isTop){
                     if (it->second.T < -9998){
-                        std::cout << "This Top has not been set" << std::endl;
+                        std::cout << "The Top at (" << it->second.PNT << ") has not been set" << std::endl;
                     }
                     else{
                         itz->z = it->second.T;

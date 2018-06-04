@@ -54,10 +54,10 @@ bool BoundPrim::is_any_point_insideBB(std::vector<double> x, std::vector<double>
     double xmax = -99999999999;
     double ymax = -99999999999;
     for (unsigned int i = 0; i < x.size(); ++i){
-        if (xmin < x[i]) xmin = x[i];
-        if (ymin < y[i]) ymin = y[i];
-        if (xmax > x[i]) xmax = x[i];
-        if (ymax > y[i]) ymax = y[i];
+        if (xmin > x[i]) xmin = x[i];
+        if (ymin > y[i]) ymin = y[i];
+        if (xmax < x[i]) xmax = x[i];
+        if (ymax < y[i]) ymax = y[i];
         if (Point_in_BB(BBmin[0], BBmin[1], BBmax[0], BBmax[1], x[i], y[i])){
             outcome = true;
             break;
@@ -74,7 +74,7 @@ bool BoundPrim::is_any_point_insideBB(std::vector<double> x, std::vector<double>
                 if (Point_in_BB(xmin, ymin, xmax, ymax, BBmin[0], BBmax[1]))
                     outcome = true;
                 else{
-                    if (!Point_in_BB(xmin, ymin, xmax, ymax, BBmax[0], BBmin[1]))
+                    if (Point_in_BB(xmin, ymin, xmax, ymax, BBmax[0], BBmin[1]))
                         outcome = true;
                 }
             }
