@@ -114,7 +114,14 @@ namespace AquiferGrid{
                 bool done = read_2D_grid(tria2D);
                 if (done){
 #if _DIM>2
-                    dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 1, tria3D);
+                    dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 100, tria3D);
+                    /* This is going to work for deal version 9 and higher
+                    std::vector<double> slices;
+                    for (unsigned int i = 0; i < geom_param.vert_discr.size(); ++i)
+                        slices.push_back(100.0 * static_cast<double>(geom_param.vert_discr[i]));
+
+                    dealii::GridGenerator::extrude_triangulation(tria2D, slices, tria3D);
+                    */
                     convert_to_parallel(tria3D, triangulation);
                     triangulation.refine_global(geom_param.N_init_refinement);
                     assign_default_boundary_id(triangulation);
@@ -127,9 +134,9 @@ namespace AquiferGrid{
             }
         }
 
-        //std::ofstream out ("test_tria.vtk");
-        //GridOut grid_out;
-        //grid_out.write_ucd(triangulation, out);
+        std::ofstream out ("test_tria.vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
     }
 
     template <int dim>

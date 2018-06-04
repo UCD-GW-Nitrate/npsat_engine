@@ -43,19 +43,53 @@ public:
 
     //! A method that checks if any point in the list is inside the bounding box of the primitive polygon
     bool is_any_point_insideBB(std::vector<double> x, std::vector<double> y);
+
+    bool Point_in_BB(double xmin, double ymin, double xmax, double ymax, double x, double y);
 };
 
 bool BoundPrim::is_any_point_insideBB(std::vector<double> x, std::vector<double> y){
     bool outcome = false;
+    double xmin = 99999999999;
+    double ymin = 99999999999;
+    double xmax = -99999999999;
+    double ymax = -99999999999;
     for (unsigned int i = 0; i < x.size(); ++i){
-        if (x[i] > BBmin[0] && x[i] < BBmax[0] &&
-            y[i] > BBmin[1] && y[i] < BBmax[1]){
+        if (xmin < x[i]) xmin = x[i];
+        if (ymin < y[i]) ymin = y[i];
+        if (xmax > x[i]) xmax = x[i];
+        if (ymax > y[i]) ymax = y[i];
+        if (Point_in_BB(BBmin[0], BBmin[1], BBmax[0], BBmax[1], x[i], y[i])){
             outcome = true;
             break;
         }
     }
+
+    if (!outcome){
+        if (Point_in_BB(xmin, ymin, xmax, ymax, BBmin[0], BBmin[1]))
+            outcome = true;
+        else{
+            if (Point_in_BB(xmin, ymin, xmax, ymax, BBmax[0], BBmax[1]))
+                outcome = true;
+            else{
+                if (Point_in_BB(xmin, ymin, xmax, ymax, BBmin[0], BBmax[1]))
+                    outcome = true;
+                else{
+                    if (!Point_in_BB(xmin, ymin, xmax, ymax, BBmax[0], BBmin[1]))
+                        outcome = true;
+                }
+            }
+        }
+    }
     return outcome;
 }
+
+bool BoundPrim::Point_in_BB(double xmin, double ymin, double xmax, double ymax, double x, double y){
+    if (x > xmin && x < xmax && y > ymin && y < ymax)
+        return true;
+    else
+        return false;
+}
+
 
 
 

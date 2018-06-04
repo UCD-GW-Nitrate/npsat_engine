@@ -83,10 +83,6 @@ private:
     mix_mesh<dim-1>                             top_grid;
     mix_mesh<dim-1>                             bottom_grid;
 
-    DoFHandler<dim>                             velocity_dof_handler;
-    FESystem<dim>                              	velocity_fe;
-
-
 
     AquiferProperties<dim>                      AQProps;
 
@@ -120,8 +116,6 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     fe (1),
     mesh_dof_handler (triangulation),
     mesh_fe (FE_Q<dim>(1),dim),
-    velocity_dof_handler (triangulation),
-    velocity_fe (FE_Q<dim>(1),dim),
     AQProps(AQP),
     mesh_struct(AQP.xy_thres, AQP.z_thres),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
@@ -136,7 +130,6 @@ template <int dim>
 NPSAT<dim>::~NPSAT(){
     dof_handler.clear();
     mesh_dof_handler.clear();
-    velocity_dof_handler.clear();
     mesh_struct.folder_Path = AQProps.Dirs.output;
 }
 
