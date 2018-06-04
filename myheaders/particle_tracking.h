@@ -46,7 +46,7 @@ AverageVel<dim>::AverageVel(bool local, int dof_in, Point<dim> v, std::vector<ty
 }
 
 template <int dim>
-AverageVel::AverageVel(int dof_in, Point<dim> av_vel_in){
+AverageVel<dim>::AverageVel(int dof_in, Point<dim> av_vel_in){
     dof = dof_in;
     av_vel = av_vel_in;
     is_averaged = true;
@@ -78,7 +78,7 @@ public:
     void print_all_cell_velocity();
     //void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
     //                            FESystem<dim>& velocity_fe);
-    void average_velocity_field();
+    bool average_velocity_field();
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -1711,8 +1711,10 @@ void Particle_Tracking<dim>::average_velocity_field(DoFHandler<dim>& velocity_do
 */
 
 template <int dim>
-void Particle_Tracking<dim>::average_velocity_field(){
+bool Particle_Tracking<dim>::average_velocity_field(){
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
     const std::string vField_file_name = ("VelField_"	+
                                        Utilities::int_to_string(my_rank, 4) +
                                        ".dbg");
@@ -1774,7 +1776,7 @@ void Particle_Tracking<dim>::average_velocity_field(){
         vField_file << std::endl;
     }
     vField_file.close();
-    return;
+
 
     // DEBUG--------------------
 
@@ -1782,9 +1784,21 @@ void Particle_Tracking<dim>::average_velocity_field(){
     // Average Velocities
     pcout << "Averaging Velocities..." << std::endl << std::flush;
     int count_iter = 0;
+    std::vector<std::vector<int>> not_known_id(n_proc);
+    std::vector<std::vector<int>> known_ids(n_proc);
+    std::vector<std::vector<double>> velX(n_proc);
+    std::vector<std::vector<double>> velY(n_proc);
+    std::vector<std::vector<double>> velZ(n_proc);
+    std::map<int, Point<dim>> received_vel;
+    typename std::map<int, Point<dim>>::iterator rec_it;
     while (true){
-        std::vector<int> notset_id;
+        not_known_id[my_rank].clear();
+        known_ids[my_rank].clear();
+        velX[my_rank].clear();
+        velY[my_rank].clear();
+        velZ[my_rank].clear();
         int count_non_average = 0;
+
         vel_it = VelocityMap.begin();
         for (; vel_it != VelocityMap.end(); ++vel_it){
             if (vel_it->second.is_local){
@@ -1814,6 +1828,18 @@ void Particle_Tracking<dim>::average_velocity_field(){
                                     break;
                                 }
                             }
+                            else{
+                                rec_it = received_vel.find(vel_it->second.cnstr[ii]);
+                                if (rec_it != received_vel.end()){
+                                    for (unsigned int idim = 0; idim < dim; ++idim)
+                                        sum[idim] += rec_it->second[idim];
+                                }
+                                else{
+                                    not_known_id[my_rank].push_back(vel_it->second.dof);
+                                    can_average = false;
+                                    break;
+                                }
+                            }
                         }
                         if (can_average){
                             for (unsigned int idim = 0; idim < dim; ++idim)
@@ -1828,16 +1854,91 @@ void Particle_Tracking<dim>::average_velocity_field(){
             }
             else {
                 // if the velocity its not local then we should get it from the processor that it has as local
-                notset_id.push_back(vel_it->second.dof);
+                // check first if we have asked for it in a previous iteration
+                rec_it = received_vel.find(vel_it->second.dof);
+                if (rec_it != received_vel.end()){
+                    for (unsigned int idim = 0; idim < dim; ++idim)
+                        vel_it->second.av_vel[idim] = rec_it->second[idim];
+                    vel_it->second.is_averaged = true;
+                }
+                else{
+                    not_known_id[my_rank].push_back(vel_it->second.dof);
+                    count_non_average++;
+                }
             }
         }
+
+        //std::cout << "I'm Rank " << my_rank << " has " << count_non_average << " unkwown velocities" << std::endl;
+
+        // Check if all points have been set
+        std::vector<int> Velocity_not_set(n_proc);
+        Send_receive_size(static_cast<unsigned int>(count_non_average), n_proc, Velocity_not_set, mpi_communicator);
+        count_non_average = 0;
+        for (unsigned int i = 0; i < n_proc; ++i)
+            count_non_average = count_non_average + Velocity_not_set[i];
+
+        pcout << "There are: " << count_non_average << " point velocities to be averaged" << std::endl;
+
         if (count_non_average == 0)
             break;
-        count_iter++;
-        if (count_iter >= 0)
-            break;
-    }
 
+
+
+        std::vector<int> sent_size;
+        Send_receive_size(static_cast<unsigned int>(not_known_id[my_rank].size()), n_proc, sent_size, mpi_communicator);
+        Sent_receive_data<int>(not_known_id, sent_size, my_rank, mpi_communicator, MPI_INT);
+
+
+
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (my_rank == i_proc)
+                continue;
+            for (unsigned int ii = 0; ii < not_known_id[i_proc].size(); ++ii){
+                vel_it = VelocityMap.find(not_known_id[i_proc][ii]);
+                if (vel_it != VelocityMap.end()){
+                    if (vel_it->second.is_local && vel_it->second.is_averaged){
+                        known_ids[my_rank].push_back(vel_it->second.dof);
+                        velX[my_rank].push_back(vel_it->second.av_vel[0]);
+                        velY[my_rank].push_back(vel_it->second.av_vel[1]);
+                        if (dim == 3)
+                            velZ[my_rank].push_back(vel_it->second.av_vel[2]);
+                    }
+                }
+            }
+        }
+
+        //std::cout << "I'm Rank " << my_rank << " and I have " << known_ids[my_rank].size() << " to send" << std::endl;
+        Send_receive_size(static_cast<unsigned int>(known_ids[my_rank].size()), n_proc, sent_size, mpi_communicator);
+        Sent_receive_data<int>(known_ids, sent_size, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(velX, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(velY, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(velZ, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // loop through the replies and get th ones you need
+        // but first put them in a map for faster querying
+
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++ i_proc){
+            if (my_rank == i_proc)
+                continue;
+            for (unsigned int ii = 0; ii < known_ids[i_proc].size(); ++ii){
+                Point<dim> tempV;
+                tempV[0] = velX[i_proc][ii];
+                tempV[1] = velY[i_proc][ii];
+                if (dim == 3)
+                    tempV[2] = velZ[i_proc][ii];
+                received_vel.insert(std::pair<int,Point<dim>>(known_ids[i_proc][ii], tempV));
+            }
+        }
+
+
+        count_iter++;
+        if (count_iter >= 20){
+            std::cerr << " Not all point velocities could be averaged after 20 iterations" << std::endl;
+            return false;
+        }
+    }
+    return true;
 }
 
 #endif // PARTICLE_TRACKING_H

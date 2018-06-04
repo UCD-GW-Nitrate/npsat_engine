@@ -224,7 +224,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // WORKSPACE DIRECTORIES
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("A. Workspace directories");
+    prm.enter_subsection("A. Workspace directories ============================");
     {
         prm.declare_entry ("a Input directory", "",Patterns::Anything(),
                            "a----------------------------------\n"
@@ -241,56 +241,66 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // GEOMETRY
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("B. Geometry");
+    prm.enter_subsection("B. Geometry  ========================================");
     {
         prm.declare_entry("a Geometry Type","BOX", Patterns::Anything(),
                           "a----------------------------------\n"
                           "Geometry Type. Valid entries are ""BOX"" and ""FILE""");
 
-        prm.declare_entry ("b Input mesh file", "",Patterns::Anything(),
-                           "b----------------------------------\n"
-                           "case FILE:\n"
-                           "If the geometry type is FILE specify the file name\n"
-                           "that contains the initial mesh.\n If the type is box this is ignored.");
+        prm.enter_subsection("A. Case BOX =---=---=---=---=---=---=---=---=---=");
+        {
+            prm.declare_entry("a XYZ dimensions", "5000,5000,300", Patterns::List(Patterns::Double(1,1000000),3,3,","),
+                              "a----------------------------------\n"
+                              "The length of the aquifer along the X Y Z directions.\n"
+                              "In case of 2D the 3rd element is ignored but it should be present.\n"
+                              "This is valid for BOX geometry type");
 
-        prm.declare_entry("c XYZ dimensions", "5000,5000,300", Patterns::List(Patterns::Double(1,1000000),3,3,","),
-                          "c----------------------------------\n"
-                          "case BOX:\n"
-                          "The length of the aquifer along the X Y Z directions.\n"
-                          "In case of 2D the 3rd element is ignored but it should be present.\n"
-                          "This is valid for BOX geometry type");
+            prm.declare_entry("b Left lower point","0,0,0", Patterns::List(Patterns::Double(-1000000,1000000),3,3,","),
+                              "b----------------------------------\n"
+                              "case BOX:\n"
+                              "The coordinates of the left lower point of the domain.\n"
+                              "In case of 2D the 3rd element is ignored but it should be present.\n"
+                              "This is valid for BOX geometry type");
+        }
+        prm.leave_subsection();
 
-        prm.declare_entry("d Left lower point","0,0,0", Patterns::List(Patterns::Double(-1000000,1000000),3,3,","),
-                          "d----------------------------------\n"
-                          "case BOX:\n"
-                          "The coordinates of the left lower point of the domain.\n"
-                          "In case of 2D the 3rd element is ignored but it should be present.\n"
-                          "This is valid for BOX geometry type");
+        prm.enter_subsection("B. Case FILE =---=---=---=---=---=---=---=---=---");
+        {
+            prm.declare_entry ("a Input mesh file", "",Patterns::Anything(),
+                               "a----------------------------------\n"
+                               "If the geometry type is FILE specify the file name\n"
+                               "that contains the initial mesh.\n If the type is box this is ignored.");
+        }
+        prm.leave_subsection();
 
-        prm.declare_entry ("e Top elevation function", "",Patterns::Anything(),
-                           "e----------------------------------\n"
-                           "Top elevation function must be either a single value\n"
-                           "or the name of a file");
+        prm.enter_subsection("C. Common parameters =---=---=---=---=---=---=---");
+        {
+            prm.declare_entry ("a Top elevation function", "",Patterns::Anything(),
+                               "a----------------------------------\n"
+                               "Top elevation function must be either a single value\n"
+                               "or the name of a file");
 
-        prm.declare_entry ("f Bottom elevation function", "",Patterns::Anything(),
-                           "f----------------------------------\n"
-                           "Bottom elevation function must be either a single value\n"
-                           "or the name of a file");
+            prm.declare_entry ("b Bottom elevation function", "",Patterns::Anything(),
+                               "b----------------------------------\n"
+                               "Bottom elevation function must be either a single value\n"
+                               "or the name of a file");
 
-        prm.declare_entry("g x-y threshold", "0.1", Patterns::Double(0,10000),
-                          "g----------------------------------\n"
-                          "Threshold value along the horizontal plane");
+            prm.declare_entry("c x-y threshold", "0.1", Patterns::Double(0,10000),
+                              "c----------------------------------\n"
+                              "Threshold value along the horizontal plane");
 
-        prm.declare_entry("h z threshold", "0.01", Patterns::Double(0,10000),
-                          "h----------------------------------\n"
-                          "Threshold value the vertical plane");
+            prm.declare_entry("d z threshold", "0.01", Patterns::Double(0,10000),
+                              "d----------------------------------\n"
+                              "Threshold value the vertical plane");
+        }
+        prm.leave_subsection();
     }
     prm.leave_subsection();
 
     //+++++++++++++++++++++++++++++++++++++++++
     // DISCRETIZATION PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("C. Discretization");
+    prm.enter_subsection("C. Discretization ===================================");
     {
         prm.declare_entry("a Nxyz","10,10,3", Patterns::List(Patterns::Integer(1,1000),3,3,","),
                           "a----------------------------------\n"
@@ -323,7 +333,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // BOUNDARY CONDITIONS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("D. Boundary Conditions");
+    prm.enter_subsection("D. Boundary Conditions ==============================");
     {
         prm.declare_entry ("a Dirichlet file name", "",Patterns::Anything(),
                            "a----------------------------------\n"
@@ -336,7 +346,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // AQUIFER PROPERTIES
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("E Aquifer Properties");
+    prm.enter_subsection("E Aquifer Properties ================================");
     {
         prm.declare_entry ("a Hydraulic Conductivity KX", "",Patterns::Anything(),
                            "a----------------------------------\n"
@@ -365,7 +375,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // SOURCES & SINKS PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("F. Sources & Sinks");
+    prm.enter_subsection("F. Sources & Sinks ==================================");
     {
         prm.declare_entry ("a Groundwater recharge", "",Patterns::Anything(),
                            "a----------------------------------\n"
@@ -388,7 +398,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // SOLVER PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("G. Solver parameters");{
+    prm.enter_subsection("G. Solver parameters ================================");{
         prm.declare_entry("a Nonlinear iterations", "10", Patterns::Integer(0,30),
                           "a----------------------------------\n"
                           "Number of nonlinear iterations for solving the unconfined problem\n"
@@ -408,7 +418,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // REFINEMENT PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("H. Refinement Parameters");
+    prm.enter_subsection("H. Refinement Parameters ============================");
     {
         prm.declare_entry("a Max refinements iterations", "5", Patterns::Integer(0,30),
                           "a----------------------------------\n"
@@ -435,7 +445,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // PARTICLE TRACKING PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("I. Particle tracking");
+    prm.enter_subsection("I. Particle tracking ================================");
     {
         prm.declare_entry("a Print entity frequency", "1", Patterns::Integer(0,1000),
                           "a----------------------------------\n"
@@ -502,7 +512,7 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     // OUTPUT PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("J. Output Parameters");
+    prm.enter_subsection("J. Output Parameters ================================");
     {
         prm.declare_entry("a Prefix", "", Patterns::Anything(),
                           "a----------------------------------\n"
@@ -535,7 +545,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // WORKSPACE DIRECTORIES
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("A. Workspace directories");
+    prm.enter_subsection("A. Workspace directories ============================");
     {
         input_dir = prm.get("a Input directory");
         output_dir = prm.get("b Output directory");
@@ -549,41 +559,53 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // GEOMETRY
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("B. Geometry");
+    prm.enter_subsection("B. Geometry  ========================================");
     {
         AQprop.geomtype = prm.get("a Geometry Type");
 
         if (AQprop.geomtype == "BOX"){
-            std::vector<std::string> temp = Utilities::split_string_list(prm.get("c XYZ dimensions"));
-            AQprop.Length = Utilities::string_to_double(temp);
+            prm.enter_subsection("A. Case BOX =---=---=---=---=---=---=---=---=---=");
+            {
+                std::vector<std::string> temp = Utilities::split_string_list(prm.get("a XYZ dimensions"));
+                AQprop.Length = Utilities::string_to_double(temp);
 
-            temp.clear();
-            temp = Utilities::split_string_list(prm.get("d Left lower point"));
-            AQprop.left_lower_point = Utilities::string_to_double(temp);
+                temp.clear();
+                temp = Utilities::split_string_list(prm.get("b Left lower point"));
+                AQprop.left_lower_point = Utilities::string_to_double(temp);
+            }
+            prm.leave_subsection();
         } else if (AQprop.geomtype == "FILE") {
-            AQprop.input_mesh_file = prm.get("b Input mesh file");
-            AQprop.input_mesh_file = input_dir + AQprop.input_mesh_file;
+            prm.enter_subsection("B. Case FILE =---=---=---=---=---=---=---=---=---");
+            {
+                AQprop.input_mesh_file = prm.get("a Input mesh file");
+                AQprop.input_mesh_file = input_dir + AQprop.input_mesh_file;
+            }
+            prm.leave_subsection();
         } else {
             std::cerr << AQprop.geomtype << " is Not Valid input" << std::endl;
         }
 
-        std::string temp_name = prm.get("e Top elevation function");
-        if (is_input_a_scalar((temp_name))){
-            AQprop.top_elevation.get_data(temp_name);
-        }else{
-            AQprop.top_elevation.get_data(input_dir + temp_name);
-        }
+        prm.enter_subsection("C. Common parameters =---=---=---=---=---=---=---");
+        {
+            std::string temp_name = prm.get("a Top elevation function");
+            if (is_input_a_scalar((temp_name))){
+                AQprop.top_elevation.get_data(temp_name);
+            }else{
+                AQprop.top_elevation.get_data(input_dir + temp_name);
+            }
 
-        temp_name = prm.get("f Bottom elevation function");
-        if (is_input_a_scalar(temp_name)){
-            AQprop.bottom_elevation.get_data(temp_name);
-        }
-        else{
-            AQprop.bottom_elevation.get_data(input_dir + temp_name);
-        }
+            temp_name = prm.get("b Bottom elevation function");
+            if (is_input_a_scalar(temp_name)){
+                AQprop.bottom_elevation.get_data(temp_name);
+            }
+            else{
+                AQprop.bottom_elevation.get_data(input_dir + temp_name);
+            }
 
-        AQprop.xy_thres = prm.get_double("g x-y threshold");
-        AQprop.z_thres = prm.get_double("h z threshold");
+            AQprop.xy_thres = prm.get_double("c x-y threshold");
+            AQprop.z_thres = prm.get_double("d z threshold");
+        }
+        prm.leave_subsection ();
     }
     prm.leave_subsection ();
 
@@ -591,10 +613,12 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // DISCRETIZATION
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("C. Discretization");
+    prm.enter_subsection("C. Discretization ===================================");
     {
         std::vector<std::string> temp = Utilities::split_string_list(prm.get("a Nxyz"));
         AQprop.Nxyz = Utilities::string_to_int(temp);
+
+        std::string temp_str = prm.get("b Vertical discretization");
 
         AQprop.N_init_refinement = prm.get_integer("c Initial Refinement");
 
@@ -602,7 +626,6 @@ bool CL_arguments<dim>::read_param_file(){
 
         AQprop.N_streams_refinement = prm.get_integer("e Stream Refinement");
 
-        std::string temp_str = prm.get("b Vertical discretization");
 
         if (temp_str != ""){
             std::vector<std::string> temp1 = Utilities::split_string_list(temp_str);
@@ -618,7 +641,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // BOUNDARY CONDITIONS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("D. Boundary Conditions");
+    prm.enter_subsection("D. Boundary Conditions ==============================");
     {
         AQprop.dirichlet_file_names = input_dir + prm.get("a Dirichlet file name");
     }
@@ -628,7 +651,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // AQUIFER PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("E Aquifer Properties");
+    prm.enter_subsection("E Aquifer Properties ================================");
     {
         // KX hydraulic conductivity
         AQprop.HydraulicConductivity.resize(dim);
@@ -704,7 +727,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // SOURCES & SINKS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("F. Sources & Sinks");
+    prm.enter_subsection("F. Sources & Sinks ==================================");
     {
         // Diffuse Recharge
         std::string temp_name = prm.get("a Groundwater recharge");
@@ -734,7 +757,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // SOLVER PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("G. Solver parameters");
+    prm.enter_subsection("G. Solver parameters ================================");
     {
         AQprop.solver_param.NonLinearIter = prm.get_integer("a Nonlinear iterations");
         AQprop.solver_param.solver_tol = prm.get_double("b Solver tolerance");
@@ -743,7 +766,7 @@ bool CL_arguments<dim>::read_param_file(){
     prm.leave_subsection ();
 
 
-    prm.enter_subsection("H. Refinement Parameters");
+    prm.enter_subsection("H. Refinement Parameters ============================");
     {
         AQprop.refine_param.MaxRefinement = prm.get_integer("a Max refinements iterations");
         AQprop.refine_param.TopFraction = prm.get_double("b Top fraction");
@@ -756,7 +779,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // PARTICLE TRACKING
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("I. Particle tracking");
+    prm.enter_subsection("I. Particle tracking ================================");
     {
         AQprop.part_param.Entity_freq = prm.get_integer("a Print entity frequency");
         AQprop.part_param.Streaml_freq = prm.get_integer("b Print streamline frequency");
@@ -779,7 +802,7 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     // OUTPUT PARAMETERS
     //+++++++++++++++++++++++++++++++++++++++++
-    prm.enter_subsection("J. Output Parameters");
+    prm.enter_subsection("J. Output Parameters ================================");
     {
         AQprop.sim_prefix = prm.get("a Prefix");
         AQprop.dbg_scale_x = prm.get_double("b Domain Scale X");

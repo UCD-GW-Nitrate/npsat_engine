@@ -38,28 +38,36 @@
 /examples/*
 # unignore the box2D example ----------box2D-----------
 !/examples/box2D
-ignore all the content of box2D
+#ignore all the content of the folder
 /examples/box2D/*
 #unignore the *.npsat files
 !/examples/box2D/*.npsat
 # unignore the box3D example ----------box3D-----------
 !/examples/box3D
-ignore all the content of box3D
+#ignore all the content of the folder
 /examples/box3D/*
 #unignore the *.npsat files
 !/examples/box3D/*.npsat
 # unignore the file01 example ----------file01-----------
 !/examples/file01
-ignore all the content of file01
+#ignore all the content of the folder
 /examples/file01/*
 #unignore the *.npsat files
 !/examples/file01/*.npsat
 # unignore the BoxNPSAT example ----------BoxNPSAT-----------
 !/examples/BoxNPSAT
-ignore all the content of file01
+#ignore all the content of the folder
 /examples/BoxNPSAT/*
 #unignore the *.npsat files
 !/examples/BoxNPSAT/*.npsat
 #unignore the *.py files
 !/examples/BoxNPSAT/*.py
+# unignore the BoxNPSAT example ----------Tule-----------
+!/examples/Tule
+#ignore all the content of the folder
+/examples/Tule/*
+#unignore the *.npsat files
+!/examples/Tule/*.npsat
+
+
 
