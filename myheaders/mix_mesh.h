@@ -272,7 +272,23 @@ bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){
         boost::geometry::assign_points(b_poly, pnts);
         boost::geometry::correct(b_poly);
 
-        return boost::geometry::covered_by(b_point(p[0],p[1]),b_poly);
+        // buffer polygon
+        boost::geometry::model::multi_polygon<b_polygon> buffer_poly;
+        {
+            const double buffer_distance = 0.05;
+            const int points_per_circle = 5;
+            boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(buffer_distance);
+            boost::geometry::strategy::buffer::join_round join_strategy(points_per_circle);
+            boost::geometry::strategy::buffer::end_round end_strategy(points_per_circle);
+            boost::geometry::strategy::buffer::point_circle circle_strategy(points_per_circle);
+            boost::geometry::strategy::buffer::side_straight side_strategy;
+            boost::geometry::buffer(b_poly, buffer_poly,
+                                    distance_strategy, side_strategy,
+                                    join_strategy, end_strategy, circle_strategy);
+
+        }
+
+        return boost::geometry::covered_by(b_point(p[0],p[1]),buffer_poly);
     }
     else if (MSH[el_id].size() == 2){
         double x1 = P[MSH[el_id][0]][0];

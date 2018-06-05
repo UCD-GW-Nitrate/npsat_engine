@@ -33,6 +33,40 @@ std::vector<double> linspace(double min, double max, int n){
 }
 
 template <int dim>
+void print_cell_coords(typename dealii::DoFHandler<dim>::active_cell_iterator cell){
+    std::vector<dealii::Point<dim>> verts;
+    for (unsigned int vertex_no = 0; vertex_no < dealii::GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+        verts.push_back(cell->vertex(vertex_no));
+    }
+
+    std::vector<unsigned int> ind;
+    if (dim == 2){
+        ind.push_back(0);
+        ind.push_back(1);
+        ind.push_back(3);
+        ind.push_back(2);
+        std::cout << "[" << std::setprecision(10);
+        for (unsigned int ii = 0; ii < ind.size(); ++ii)
+            std::cout << verts[ind[ii]][0] << " " << verts[ind[ii]][1] << "; ";
+        std::cout << "]" << std::endl;
+    }
+    if (dim == 3){
+        ind.push_back(0);
+        ind.push_back(1);
+        ind.push_back(3);
+        ind.push_back(2);
+        ind.push_back(4);
+        ind.push_back(5);
+        ind.push_back(7);
+        ind.push_back(6);
+        std::cout << "[" << std::setprecision(10);
+        for (unsigned int ii = 0; ii < ind.size(); ++ii)
+            std::cout << verts[ind[ii]][0] << " " << verts[ind[ii]][1] << " " << verts[ind[ii]][2] << "; ";
+        std::cout << "]" << std::endl;
+    }
+}
+
+template <int dim>
 bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& punit,
                  typename dealii::DoFHandler<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
     bool mapping_done = false;
@@ -48,6 +82,8 @@ bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& punit,
             ++count_try;
             if (count_try > 20){
                 std::cerr << "Transformation Failed for DofHandler cell" << std::endl;
+                print_cell_coords<dim>(cell);
+                std::cout << p << std::endl;
                 break;
             }
         }
@@ -327,6 +363,8 @@ void print_poly_matlab(std::vector<double> xp, std::vector<double> yp){
         std::cout << yp[kk] << " ";
     std::cout << yp[0] << "])" << std::endl;
 }
+
+
 
 /*
 template <int dim>
