@@ -427,6 +427,19 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
             for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
                 int i = well_id_in_cell[iw];
+                /*
+                bool dgb_print = false;
+                if (i == 714){
+                    std::cout << "Debug this well" << std::endl;
+                    int cccnt=1;
+                    int ff = 0;
+                    cccnt++;
+                    ff = cccnt;
+                    well_point_2d[0] = wells[i].top[0];
+                    dgb_print = true;
+                }
+                */
+
                 well_point_2d[0] = wells[i].top[0];
                 if (dim == 3)
                     well_point_2d[1] = wells[i].top[1];
@@ -465,7 +478,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     // case 1
                     if  (well_BPF < z_bot && well_TPF > z_top){
                         // the well screen fully penetrates this cell.
-                        p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
+                        p_mid[dim-1] = (z_top - z_bot)/2.0 + z_bot;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - z_bot;
@@ -510,6 +523,12 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         add_this_cell = true;
                     }
                     if (add_this_cell){
+                        /*
+                        if (dgb_print){
+                            std::cout << wells[i].well_cells.size() << std::endl;
+                            std::cout << cell->center() << std::endl;
+                        }
+                        */
                         wells[i].well_cells.push_back(cell);
                         wells[i].mid_point.push_back(p_mid);
                         wells[i].L_cell.push_back(segment_length);
@@ -519,6 +538,12 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         well_id[my_rank].push_back(i);
                         cell_length[my_rank].push_back(segment_length);
                         cell_cond[my_rank].push_back(K);
+                        /*
+                        if (dgb_print){
+                            std::cout << wells[i].well_cells[wells[i].well_cells.size()-1]->center() << std::endl;
+                            std::cout << wells[i].mid_point[wells[i].mid_point.size()-1] << std::endl;;
+                        }
+                        */
                     }
                 }
             }
@@ -560,6 +585,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     // if there are well with owned == true we will distribute the pumping rate to all cells
     // even to those that have owned == false but we will assign rates only to the owned == true
     for (int i = 0; i < Nwells; ++i){
+        //std::cout << "well-> i: " << i << " wid:  " << wells[i].well_id << " pnt: " << wells[i].bottom << std::endl;
         bool any_true = false;
         int N_cells = wells[i].owned.size();
         for (int j = 0; j < N_cells; ++j){
