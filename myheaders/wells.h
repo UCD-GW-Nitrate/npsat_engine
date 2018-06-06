@@ -400,6 +400,8 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     std::vector<std::vector<double> > 	cell_length(n_proc);
     std::vector<std::vector<double> > 	cell_cond(n_proc);
 
+    double Qwell_total = 0;
+
     Point<dim-1> well_point_2d;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
@@ -624,6 +626,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
                                 double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
                                 cell_rhs_wells(ii) += Q_temp;
+                                Qwell_total += Q_temp;
                             }
                         }
                         wells[i].well_cells[j]->get_dof_indices (local_dof_indices);
@@ -635,6 +638,10 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             }
         }
     }
+    MPI_Barrier(mpi_communicator);
+    sum_scalar<double>(Qwell_total,n_proc, mpi_communicator, MPI_DOUBLE);
+    if (my_rank == 0)
+        std::cout << "\t QWELLS: [" << Qwell_total << "]" << std::endl;
     MPI_Barrier(mpi_communicator);
     for (int i = 0; i < Nwells; ++i){
         wells[i].Q_cell.clear();

@@ -327,7 +327,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     std::map<int,int>::iterator itint;
     MPI_Barrier(mpi_communicator);
 
-    pcout << "Update XYZ structure...for: " << prefix  << std::endl << std::flush;
+    pcout << "Update Mesh structure..." << std::endl << std::flush;
     std::vector<unsigned int> cell_dof_indices (mesh_fe.dofs_per_cell);
     typename DoFHandler<dim>::active_cell_iterator
     cell = mesh_dof_handler.begin_active(),
@@ -455,7 +455,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         // they exists in the triangulation. Also their connection information is correct
         int dbg_cnt = 0;
         while (true){
-            pcout << "--------------" << std::endl;
+            //pcout << "--------------" << std::endl;
             Top_info.clear();
             Bot_info.clear();
 
@@ -474,25 +474,28 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
             }
 
             // Check if there are any nodes not set. If not the break the loop
-            std::vector<int> top_info_size;
-            std::vector<int> bot_info_size;
-            Send_receive_size(static_cast<unsigned int>(Top_info.size()), n_proc, top_info_size, mpi_communicator);
-            Send_receive_size(static_cast<unsigned int>(Bot_info.size()), n_proc, bot_info_size, mpi_communicator);
+
             int temp_count = 0;
-            for (unsigned int i = 0; i < n_proc; ++i){
-                temp_count = temp_count + top_info_size[i] + bot_info_size[i];
+            {//-------New way
+                int top_size = static_cast<int>(Top_info.size());
+                int bot_size = static_cast<int>(Bot_info.size());
+                sum_scalar<int>(top_size,n_proc,mpi_communicator,MPI_INT);
+                sum_scalar<int>(bot_size,n_proc,mpi_communicator,MPI_INT);
+                temp_count = top_size + bot_size;
+                pcout << "\t Unresolved points: " << temp_count << " after " << dbg_cnt << " iter" << std::endl;
+                //std::cout << "Proc: " << my_rank << "New way: " << top_size + bot_size << std::endl;
             }
 
             if (temp_count == 0)
                 break;
 
             if (dbg_cnt == 30){
-                std::cout << "updateMeshStruct didnt converge after 30 iterations" << std::endl;
+                pcout << "updateMeshStruct didnt converge after 30 iterations" << std::endl;
                 return;
             }
 
             MPI_Barrier(mpi_communicator);
-            std::cout << "Proc " << my_rank << " has " << Bot_info.size() << ", " << Top_info.size() << "Bot/Top" << std::endl;
+            //std::cout << "Proc " << my_rank << " has " << Bot_info.size() << ", " << Top_info.size() << "Bot/Top" << std::endl;
 
             std::vector<std::vector<int>> top_send(n_proc);
             std::vector<std::vector<int>> bot_send(n_proc);
@@ -653,7 +656,9 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
     //std::cout << "====================================================" << std::endl;
-    std::cout << "I'm rank " << my_rank << " and spend " << elapsed_secs << " sec on Updating XYZ" << std::endl;
+    //std::cout << "I'm rank " << my_rank << " and spend " << elapsed_secs << " sec on Updating XYZ" << std::endl;
+    max_scalar<double>(elapsed_secs, n_proc, mpi_communicator, MPI_DOUBLE);
+    pcout << "Max time spent: " << elapsed_secs << " sec on Updating XYZ" << std::endl;
     //std::cout << "====================================================" << std::endl;
     MPI_Barrier(mpi_communicator);
 }
@@ -829,9 +834,10 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     // processor has asked at some point.
     std::map<int, double> elev_asked;
     int dbg_cnt = 0;
+    pcout << "Update Mesh elevation..." << std::endl;
     while (true){
         MPI_Barrier(mpi_communicator);
-        pcout << "========= " << dbg_cnt << " =========" << std::endl;
+        //pcout << "========= " << dbg_cnt << " =========" << std::endl;
 
         std::vector<int> top_info_size;
         std::vector<int> bot_info_size;
@@ -965,14 +971,13 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
 
         MPI_Barrier(mpi_communicator);
-        std::cout << "Proc " << my_rank << " has " << count_not_set << " not set and " << dof_ask_map.size() << " dofs asked so far" << std::endl;
+
+
+        //std::cout << "Proc " << my_rank << " has " << count_not_set << " not set and " << dof_ask_map.size() << " dofs asked so far" << std::endl;
 
         // Check if all points have been set
-        std::vector<int> points_not_set(n_proc);
-        Send_receive_size(static_cast<unsigned int>(count_not_set), n_proc, points_not_set, mpi_communicator);
-        count_not_set = 0;
-        for (unsigned int i = 0; i < n_proc; ++i)
-            count_not_set = count_not_set + points_not_set[i];
+        sum_scalar<int>(count_not_set, n_proc, mpi_communicator, MPI_INT);
+        pcout << "\t Points not set:  " << count_not_set << " after " << dbg_cnt << " iter" << std::endl;
         if (count_not_set == 0)
             break;
 
@@ -1034,7 +1039,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     }
 
     MPI_Barrier(mpi_communicator);
-    std::cout << "Rank " << my_rank << " has converged" << std::endl;
+    //std::cout << "Rank " << my_rank << " has converged" << std::endl;
     MPI_Barrier(mpi_communicator);
 
     // After we have finished with all updates in the z structure we have to copy the---------------------------------------

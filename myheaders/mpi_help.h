@@ -57,8 +57,59 @@ void Send_receive_size(unsigned int N, unsigned int n_proc, std::vector<int> &ou
                        &output[0], // This is where the data will be send on each processor
                        &temp[0], // an array with the number of points to be sent/receive
                        &displs[0],
-                       MPI_INT, comm);
+                       MPI_INT, // The data type will be received
+                       comm);
 }
+
+template <typename T1>
+void sum_scalar(T1 &scalar, unsigned int n_proc, MPI_Comm comm, MPI_Datatype MPI_TYPE){
+
+    std::vector<T1> Allscalar(n_proc);
+    std::vector<int> temp(n_proc,1);
+    std::vector<int> displs(n_proc);
+    for (unsigned int i=1; i<n_proc; i++)
+            displs[i] = displs[i-1] + 1;
+
+    MPI_Allgatherv(&scalar, // This is what this processor will send to every other
+                   1, //This is the size of the message from this processor
+                   MPI_TYPE, // The data type will be sent
+                   &Allscalar[0], // This is where the data will be send on each processor
+                   &temp[0], // an array with the number of points to be sent/receive
+                   &displs[0],
+                   MPI_TYPE, // The data type will be received
+                   comm);
+
+    scalar = 0;
+    for (unsigned int i = 0; i < n_proc; ++i){
+        scalar += Allscalar[i];
+    }
+}
+
+template <typename T1>
+void max_scalar(T1 &scalar, unsigned int n_proc, MPI_Comm comm, MPI_Datatype MPI_TYPE){
+
+    std::vector<T1> Allscalar(n_proc);
+    std::vector<int> temp(n_proc,1);
+    std::vector<int> displs(n_proc);
+    for (unsigned int i=1; i<n_proc; i++)
+            displs[i] = displs[i-1] + 1;
+
+    MPI_Allgatherv(&scalar, // This is what this processor will send to every other
+                   1, //This is the size of the message from this processor
+                   MPI_TYPE, // The data type will be sent
+                   &Allscalar[0], // This is where the data will be send on each processor
+                   &temp[0], // an array with the number of points to be sent/receive
+                   &displs[0],
+                   MPI_TYPE, // The data type will be received
+                   comm);
+
+    scalar = -9999999999;
+    for (unsigned int i = 0; i < n_proc; ++i){
+        if (Allscalar[i] > scalar)
+            scalar = Allscalar[i];
+    }
+}
+
 
 /*!
  * \brief Sent_receive_data: This function sends a vector to all processors and receives all the vectors that the other processor

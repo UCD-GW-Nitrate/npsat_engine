@@ -35,6 +35,7 @@ int main (int argc, char **argv){
                 CLI.Debug_Prop();
                 NPSAT<_DIM> npsat(CLI.AQprop);
                 npsat.solve_refine();
+                return 0;
                 npsat.particle_tracking();
             }
         }

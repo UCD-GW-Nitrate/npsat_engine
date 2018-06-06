@@ -14,6 +14,7 @@
 #include "cgal_functions.h"
 #include "helper_functions.h"
 #include "boost_functions.h"
+#include "mpi_help.h"
 
 using namespace dealii;
 
@@ -161,7 +162,8 @@ public:
                            const DoFHandler<dim>& dof_handler,
                            const FE_Q<dim>& fe,
                            const ConstraintMatrix& constraints,
-                           std::vector<int> top_boundary_ids);
+                           std::vector<int> top_boundary_ids,
+                           int my_rank, int n_proc, MPI_Comm mpi_communicator);
 
     //! This function loops through the cells and flags for refinement those that their top face intersects with a stream
     void flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& 	triangulation);
@@ -422,7 +424,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                      const DoFHandler<dim>& dof_handler,
                                      const FE_Q<dim>& fe,
                                      const ConstraintMatrix& constraints,
-                                     std::vector<int> top_boundary_ids){
+                                     std::vector<int> top_boundary_ids,
+                                     int my_rank, int n_proc, MPI_Comm mpi_communicator){
 
     std::vector<int> v_nmb;
     if (dim == 3){
@@ -516,7 +519,11 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             }
         }
     }
-    std::cout << "Q_streams = " << QSTRM << " and AREA = " << SUMA_AREA << std::endl;
+
+    sum_scalar<double>(QSTRM, n_proc, mpi_communicator, MPI_DOUBLE);
+    sum_scalar<double>(SUMA_AREA, n_proc, mpi_communicator, MPI_DOUBLE);
+    if (my_rank == 0)
+        std::cout << "\t Q_streams = " << QSTRM << " and AREA = " << SUMA_AREA << std::endl;
 }
 
 template <int dim>

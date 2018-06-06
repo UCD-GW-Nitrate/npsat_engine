@@ -70,6 +70,8 @@ private:
     std::vector<int>                            top_boundary_ids;
     ConditionalOStream                        	pcout;
     TimerOutput                               	computing_timer;
+    int                                         my_rank;
+    int                                         n_proc;
 
     void setup_system();
     void assemble();
@@ -102,14 +104,17 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
       top_boundary_ids(top_boundary_ids_in),
       pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0)),
       computing_timer(pcout, TimerOutput::summary, TimerOutput::wall_times)
-{}
+{
+    my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+}
 
 template <int dim>
 void GWFLOW<dim>::setup_system(){
     TimerOutput::Scope t(computing_timer, "setup");
-    pcout << "Setting up system..." << std::endl << std::flush;
+    pcout << "\tSetting up system..." << std::endl << std::flush;
     dof_handler.distribute_dofs (fe);
-    pcout   << " Number of degrees of freedom: "
+    pcout   << "\t Number of degrees of freedom: "
             << dof_handler.n_dofs()
             << std::endl << std::flush;
 
@@ -142,7 +147,7 @@ void GWFLOW<dim>::setup_system(){
 template <int dim>
 void GWFLOW<dim>::assemble(){
     TimerOutput::Scope t(computing_timer, "assemble");
-    pcout << "Assembling system..." << std::endl << std::flush;
+    pcout << "\t Assembling system..." << std::endl << std::flush;
     const QGauss<dim>  quadrature_formula(2);
     const QGauss<dim-1> face_quadrature_formula(2);
 
@@ -223,7 +228,7 @@ void GWFLOW<dim>::assemble(){
 template <int dim>
 void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
-    pcout << "Solving system..." << std::endl << std::flush;
+    pcout << "\t Solving system..." << std::endl << std::flush;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
     SolverControl solver_control (dof_handler.n_dofs(), 1e-8);
     solver_control.log_result(true);
@@ -251,7 +256,7 @@ template <int dim>
 void GWFLOW<dim>::output(int iter, std::string output_file,
                          parallel::distributed::Triangulation<dim>& 	triangulation){
     TimerOutput::Scope t(computing_timer, "output");
-    pcout << "Printing results..." << std::endl << std::flush;
+    pcout << "\t Printing results..." << std::endl << std::flush;
 
     DataOut<dim> data_out;
     data_out.attach_dof_handler (dof_handler);
@@ -326,7 +331,7 @@ void GWFLOW<dim>::Simulate(int iter,                                     std::st
                               dof_handler,
                               fe,
                               constraints,
-                              top_boundary_ids);
+                              top_boundary_ids, my_rank, n_proc, mpi_communicator);
 
     assemble();
     solve();
