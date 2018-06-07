@@ -100,6 +100,7 @@ private:
     void make_grid();
     void create_dim_1_grids();
     void flag_cells_for_refinement();
+    void print_mesh();
 
 
 };
@@ -300,6 +301,7 @@ void NPSAT<dim>::solve_refine(){
                                             distributed_mesh_Offset_vertices,
                                             mpi_communicator,
                                             pcout);
+            print_mesh();
 
         }
     }
@@ -632,6 +634,39 @@ return;
         if (part_done[0] == 1)
             break;
     }
+}
+
+template <int dim>
+void NPSAT<dim>::print_mesh(){
+    pcout << "\t Printing mesh only..." << std::endl << std::flush;
+    DataOut<dim> data_out;
+    data_out.attach_dof_handler (dof_handler);
+    Vector<float> subdomain (triangulation.n_active_cells());
+    for (unsigned int i = 0; i < subdomain.size(); ++i){
+        subdomain(i) = triangulation.locally_owned_subdomain();
+    }
+    data_out.add_data_vector (subdomain, "subdomain");
+    data_out.build_patches ();
+
+    const std::string filename = ("Current_Mesh_" +
+                                  Utilities::int_to_string
+                                  (triangulation.locally_owned_subdomain(), 4));
+
+    std::ofstream output ((filename + ".vtu").c_str());
+    data_out.write_vtu (output);
+    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0){
+        std::vector<std::string> filenames;
+        for (unsigned int i=0; i < Utilities::MPI::n_mpi_processes(mpi_communicator); ++i){
+            filenames.push_back ("Current_Mesh_" +
+                                 Utilities::int_to_string
+                                 (triangulation.locally_owned_subdomain(), 4) +
+                                 ".vtu");
+        }
+        const std::string pvtu_master_filename = ("Current_Mesh_.pvtu");
+        std::ofstream pvtu_master (pvtu_master_filename.c_str());
+        data_out.write_pvtu_record(pvtu_master, filenames);
+    }
+
 }
 
 #endif // NPSAT_H

@@ -197,7 +197,10 @@ private:
     void dbg_meshStructInfo2D(std::string filename, unsigned int n_proc);
 
     //! Prints the 3D information of the #PointsMap
-    void dbg_meshStructInfo3D(std::string name, unsigned int n_proc);
+    void dbg_meshStructInfo3D(std::string name, unsigned int my_rank);
+
+    //! Prints the 3D information of the #PointsMap
+    void dbg_meshStructInfo3D_point(Point<dim> p, std::string name, unsigned int my_rank);
 
     //! Use this value to scale down the domains in x-y
     double dbg_scale_x;
@@ -437,6 +440,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     set_id_above_below(my_rank);
     MPI_Barrier(mpi_communicator);
 
+    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "first", my_rank);
+
 
     // in multi processor simulations more than likely there would be nodes that have as top or bottom information
     // that lives in another processor. The following code takes care of that.
@@ -653,6 +658,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
         }
     }
+
+    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "second", my_rank);
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
     //std::cout << "====================================================" << std::endl;
@@ -708,6 +715,52 @@ void Mesh_struct<dim>::dbg_meshStructInfo2D(std::string filename, unsigned int m
      }
      log_file.close();
 
+}
+
+template <int dim>
+void Mesh_struct<dim>::dbg_meshStructInfo3D_point(Point<dim> p, std::string name, unsigned int my_rank){
+    const std::string log_file_name = (folder_Path + prefix + "_" + name + "_pnt_" +
+                                       Utilities::int_to_string(my_rank+1, 4) +
+                                       ".txt");
+    std::ofstream log_file;
+    log_file.open(log_file_name.c_str());
+
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        Point<dim-1> curr_p, test_p;
+        curr_p[0] = it->second.PNT[0];
+        test_p[0] = p[0];
+        if (dim == 3){
+            curr_p[1] = it->second.PNT[1];
+            test_p[1] = p[1];
+        }
+        if (curr_p.distance(test_p) < 0.1){
+            std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+            for (; itz != it->second.Zlist.end(); ++itz){
+                log_file << std::setw(3) << itz->is_local << ", "
+                         << std::setw(15) << it->second.PNT[0] << ", "
+                         << std::setw(15) << it->second.PNT[1] << ", "
+                         << std::setw(15) << itz->z << ", "
+                         << std::setw(15) << itz->dof << ", "
+                         << std::setw(15) << itz->connected_above  << ", "
+                         << std::setw(15) << itz->connected_below << ", "
+                         << std::setw(15) << itz->Top.dof  << ", "
+                         << std::setw(15) << itz->Bot.dof << ", "
+                         << std::setw(15) << itz->Top.z  << ", "
+                         << std::setw(15) << itz->Bot.z << ", "
+                         << std::setw(15) << itz->Top.proc  << ", "
+                         << std::setw(15) << itz->Bot.proc << ", "
+                         << std::setw(15) << itz->isTop << ", "
+                         << std::setw(15) << itz->isBot << ", "
+                         << std::setw(15) << itz->dof_conn.size() << ", "
+                         << std::setw(15) << itz->cnstr_nds.size() << ", "
+                         << std::setw(15) << itz->hanging << ", "
+                         << std::setw(15) << itz->rel_pos  << ", "
+                         << std::endl;
+            }
+        }
+    }
+    log_file.close();
 }
 
 template <int dim>
@@ -1037,6 +1090,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
         dbg_cnt++;
     }
+
+    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 
     MPI_Barrier(mpi_communicator);
     //std::cout << "Rank " << my_rank << " has converged" << std::endl;
