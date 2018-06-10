@@ -78,7 +78,7 @@ public:
     //! (This is a pointer because I was getting compile errors due to calling a private constructor of class.
     //! Setting this as a point and adding a construction code on the class constructor made the code at least to compile
     //ine_Tree*                    stream_tree;
-    //! The number of lie segments
+    //! The number of line segments
     unsigned int N_seg;
     //! A list of stream outlines. Each stream outline consists of a number of points which define the shape of the stream.
     //! Currently 4-point outlines is used i.e.
@@ -426,6 +426,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                      const ConstraintMatrix& constraints,
                                      std::vector<int> top_boundary_ids,
                                      int my_rank, int n_proc, MPI_Comm mpi_communicator){
+    if (N_seg == 0)
+        return;
 
     std::vector<int> v_nmb;
     if (dim == 3){

@@ -739,14 +739,16 @@ bool CL_arguments<dim>::read_param_file(){
         }
 
         // Read Wells
-        std::string well_file = input_dir + prm.get("c Wells");
+        std::string well_file = prm.get("c Wells");
         if (well_file != ""){
+            well_file = input_dir + well_file;
             AQprop.have_wells = AQprop.wells.read_wells(well_file);
         }
 
         //Read Rivers
-        std::string stream_file = input_dir + prm.get("b Stream recharge");
+        std::string stream_file = prm.get("b Stream recharge");
         if (stream_file != ""){
+            stream_file = input_dir + stream_file;
             AQprop.have_streams = AQprop.streams.read_streams(stream_file);
         }
 

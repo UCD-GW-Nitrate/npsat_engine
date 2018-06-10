@@ -103,7 +103,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = KX_box03.npsat
+  set a Hydraulic Conductivity KX = 10
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.
@@ -115,7 +115,7 @@ subsection E Aquifer Properties ================================
   # Hydraulic conductivity along the z direction.
   # It must be either a single value or the name of a file
   # If KZ == KX leave this empty. In 2D this corresponds to the vertical K
-  set c Hydraulic Conductivity KZ = KZ_box03.npsat
+  set c Hydraulic Conductivity KZ = 0.1
 
   # d----------------------------------
   # Porosity. This is used during particle tracking
@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 8
+  set a Nonlinear iterations = 10
 
   # b----------------------------------
   # Tolerance of solver
@@ -166,18 +166,18 @@ subsection H. Refinement Parameters ============================
   # b----------------------------------
   # Top refinement fraction
   # This defines the percentage of cells to be refined
-  set b Top fraction               = 0.17
+  set b Top fraction               = 0.4
 
   # c----------------------------------
   # Bottom refinement fraction
   # This defines the percentage of cells to be coarsen
-  set c Bottom fraction            = 0.1
+  set c Bottom fraction            = 0.2
 
   # d----------------------------------
   # Minimum element size. Cells with lower diameter
   # will not be further refined. This should be greater than the
   # thresholds in the geometry subsection
-  set d Minimum element size       = 1.0
+  set d Minimum element size       = 0.1
 end
 
 

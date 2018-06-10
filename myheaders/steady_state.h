@@ -170,6 +170,7 @@ void GWFLOW<dim>::assemble(){
     std::vector<Tensor<2,dim> >	 		hydraulic_conductivity_values(n_q_points);
     std::vector<double>			 		recharge_values(n_face_q_points);
 
+    double QRCH_TOT = 0;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -207,6 +208,7 @@ void GWFLOW<dim>::assemble(){
                                                 fe_face_values.shape_value(i,q_point)*
                                                 fe_face_values.JxW(q_point));
                                 cell_rhs(i) += Q_rch;
+                                QRCH_TOT += Q_rch;
                             }
                         }
                     }
@@ -221,6 +223,13 @@ void GWFLOW<dim>::assemble(){
 
         }
     }
+
+    MPI_Barrier(mpi_communicator);
+    sum_scalar<double>(QRCH_TOT, n_proc, mpi_communicator, MPI_DOUBLE);
+    if (my_rank == 0)
+        std::cout << "\t QRCH: [" << QRCH_TOT << "]" << std::endl;
+    MPI_Barrier(mpi_communicator);
+
     system_matrix.compress (VectorOperation::add);
     system_rhs.compress (VectorOperation::add);
 }

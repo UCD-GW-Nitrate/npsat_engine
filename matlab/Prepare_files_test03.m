@@ -7,25 +7,25 @@ xx = linspace(x(1),x(2),100);
 %% Bottom elevation
 Bot = read_Scattered( '/home/giorgk/CODES/NPSAT/examples/Tule/Tule_bot_elev.npsat' );
 F = scatteredInterpolant(Bot.p(:,1), Bot.p(:,2), Bot.v(:,1));
-yy = F(xx, ones(1,100)*y);
-% print file
+yb = F(xx, ones(1,100)*y);
+%% print file
 name_file = '/home/giorgk/CODES/NPSAT/examples/box2D/Bot_test03.npsat';
 fid = fopen(name_file,'w');
 fprintf(fid, 'SCATTERED\n');
 fprintf(fid, '%d %d\n', [length(xx), 1]);
-fprintf(fid, '%.3f %.3f\n', [xx;yy]);
+fprintf(fid, '%.3f %.3f\n', [xx;yb]);
 fclose(fid);
 %% Top elevation
 Top = read_Scattered( '/home/giorgk/CODES/NPSAT/examples/Tule/Tule_top_elev.npsat' );
 F = scatteredInterpolant(Top.p(:,1), Top.p(:,2), Top.v(:,1));
 xx = linspace(x(1),x(2),100);
-yy = F(xx, ones(1,100)*y);
-% print file
+yt = F(xx, ones(1,100)*y);
+%% print file
 name_file = '/home/giorgk/CODES/NPSAT/examples/box2D/Top_test03.npsat';
 fid = fopen(name_file,'w');
 fprintf(fid, 'SCATTERED\n');
 fprintf(fid, '%d %d\n', [length(xx), 1]);
-fprintf(fid, '%.3f %.3f\n', [xx;yy]);
+fprintf(fid, '%.3f %.3f\n', [xx;yt]);
 fclose(fid);
 %% Dirichlet BC
 fid = fopen('/home/giorgk/CODES/NPSAT/examples/box2D/Dirichlet_BC_box03.npsat','w');
@@ -64,8 +64,14 @@ F = scatteredInterpolant(rch.p(:,1), rch.p(:,2), rch.v(:,1));
 yy = F(xx, ones(1,100)*y);
 fid = fopen( '/home/giorgk/CODES/NPSAT/examples/box2D/RCH_test03.npsat','w');
 fprintf(fid, 'SCATTERED\n');
+fprintf(fid, 'SIMPLE\n');
 fprintf(fid, '%d %d\n', [length(xx), 1]);
-fprintf(fid, '%.7f %.7f\n', [xx;yy*100]);
+fprintf(fid, '%.7f %.7f\n', [xx;yy*10]);
+fclose(fid);
+%% Wells
+fid = fopen('/home/giorgk/CODES/NPSAT/examples/box2D/wells_box2D_03.npsat','w');
+fprintf(fid, '%d\n', size(Wells,1));
+fprintf(fid, '%.2f %.2f %.2f %.2f\n',[Wells(:,1) Wells(:,3) Wells(:,2) -Qw/10]');
 fclose(fid);
 
 

@@ -111,6 +111,9 @@ public:
     //! nodes where that never happens,
     bool connected_with(int dof_in);
 
+    //! Returns true if the dof in question belongs to the list of the dofs that constain this one
+    bool is_constrainted_by(int dof_in);
+
     //! change all values to dummy ones (negative) except the elevation
     void reset();
 
@@ -276,6 +279,19 @@ void Zinfo::add_constraint_nodes(std::vector<int> cnstr_nodes){
         }
     }
     hanging = static_cast<int>(cnstr_nds.size() > 0);
+}
+
+bool Zinfo::is_constrainted_by(int dof_in){
+    if (cnstr_nds.size() == 0)
+        return false;
+    else{
+        for (unsigned int i = 0; i < cnstr_nds.size(); ++i){
+            if (dof_in == cnstr_nds[i]){
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 #endif // ZINFO_H

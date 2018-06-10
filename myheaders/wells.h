@@ -386,6 +386,9 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                       const MyTensorFunction<dim>& hydraulic_conductivity,
                                       MPI_Comm mpi_communicator){
 
+    if (Nwells == 0)
+        return;
+
     int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
     Triangulation<dim-1> tria;

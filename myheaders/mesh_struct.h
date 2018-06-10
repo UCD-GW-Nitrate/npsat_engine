@@ -435,12 +435,14 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         }
     }
 
+    dbg_meshStructInfo3D("First", my_rank);
     MPI_Barrier(mpi_communicator);
     make_dof_ij_map();
     set_id_above_below(my_rank);
     MPI_Barrier(mpi_communicator);
+    dbg_meshStructInfo3D("Second", my_rank);
 
-    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "first", my_rank);
+    //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "first", my_rank);
 
 
     // in multi processor simulations more than likely there would be nodes that have as top or bottom information
@@ -659,7 +661,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         }
     }
 
-    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "second", my_rank);
+    //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "second", my_rank);
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
     //std::cout << "====================================================" << std::endl;
@@ -807,7 +809,6 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string name, unsigned int my_ra
                       << std::setw(15) << itz->rel_pos  << ", "
                       << std::setw(15) << it->second.T << ", "
                       << std::setw(15) << it->second.B << ", "
-                      << std::setw(5) << it->second.have_to_send
                       << std::endl;
 
 
@@ -1090,8 +1091,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
         dbg_cnt++;
     }
-
-    dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
+    dbg_meshStructInfo3D("Third", my_rank);
+    //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 
     MPI_Barrier(mpi_communicator);
     //std::cout << "Rank " << my_rank << " has converged" << std::endl;

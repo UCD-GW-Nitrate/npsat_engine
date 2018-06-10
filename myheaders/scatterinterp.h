@@ -35,6 +35,8 @@ public:
      * The first line should have the keyword SCATTERED which indicates that the data
      * that follow data correspond to scattered interpolation
      *
+     * The second line is the keyward STRATIFIED or SIMPLE
+     *
      * The second line provides two numbers #Npnts and #Ndata.
      *
      * The following lines after that expect an array of #Npnts rows and #Ndata+2 columns with the following format
@@ -42,7 +44,7 @@ public:
      *
      * The above line is repeated #Npnts times
      *
-     * For example if we assume that the interpolation data are structured into 3 layers the on should provide
+     * For example if we assume that the interpolation data are structured into 3 layers then one should provide
      * x and y coordinates, 2 pairs of values v, z, and an additional value. It the point in question has higher z
      * that the elevation of the first layer the method returns the value that corresponds to the first layer. If the
      * elevation of the point is lower than the layer above the last minus one layer then the interpolation returns the last value
@@ -77,7 +79,7 @@ private:
     //! This is a map between the triangulation and the values that correspond to each 2D point
     std::vector<std::map<ine_Point2, ine_Coord_type, ine_Kernel::Less_xy_2> > function_values;
 
-    //! Ndata is the number of values for interpolation. For a 3D layer structured this number must be equal to (Nlay-1)*2 +1
+    //! Ndata is the number of values for interpolation. For the STRITIFIED option this number must be equal to (Nlay-1)*2 +1
     unsigned int Ndata;
 
     //! Npnts is the number of 2D points that the scattered interpolation set contains
@@ -86,8 +88,11 @@ private:
     //! X_1D is the vector of x of points for the 1D interpolation of a function y=f(x)
     std::vector<double> X_1D;
 
-    //! V_1D is the vector of y of points for the 1D interpolation of a function y=f(x)
-    std::vector<double> V_1D;
+    //! V_1D is the vector of vectors y of points for the 1D interpolation of list of functions of the form y_1=f(x), y_2=f(x), y_3=f(x) etc.
+    //! It make sense to define more than one data for stratified hydraulic conductivity in 2D. See the discussion above.
+    std::vector<std::vector<double>> V_1D;
+
+    bool Stratified;
 
 };
 
@@ -117,6 +122,20 @@ void ScatterInterp<dim>::get_data(std::string filename){
             }
         }
 
+        {// Read interpolation style
+            datafile.getline(buffer, 512);
+            std::istringstream inp(buffer);
+            std::string temp;
+            inp >> temp;
+            if (temp == "STRATIFIED")
+                Stratified = true;
+            else if (temp == "SIMPLE")
+                Stratified = false;
+            else
+                std::cout << "Unknown interpolation style. Valid options are STRATIFIED or SIMPLE" << std::endl;
+
+        }
+
         {//Read number of points and number of data
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
@@ -129,12 +148,16 @@ void ScatterInterp<dim>::get_data(std::string filename){
             for (unsigned int i = 0; i < Npnts; ++i){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if (dim == 1){
+                if (dim == 1 || (dim == 2 && Stratified)){
                     inp >> x;
-                    inp >> v;
-                    // Here we need to store the values
                     X_1D.push_back(x);
-                    V_1D.push_back(v);
+                    std::vector<double> temp;
+                    for (unsigned int j = 0; j < Ndata; ++j){
+                        inp >> v;
+                        temp.push_back(v);
+                    }
+                    // Here we need to store the values
+                    V_1D.push_back(temp);
                 }
                 else{
                     inp >> x;
@@ -156,23 +179,74 @@ void ScatterInterp<dim>::get_data(std::string filename){
 template <int dim>
 double ScatterInterp<dim>::interpolate(Point<dim> point)const{
     Point<3> pp;
-    if (dim == 1){
-        if (point[0] <=X_1D[0]){
-            return V_1D[0];
-        }
-        if(point[0] >= X_1D[X_1D.size()-1]){
-            return  V_1D[V_1D.size()-1];
-        }
+    if (dim == 1 || (dim == 2 && Stratified)){
+        // find main parametric value
+        double t;
+        int ind;
+        bool first = false;
+        bool last = false;
 
-        for (unsigned int i = 0; i < X_1D.size()-1; ++i){
-            if (point[0] >= X_1D[i] && point[0] <= X_1D[i+1]){
-                double t = (point[0] - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
-                return V_1D[i]*(1-t) + V_1D[i+1]*t;
+        if (point[0] <=X_1D[0])
+            first = true;
+        else if (point[0] >= X_1D[X_1D.size()-1])
+            last = true;
+        else{
+            for (unsigned int i = 0; i < X_1D.size()-1; ++i){
+                if (point[0] >= X_1D[i] && point[0] <= X_1D[i+1]){
+                    t = (point[0] - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
+                    ind = i;
+                    break;
+                }
             }
         }
 
-        std::cerr << "Not implemented yet" << std::endl;
-        return 0;
+        if (dim == 1){
+            if (first)
+                return V_1D[0][0];
+            else if (last)
+                return  V_1D[V_1D.size()-1][0];
+            else{
+                return V_1D[ind][0]*(1-t) + V_1D[ind+1][0]*t;
+            }
+        }
+        else if (dim == 2 && Stratified){
+            std::vector<double> v;
+            std::vector<double> el;
+            bool push_v = true;
+            double v_temp;
+            for (unsigned int i = 0; i < Ndata; ++i){
+                if (first)
+                    v_temp = V_1D[0][i];
+                else if (last)
+                    v_temp = V_1D[V_1D.size()-1][i];
+                else{
+                    v_temp = V_1D[ind][i]*(1-t) + V_1D[ind+1][i]*t;
+                }
+
+                if (push_v){
+                    v.push_back(v_temp);
+                    push_v = false;
+                }
+                else{
+                    el.push_back(v_temp);
+                    push_v = true;
+                }
+            }
+
+            if (point[1] <= el[0])
+                return v[0];
+            else if (point[1]>=el[el.size()-1])
+                return v[v.size()-1];
+            else{
+                for (unsigned int i = 0; i < el.size()-1; ++i){
+                    if (point[1] >= el[i] && point[1] <= el[i+1]){
+                        double u = (point[1] - el[i])/(el[i+1] - el[i]);
+                        return v[i]*(1-u) + v[i+1]*u;
+                    }
+                }
+            }
+
+        }
     }
     else if (dim == 2) {
         pp[0] = point[0];
