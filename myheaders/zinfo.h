@@ -151,6 +151,10 @@ public:
     //! The dof of the node that serves as bottom for this node
     DOFZ Bot;
 
+    DOFZ limU;
+
+    DOFZ limD;
+
     //! A boolean flag that is true if the node lays on the top surface of the mesh
     int isTop;
 

@@ -95,6 +95,8 @@ public:
     */
     void set_ids_above_below(int my_rank);
 
+    void set_ids_above_below_bck(int my_rank);
+
     //! THis is another flag that MAYBE NOT NEEDED anymore.
     //bool isEmpty;
 };
@@ -227,6 +229,133 @@ void PntsInfo<dim>::set_ids_above_below(int my_rank){
     //=======================================
     int cur_dof_bot =Zlist[0].dof;
     int cur_id_bot = 0;
+    int limD = Zlist[0].dof;
+    int limD_id = 0;
+    for (unsigned int i = 1; i < Zlist.size(); ++i){
+        if (Zlist[i].connected_below){
+            Zlist[i].Bot.dof = cur_dof_bot;
+            Zlist[i].Bot.id = cur_id_bot;
+            if (Zlist[cur_id_bot].is_local){
+                Zlist[i].Bot.z = Zlist[cur_id_bot].z;
+                Zlist[i].Bot.proc = my_rank;
+            }
+        }else{
+            Zlist[i].Bot.dof = Zlist[i].dof;
+            Zlist[i].Bot.id = i;
+            if (Zlist[i].is_local){
+                Zlist[i].Bot.z = Zlist[i].z;
+                Zlist[i].Bot.proc = my_rank;
+            }
+            cur_dof_bot = Zlist[i].dof;
+            cur_id_bot = static_cast<int>(i);
+        }
+        if (Zlist[i].hanging == 0){
+            if (Zlist[i-1].hanging == 1){
+                Zlist[i].limD.dof = Zlist[i-1].dof;
+                Zlist[i].limD.id = i-1;
+                limD = Zlist[i-1].dof;
+                limD_id = static_cast<int>(i-1);
+            }
+            else{
+                Zlist[i].limD.dof = limD;
+                Zlist[i].limD.id = limD_id;
+            }
+        }
+    }
+
+    int cur_dof_top =Zlist[Zlist.size()-1].dof;
+    int cur_id_top = Zlist.size()-1;
+    int limU = Zlist[Zlist.size()-1].dof;
+    int limU_id = Zlist.size()-1;
+    for (int i = Zlist.size() - 2; i >=0; --i){// When we loop with --i unsigned int causes errors if i gets below 0
+        //std::cout << i << std::endl;
+        if (Zlist[i].connected_above){
+            Zlist[i].Top.dof = cur_dof_top;
+            Zlist[i].Top.id = cur_id_top;
+            if (Zlist[cur_id_top].is_local){
+                Zlist[i].Top.z = Zlist[cur_id_top].z;
+                Zlist[i].Top.proc = my_rank;
+            }
+        }
+        else{
+            Zlist[i].Top.dof = Zlist[i].dof;
+            Zlist[i].Top.id = i;
+            if (Zlist[i].is_local){
+                Zlist[i].Top.z = Zlist[i].z;
+                Zlist[i].Top.proc = my_rank;
+            }
+            cur_dof_top = Zlist[i].dof;
+            cur_id_top = i;
+        }
+        if (Zlist[i].hanging == 0){
+            if (Zlist[i+1].hanging == 1){
+                Zlist[i].limU.dof = Zlist[i+1].dof;
+                Zlist[i].limU.id = i+1;
+                limU = Zlist[i+1].dof;
+                limU_id = i+1;
+            }
+            else{
+                Zlist[i].limU.dof = limU;
+                Zlist[i].limU.id = limU_id;
+            }
+        }
+
+
+    }
+    // Set relative position
+    //for (unsigned int i = 0; i < Zlist.size(); ++i){
+    //    Zlist[i].rel_pos = (Zlist[i].z - Zlist[Zlist[i].id_bot].z)/(Zlist[Zlist[i].id_top].z - Zlist[Zlist[i].id_bot].z);
+    //}
+}
+
+
+template <int dim>
+void PntsInfo<dim>::set_ids_above_below_bck(int my_rank){
+    /*    a ---------       b   ---------
+     *      |   |   |           |       |
+     *      |-------|           |       |
+     *      |   |   |           |       |
+     *      ---------           ---------
+     *      |  [0]  |           |   |   |
+     *      |       |           ---------
+     *      |       |           |   |   |
+     *      ---------           ---------
+     *                             [0]
+     */
+
+    for (unsigned int i = 0; i < Zlist.size(); ++i){
+        if (i == 0){//================================================
+            // If this is the first node from the bottom
+            Zlist[i].dof_above = Zlist[i+1].dof;
+            Zlist[i].connected_above = Zlist[i].connected_with(Zlist[i].dof_above);
+            Zlist[i].Bot.dof = Zlist[i].dof;
+            Zlist[i].Bot.id = i;
+            if (Zlist[i].is_local){
+                Zlist[i].Bot.z = Zlist[i].z;
+                Zlist[i].Bot.proc = my_rank;
+            }
+
+        }else if(i==Zlist.size()-1){//======================================
+            //this is the top node on this list
+            Zlist[i].dof_below = Zlist[i-1].dof;
+            Zlist[i].connected_below = Zlist[i].connected_with(Zlist[i].dof_below);
+            Zlist[i].Top.dof = Zlist[i].dof;
+            Zlist[i].Top.id = i;
+            if (Zlist[i].is_local){
+                Zlist[i].Top.z = Zlist[i].z;
+                Zlist[i].Top.proc = my_rank;
+            }
+        }else{
+            Zlist[i].dof_above = Zlist[i+1].dof;
+            Zlist[i].dof_below = Zlist[i-1].dof;
+            Zlist[i].connected_above = Zlist[i].connected_with(Zlist[i].dof_above);
+            Zlist[i].connected_below = Zlist[i].connected_with(Zlist[i].dof_below);
+        }
+    }
+
+    //=======================================
+    int cur_dof_bot =Zlist[0].dof;
+    int cur_id_bot = 0;
     for (unsigned int i = 1; i < Zlist.size(); ++i){
         if (Zlist[i].connected_below){
             bool no_hanging = false;
@@ -271,13 +400,13 @@ void PntsInfo<dim>::set_ids_above_below(int my_rank){
             bool no_hanging = false;
             if (Zlist[i+1].hanging == 1){
                 if (!Zlist[i+1].is_constrainted_by(Zlist[i].dof)){
-                    Zlist[i].Top.dof = Zlist[i+1].Top.dof;
+                    Zlist[i].Top.dof = Zlist[i+1].dof;
                     Zlist[i].Top.id = i+1;
                     if (Zlist[i+1].is_local){ // I'm not sure if its ok to set the z of hanging node here
                         Zlist[i].Top.z = Zlist[i+1].z;
                         Zlist[i].Top.proc = my_rank;
                     }
-                    cur_dof_top = Zlist[i+1].Top.dof;
+                    cur_dof_top = Zlist[i+1].dof;
                     cur_id_top = i+1;
                     no_hanging = true;
                 }
@@ -307,7 +436,6 @@ void PntsInfo<dim>::set_ids_above_below(int my_rank){
     //    Zlist[i].rel_pos = (Zlist[i].z - Zlist[Zlist[i].id_bot].z)/(Zlist[Zlist[i].id_top].z - Zlist[Zlist[i].id_bot].z);
     //}
 }
-
 
 
 

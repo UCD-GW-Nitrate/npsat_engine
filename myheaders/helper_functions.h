@@ -168,20 +168,26 @@ bool line_line_intersection(double b1, double m1, double b2, double m2,
  */
 template <int dim>
 double triangle_area(dealii::Point<dim> A, dealii::Point<dim> B, dealii::Point<dim> C, bool project){
+    if (dim == 2)
+        std::cerr << "You can use triangle_area in other than dim == 3" << std::endl;
+
     double area = 0;
+    double x1 = A[0]; double y1 = A[1]; double z1 = A[2];
+    double x2 = B[0]; double y2 = B[1]; double z2 = B[2];
+    double x3 = C[0]; double y3 = C[1]; double z3 = C[2];
     if (project){
-        area = std::abs( 0.5*(A[0]*(B[1] - C[1]) + B[0]*(C[1] - A[1]) + C[0]*(A[1] - B[1])));
+        area = pow(x1*y2 - x2*y1 - x1*y3 + x3*y1 + x2*y3 - x3*y2, 2);
+        // projected area?
+        //area = std::abs( 0.5*(A[0]*(B[1] - C[1]) + B[0]*(C[1] - A[1]) + C[0]*(A[1] - B[1])));
     }
     else{
         //http://mathworld.wolfram.com/TriangleArea.html
-        double x1 = A[0]; double y1 = A[1]; double z1 = A[2];
-        double x2 = B[0]; double y2 = B[1]; double z2 = B[2];
-        double x3 = C[0]; double y3 = C[1]; double z3 = C[2];
         area = pow(x1*y2 - x2*y1 - x1*y3 + x3*y1 + x2*y3 - x3*y2, 2) +
                pow(x1*z2 - x2*z1 - x1*z3 + x3*z1 + x2*z3 - x3*z2, 2) +
                pow(y1*z2 - y2*z1 - y1*z3 + y3*z1 + y2*z3 - y3*z2, 2);
-        area = 0.5*sqrt(area);
     }
+    area = 0.5*sqrt(area);
+
     return area;
 }
 
@@ -212,6 +218,8 @@ double recharge_weight(typename dealii::DoFHandler<dim>::active_cell_iterator ce
         double A_proj = triangle_area(v1,v2,v4,true)  + triangle_area(v1,v4,v3,true);
         weight = A_proj/A_real;
     }
+    if (weight > 1)
+        std::cerr << "Projected area is higher than real??" << std::endl;
     return weight;
 }
 

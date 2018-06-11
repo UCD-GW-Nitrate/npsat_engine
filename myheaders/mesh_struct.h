@@ -206,6 +206,8 @@ private:
     double dbg_scale_x;
     //! Use this value to scale down the domains in z. In 2D this scale the y
     double dbg_scale_z;
+
+    void respect_hanging_nodes();
 };
 
 template <int dim>
@@ -1037,6 +1039,64 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
         if (dbg_cnt == 20){
             std::cout << "updateMeshElevation didnt converge after 20 iterations" << std::endl;
+
+            std::string mesh_err_file = ("mesh_error" + Utilities::int_to_string(my_rank+1, 4) + ".txt");
+            std::ofstream mesh_err_stream;
+            mesh_err_stream.open(mesh_err_file);
+            for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+                std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+                for (; itz != it->second.Zlist.end(); ++itz){
+                    if (itz->is_local){
+                        if (!itz->isZset){
+                            mesh_err_stream << it->second.PNT[0] << ", "
+                                            << it->second.PNT[1] << ", "
+                                            << itz->z << ", "
+                                            << itz->dof << ", "
+                                            << itz->hanging << ", ";
+                            if (itz->hanging == 1){
+                                mesh_err_stream << "1 (";
+                                for (unsigned int ii = 0; ii < itz->cnstr_nds.size(); ++ii){
+                                    bool not_local = false;
+                                    it_ij = dof_ij.find(itz->cnstr_nds[ii]);
+                                    if (it_ij != dof_ij.end()){
+                                        if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].is_local){
+                                            if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
+                                                mesh_err_stream << itz->cnstr_nds[ii] << "-L1 ";
+                                            }
+                                            else
+                                                mesh_err_stream << itz->cnstr_nds[ii] << "-L0 ";
+                                        }
+                                        else{
+                                            not_local = true;
+                                        }
+                                    }
+                                    else
+                                        not_local = true;
+                                    if (not_local){
+                                        std::map<int, double>::iterator it_elev;
+                                        it_elev = elev_asked.find(itz->cnstr_nds[ii]);
+                                        if (it_elev != elev_asked.end()){
+                                            mesh_err_stream << itz->cnstr_nds[ii] << "-G1 ";
+                                        }
+                                        else
+                                            mesh_err_stream << itz->cnstr_nds[ii] << "-G0 ";
+                                    }
+
+
+                                    mesh_err_stream << "| ";
+                                }
+                                mesh_err_stream << ")" << std::endl;
+                            }
+                            else{
+                                mesh_err_stream << "0 (" << itz->Top.dof << " " << itz->Bot.dof << ")" << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+
+            mesh_err_stream.close();
+
             return;
         }
 
@@ -1237,7 +1297,7 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_fun
         double bot = bot_function.value(it->second.PNT);
         it->second.T = top;
         it->second.B = bot;
-        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
             if (itz->is_local){
                 itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
@@ -1461,6 +1521,20 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
         }
     }
 
+}
+
+template <int dim>
+void Mesh_struct<dim>::respect_hanging_nodes(){
+    //First collect all elevations from the other processors
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    std::vector<Zinfo>::iterator itz;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+
+        }
+
+    }
 }
 
 
