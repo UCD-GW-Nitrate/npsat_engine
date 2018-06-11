@@ -1152,6 +1152,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         dbg_cnt++;
     }
     dbg_meshStructInfo3D("Third", my_rank);
+    respect_hanging_nodes();
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 
     MPI_Barrier(mpi_communicator);
@@ -1528,12 +1529,35 @@ void Mesh_struct<dim>::respect_hanging_nodes(){
     //First collect all elevations from the other processors
     typename std::map<int , PntsInfo<dim> >::iterator it;
     std::vector<Zinfo>::iterator itz;
+    std::map<int,std::pair<int,int> >::iterator it_ij;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
+            double d = -999999;
+            double u =  999999;
+            if (itz->isZset){
+                if (itz->hanging == 0){
+                    // lower limit
+                    it_ij = dof_ij.find(itz->limD.dof);
+                    if (it_ij != dof_ij.end()){
+                        if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].is_local)
+                            if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset)
+                                d = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
+                    }
+                    // upper limit
+                    it_ij = dof_ij.find(itz->limU.dof);
+                    if (it_ij != dof_ij.end()){
+                        if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].is_local)
+                            if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset)
+                                u = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
+                    }
+                    if (itz->z < d || itz->z > u){
+                        std::cout << "Point dof: " << itz->dof << " : " << it->second.PNT << "," << itz->z << "out of hanging bounds (" << d << ", " << u << ")" <<std::endl;
+                    }
 
+                }
+            }
         }
-
     }
 }
 
