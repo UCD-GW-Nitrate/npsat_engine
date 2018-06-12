@@ -183,7 +183,7 @@ void PntsInfo<dim>::reset(){
 //}
 
 template <int dim>
-void PntsInfo<dim>::set_ids_above_below(int my_rank){
+void PntsInfo<dim>::set_ids_above_below_bck(int my_rank){
     /*    a ---------       b   ---------
      *      |   |   |           |       |
      *      |-------|           |       |
@@ -310,7 +310,7 @@ void PntsInfo<dim>::set_ids_above_below(int my_rank){
 
 
 template <int dim>
-void PntsInfo<dim>::set_ids_above_below_bck(int my_rank){
+void PntsInfo<dim>::set_ids_above_below(int my_rank){
     /*    a ---------       b   ---------
      *      |   |   |           |       |
      *      |-------|           |       |
@@ -359,17 +359,19 @@ void PntsInfo<dim>::set_ids_above_below_bck(int my_rank){
     for (unsigned int i = 1; i < Zlist.size(); ++i){
         if (Zlist[i].connected_below){
             bool no_hanging = false;
-            if (Zlist[i-1].hanging == 1){
-                if (!Zlist[i-1].is_constrainted_by(Zlist[i].dof)){
-                    Zlist[i].Bot.dof = Zlist[i-1].dof;
-                    Zlist[i].Bot.id = i-1;
-                    if (Zlist[i-1].is_local){
-                        Zlist[i].Bot.z = Zlist[i-1].z; // I'm not sure if its ok to set the z of hanging node here
-                        Zlist[i].Bot.proc = my_rank;
+            if (Zlist[i].hanging == 0){
+                if (Zlist[i-1].hanging == 1){
+                    if (!Zlist[i-1].is_constrainted_by(Zlist[i].dof)){
+                        Zlist[i].Bot.dof = Zlist[i-1].dof;
+                        Zlist[i].Bot.id = i-1;
+                        if (Zlist[i-1].is_local){
+                            Zlist[i].Bot.z = Zlist[i-1].z; // I'm not sure if its ok to set the z of hanging node here
+                            Zlist[i].Bot.proc = my_rank;
+                        }
+                        cur_dof_bot = Zlist[i-1].dof;
+                        cur_id_bot = static_cast<int>(i-1);
+                        no_hanging = true;
                     }
-                    cur_dof_bot = Zlist[i-1].dof;
-                    cur_id_bot = static_cast<int>(i-1);
-                    no_hanging = true;
                 }
             }
             if (!no_hanging){
@@ -398,17 +400,19 @@ void PntsInfo<dim>::set_ids_above_below_bck(int my_rank){
         //std::cout << i << std::endl;
         if (Zlist[i].connected_above){
             bool no_hanging = false;
-            if (Zlist[i+1].hanging == 1){
-                if (!Zlist[i+1].is_constrainted_by(Zlist[i].dof)){
-                    Zlist[i].Top.dof = Zlist[i+1].dof;
-                    Zlist[i].Top.id = i+1;
-                    if (Zlist[i+1].is_local){ // I'm not sure if its ok to set the z of hanging node here
-                        Zlist[i].Top.z = Zlist[i+1].z;
-                        Zlist[i].Top.proc = my_rank;
+            if (Zlist[i].hanging == 0){
+                if (Zlist[i+1].hanging == 1){
+                    if (!Zlist[i+1].is_constrainted_by(Zlist[i].dof)){
+                        Zlist[i].Top.dof = Zlist[i+1].dof;
+                        Zlist[i].Top.id = i+1;
+                        if (Zlist[i+1].is_local){ // I'm not sure if its ok to set the z of hanging node here
+                            Zlist[i].Top.z = Zlist[i+1].z;
+                            Zlist[i].Top.proc = my_rank;
+                        }
+                        cur_dof_top = Zlist[i+1].dof;
+                        cur_id_top = i+1;
+                        no_hanging = true;
                     }
-                    cur_dof_top = Zlist[i+1].dof;
-                    cur_id_top = i+1;
-                    no_hanging = true;
                 }
             }
             if (!no_hanging){

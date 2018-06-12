@@ -208,6 +208,8 @@ private:
     double dbg_scale_z;
 
     void respect_hanging_nodes();
+
+    void dependency_scan(std::map<int, std::vector<int> > &dep, std::map<int, std::vector<int> > &ord);
 };
 
 template <int dim>
@@ -538,7 +540,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
             for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
                 // search for the top------------------------------
                 for (unsigned int i = 0; i < top_send[i_proc].size(); ++i){
-                    // each processor checks if it contains the requested dof
+                    // each processor checks if contains the requested dof
                     it_dof = dof_ij.find(top_send[i_proc][i]);
                     if (it_dof != dof_ij.end()){
                         // if yes dof_ij tell us the indices in the structure
@@ -559,7 +561,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                         }
                     }
                 }
-                // search for the top------------------------------
+                // search for the bottom------------------------------
                 for (unsigned int i = 0; i < bot_send[i_proc].size(); ++i){
                     it_dof = dof_ij.find(bot_send[i_proc][i]);
                     if (it_dof != dof_ij.end()){
@@ -1556,6 +1558,36 @@ void Mesh_struct<dim>::respect_hanging_nodes(){
                     }
 
                 }
+            }
+        }
+    }
+}
+
+template <int dim>
+void Mesh_struct<dim>::dependency_scan(std::map<int, std::vector<int>> &dep, std::map<int, std::vector<int>> &ord){
+    std::cout << "dependency scan..." << std::endl;
+    dep.clear();
+    ord.clear();
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    std::vector<Zinfo>::iterator itz;
+    std::map<int,std::pair<int,int> >::iterator it_ij;
+    std::vector<int> parents;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+            parents.clear();
+            if (itz->isTop || itz->isBot)
+                dep.insert(std::pair<int,std::vector<int>>(itz->dof,parents));
+            else if (itz->hanging == 0){
+                parents.push_back(itz->Top.dof);
+                parents.push_back(itz->Bot.dof);
+                dep.insert(std::pair<int,std::vector<int>>(itz->dof,parents));
+            }
+            else if(itz->hanging == 1){
+                for (unsigned int ii = 0; ii < itz->cnstr_nds.size(); ++ii){
+                    parents.push_back(itz->cnstr_nds[ii]);
+                }
+                dep.insert(std::pair<int,std::vector<int>>(itz->dof,parents));
             }
         }
     }
