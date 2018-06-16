@@ -134,9 +134,9 @@ namespace AquiferGrid{
             }
         }
 
-        std::ofstream out ("test_tria.vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
+        //std::ofstream out ("test_tria.vtk");
+        //GridOut grid_out;
+        //grid_out.write_ucd(triangulation, out);
     }
 
     template <int dim>

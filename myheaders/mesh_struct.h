@@ -439,12 +439,12 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         }
     }
 
-    dbg_meshStructInfo3D("First", my_rank);
+    //dbg_meshStructInfo3D("First", my_rank);
     MPI_Barrier(mpi_communicator);
     make_dof_ij_map();
     set_id_above_below(my_rank);
     MPI_Barrier(mpi_communicator);
-    dbg_meshStructInfo3D("Second", my_rank);
+    //dbg_meshStructInfo3D("Second", my_rank);
 
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "first", my_rank);
 
@@ -1153,7 +1153,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
         dbg_cnt++;
     }
-    dbg_meshStructInfo3D("Third", my_rank);
+    //dbg_meshStructInfo3D("Third", my_rank);
     respect_hanging_nodes();
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 

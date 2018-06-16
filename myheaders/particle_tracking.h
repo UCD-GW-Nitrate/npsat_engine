@@ -274,7 +274,7 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
     param(param_in),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
 {
-    bprint_DBG = true;
+    bprint_DBG = false;
     if (bprint_DBG){
         dbg_i_step = 1;
         dbg_i_strm = 1;
@@ -490,7 +490,8 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
                 reason_to_exit = -88;
             }
             if (reason_to_exit != 0){
-                print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
+                if (bprint_DBG)
+                    print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
                 return  reason_to_exit;
             }
             else{
@@ -503,7 +504,8 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
         reason_to_exit = find_next_point(streamline, cell);
         if (streamline.times_not_expanded > param.Stuck_iter){
             reason_to_exit = -66;
-            print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
+            if (bprint_DBG)
+                print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
             return reason_to_exit;
         }
 
@@ -609,7 +611,8 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
                 bool is_in_cell = adjacent_cells[i]->point_inside(p);
                 if (is_in_cell){
                     cell_found = true;
-                    print_Cell_var(adjacent_cells[i],cell_type(adjacent_cells[i]));
+                    if (bprint_DBG)
+                        print_Cell_var(adjacent_cells[i],cell_type(adjacent_cells[i]));
                     if (cell->is_locally_owned()){
                         cell = adjacent_cells[i];
                         //plot_cell(cell);
@@ -1404,6 +1407,7 @@ template <int dim>
 double Particle_Tracking<dim>::time_step_multiplier(typename DoFHandler<dim>::active_cell_iterator cell){
 
     double time_step = 1.0;
+    return time_step;
     if (!cell->is_locally_owned())
         time_step = 0.5;
 
@@ -1715,11 +1719,11 @@ bool Particle_Tracking<dim>::average_velocity_field(){
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
-    const std::string vField_file_name = ("VelField_"	+
-                                       Utilities::int_to_string(my_rank, 4) +
-                                       ".dbg");
-    std::ofstream vField_file;
-    vField_file.open(vField_file_name);
+    //const std::string vField_file_name = ("VelField_"	+
+    //                                   Utilities::int_to_string(my_rank, 4) +
+    //                                   ".dbg");
+    //std::ofstream vField_file;
+    //vField_file.open(vField_file_name);
 
     MPI_Barrier(mpi_communicator);
     pcout << "Calculating Velocities..." << std::endl << std::flush;
@@ -1761,21 +1765,21 @@ bool Particle_Tracking<dim>::average_velocity_field(){
     }
 
     // DEBUG--------------------
-    vel_it = VelocityMap.begin();
-    for (; vel_it != VelocityMap.end(); ++vel_it){
-        vField_file << vel_it->second.dof << "\t"
-                    << vel_it->second.is_local << "\t"
-                    << vel_it->second.V.size() << "\t"
-                    << vel_it->second.cnstr.size() << "\t";
-        if (vel_it->second.cnstr.size() > 0){
-            vField_file << "| ";
-            for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
-                vField_file << vel_it->second.cnstr[ii] << " | ";
-            }
-        }
-        vField_file << std::endl;
-    }
-    vField_file.close();
+    //vel_it = VelocityMap.begin();
+    //for (; vel_it != VelocityMap.end(); ++vel_it){
+    //    vField_file << vel_it->second.dof << "\t"
+    //                << vel_it->second.is_local << "\t"
+    //                << vel_it->second.V.size() << "\t"
+    //                << vel_it->second.cnstr.size() << "\t";
+    //    if (vel_it->second.cnstr.size() > 0){
+    //        vField_file << "| ";
+    //        for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+    //            vField_file << vel_it->second.cnstr[ii] << " | ";
+    //        }
+    //    }
+    //    vField_file << std::endl;
+    //}
+    //vField_file.close();
 
 
     // DEBUG--------------------
@@ -1871,14 +1875,8 @@ bool Particle_Tracking<dim>::average_velocity_field(){
         //std::cout << "I'm Rank " << my_rank << " has " << count_non_average << " unkwown velocities" << std::endl;
 
         // Check if all points have been set
-        std::vector<int> Velocity_not_set(n_proc);
-        Send_receive_size(static_cast<unsigned int>(count_non_average), n_proc, Velocity_not_set, mpi_communicator);
-        count_non_average = 0;
-        for (unsigned int i = 0; i < n_proc; ++i)
-            count_non_average = count_non_average + Velocity_not_set[i];
-
+        sum_scalar<int>(count_non_average, n_proc, mpi_communicator, MPI_INT);
         pcout << "There are: " << count_non_average << " point velocities to be averaged" << std::endl;
-
         if (count_non_average == 0)
             break;
 

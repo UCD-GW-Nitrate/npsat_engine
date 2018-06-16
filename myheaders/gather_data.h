@@ -45,7 +45,7 @@ template<int dim>
 class Streamline{
 public:
     //! A constructor that initializes the #Length to 0
-    Streamline(){ Length = 0;};
+    Streamline();
     //! A constructor that initializes the streamline with the starting particle
     Streamline(int p_id, Gather_Data::particle<dim> part, int out);
     //! This is a flag that indicates the reason to terminate this streamline
@@ -58,6 +58,11 @@ public:
     //! a method to add a particle in the streamline.
     void add_new_particle(int p_id, Gather_Data::particle<dim> part, int out);
 };
+
+template <int dim>
+Streamline<dim>::Streamline(){
+    Length = 0;
+}
 
 template <int dim>
 Streamline<dim>::Streamline(int p_id, Gather_Data::particle<dim> part, int out){
@@ -83,19 +88,29 @@ public:
     void print_vtk(std::string filename, ParticleParameters param);
     void print_osg(std::string filename, ParticleParameters param);
     void print_streamline_length_age(std::string filename);
-    void gather_streamlines(std::string basename, int n_proc, int n_chunks);
+    void gather_streamlines(std::string basename, int n_proc, int n_chunks, int Nwells);
     void print_stats();
     void calculate_age(bool backward, double unit_convertor);
     void simplify_XYZ_streamlines(double thres);
+    void print_streamlines4URF(std::string basename);
 private:
+    MPI_Comm    mpi_communicator;
     std::map<int, std::map<int,  Gather_Data::Streamline<dim> > > Entities;
     int Npos; // number of particle positions in the map
     void add_new_particle(int E_id, int S_id, int p_id, Point<dim> p, Point<dim> v, int proc, int out);
+    std::map<int,int> get_wells_id_for_my_rank(int Nwells);
+    unsigned int g_n_proc;
+    unsigned int g_my_rank;
 };
 
 template <int dim>
-gather_particles<dim>::gather_particles(){
+gather_particles<dim>::gather_particles()
+    :
+    mpi_communicator (MPI_COMM_WORLD)
+{
     Npos = 0;
+    g_my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    g_n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 }
 
 template<int dim>
@@ -127,10 +142,36 @@ void gather_particles<dim>::add_new_particle(int E_id, int S_id, int p_id, Point
     }
 }
 
+template <int dim>
+std::map<int,int> gather_particles<dim>::get_wells_id_for_my_rank(int Nwells){
+    int Nwells_per_proc = Nwells / g_n_proc;
+    int start_Eid = 0;
+    int end_Eid = Nwells_per_proc;
+    std::map<int,int> wellids;
+    for (unsigned int i_proc = 0; i_proc < g_n_proc; ++i_proc){
+        if ( i_proc == g_my_rank){
+            for (int i = start_Eid; i < end_Eid; ++i){
+                wellids.insert(std::pair<int,int>(i,i));
+            }
+            break;
+        }
+        start_Eid = end_Eid;
+        end_Eid += Nwells_per_proc;
+    }
+
+    return wellids;
+
+}
+
 template<int dim>
-void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks){
+void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks, int Nwells){
+
+    std::map<int,int> wells2add = get_wells_id_for_my_rank(Nwells);
+    std::map<int,int>::iterator w_it;
 
     for (int i_chnk = 0; i_chnk < n_chunks; ++i_chnk){
+        //std::cout << "chunk " << i_chnk << " out of " << n_chunks << std::endl;
+        //std::cout << "\t";
         for (int i_proc = 0; i_proc < n_proc; ++i_proc){
             const std::string filename = (basename + "_" +
                                           Utilities::int_to_string(i_chnk, 4) +
@@ -143,7 +184,8 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                 std::cout << "Can't load the file " << filename << std::endl;
             }
             else{
-                std::cout << "Reading particles from processor " << i_proc << std::endl;
+                //std::cout << i_proc << " " << std::flush;
+                //std::cout << "Reading particles from processor " << i_proc << std::endl;
                 typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it;
                 typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it;
                 char buffer[512];
@@ -165,12 +207,17 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                         inp >> val;
                         v[idim] = val;
                     }
-                    add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
+
+                    w_it = wells2add.find(E_id);
+                    if (w_it != wells2add.end())
+                        add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
+
                     if( datafile.eof() )
                         break;
                 }
             }
         }
+        //std::cout << std::endl;
     }
 }
 
@@ -361,6 +408,33 @@ void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
             }
         }
     }
+}
+
+template <int dim>
+void gather_particles<dim>::print_streamlines4URF(std::string basename){
+    const std::string filename = (basename + "_" +
+                                  Utilities::int_to_string(g_my_rank, 4) +"_streamlines.urfs");
+    std::ofstream file_strml;
+    file_strml.open(filename.c_str());
+
+    typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it = Entities.begin();
+    for (; well_it != Entities.end(); ++well_it){
+        typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = well_it->second.begin();
+        for (; strm_it != well_it->second.end(); ++strm_it){
+            file_strml << well_it->first << " "
+                       << strm_it->first << " "
+                       << strm_it->second.particles.size() << std::endl;
+            typename std::map<int, Gather_Data::particle<dim> >::iterator part_it = strm_it->second.particles.begin();
+            for (; part_it != strm_it->second.particles.end(); ++part_it){
+                file_strml << std::setprecision(10)
+                           << part_it->second.P[0] << " "
+                           << part_it->second.P[1] << " "
+                           << part_it->second.P[2] << " "
+                           << part_it->second.V.norm() << std::endl;
+            }
+        }
+    }
+    file_strml.close();
 }
 
 template<int dim>

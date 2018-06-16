@@ -27,15 +27,15 @@ int main (int argc, char **argv){
         if (read_param){
             if (CLI.do_gather){
                 Gather_Data::gather_particles<_DIM> G;
-                G.gather_streamlines(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.get_np(), CLI.get_nSc());
-                G.calculate_age(true, 365);
-                G.print_vtk(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.AQprop.part_param);
+                G.gather_streamlines(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.get_np(), CLI.get_nSc(), CLI.AQprop.wells.Nwells);
+                G.print_streamlines4URF(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix);
+                //G.calculate_age(true, 365);
+                //G.print_vtk(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.AQprop.part_param);
             }
             else{
                 CLI.Debug_Prop();
                 NPSAT<_DIM> npsat(CLI.AQprop);
                 npsat.solve_refine();
-                return 0;
                 npsat.particle_tracking();
             }
         }

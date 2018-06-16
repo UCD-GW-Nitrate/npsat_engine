@@ -301,7 +301,7 @@ void NPSAT<dim>::solve_refine(){
                                             distributed_mesh_Offset_vertices,
                                             mpi_communicator,
                                             pcout);
-            print_mesh();
+            //print_mesh();
 
         }
     }
@@ -581,7 +581,7 @@ void NPSAT<dim>::particle_tracking(){
 
     //pt.average_velocity_field(velocity_dof_handler,velocity_fe);
     pt.average_velocity_field();
-return;
+
     std::vector<Streamline<dim>> All_streamlines;
     std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);
 
