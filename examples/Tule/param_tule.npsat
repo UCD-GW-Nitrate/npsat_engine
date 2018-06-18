@@ -203,7 +203,7 @@ subsection I. Particle tracking ================================
 
   # e----------------------------------
   # The maximum number of steps per streamline
-  set e Streamline iterations      = 1000
+  set e Streamline iterations      = 2000
 
   # f----------------------------------
   # 1-> Euler, 2->RK2, 3->RK4
@@ -214,7 +214,7 @@ subsection I. Particle tracking ================================
   # the diameter of each cell with the given number.
   # Essensially this number indicates the average number of steps
   # of the algorithm within a cell
-  set g Step size                  = 6
+  set g Step size                  = 5
 
   # h----------------------------------
   # How many neighbor to search for the next point if the point has left the

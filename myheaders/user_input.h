@@ -465,7 +465,7 @@ void CL_arguments<dim>::declare_parameters(){
                           "The number of times that processors are allowed to exchange particles\n"
                           "This will prevent case where a particle moves back and forth between processors");
 
-        prm.declare_entry("e Streamline iterations", "1000", Patterns::Integer(0,1000),
+        prm.declare_entry("e Streamline iterations", "1000", Patterns::Integer(0,10000),
                           "e----------------------------------\n"
                           "The maximum number of steps per streamline");
 
