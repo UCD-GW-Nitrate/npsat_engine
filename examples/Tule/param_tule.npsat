@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 3
+  set a Nonlinear iterations = 7
 
   # b----------------------------------
   # Tolerance of solver
@@ -203,7 +203,7 @@ subsection I. Particle tracking ================================
 
   # e----------------------------------
   # The maximum number of steps per streamline
-  set e Streamline iterations      = 2000
+  set e Streamline iterations      = 3000
 
   # f----------------------------------
   # 1-> Euler, 2->RK2, 3->RK4
@@ -214,7 +214,7 @@ subsection I. Particle tracking ================================
   # the diameter of each cell with the given number.
   # Essensially this number indicates the average number of steps
   # of the algorithm within a cell
-  set g Step size                  = 5
+  set g Step size                  = 4
 
   # h----------------------------------
   # How many neighbor to search for the next point if the point has left the
