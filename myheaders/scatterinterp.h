@@ -6,7 +6,18 @@
 #include <deal.II/base/point.h>
 
 #include "cgal_functions.h"
+#include "helper_functions.h"
 
+/*!
+ * \brief The SCI_TYPE enum can take one of the 3 values
+ * - FULL in 3D this interpolates in 3D space. However this is possible only if the interpolation
+ * has z information therefore it has to be STRATIFIED. In 2D problems this interpolates along the x-y plane.
+ * or x-z plane if the y coordinate it is supposed to be the z. In 2D, it can be either SIMPLE or STRATIFIED
+ * - HOR interpolation in 3D is a 2d interpolation across x-y. The values along Z fo not change.
+ * - VERT is defined in 3D problems and it is an interpolation across an a vertical plane which is defined by 2
+ * points.
+ */
+enum SCI_TYPE { FULL, HOR, VERT };
 
 using namespace dealii;
 
@@ -71,6 +82,8 @@ public:
      */
     double interpolate(Point<dim> p)const;
 
+    void set_normalized(Point<dim> a, Point<dim> b);
+
 private:
 
     //! this is a container to hold the triangulation of the 2D scattered data
@@ -93,6 +106,10 @@ private:
     std::vector<std::vector<double>> V_1D;
 
     bool Stratified;
+    bool normalized;
+    SCI_TYPE sci_type;
+    Point<dim> P1;
+    Point<dim> P2;
 
 };
 
@@ -100,6 +117,18 @@ template<int dim>
 ScatterInterp<dim>::ScatterInterp(){
     Ndata = 0;
     Npnts = 0;
+}
+
+template <int dim>
+void ScatterInterp<dim>::set_normalized(Point<dim> a, Point<dim> b){
+    if (dim == 3 && Stratified){
+        P1 = a;
+        P2 = b;
+        normalized = true;
+    }
+    else{
+        std::cout << "Doesn't make sence to use normalized interpolation in other than 2D and stratified" << std::endl;
+    }
 }
 
 template <int dim>
@@ -120,6 +149,21 @@ void ScatterInterp<dim>::get_data(std::string filename){
                 std::cerr << " ScatterInterp Cannot read " << temp << " data." << std::endl;
                 return;
             }
+        }
+
+        {// Read SCI_TYPE
+            datafile.getline(buffer, 512);
+            std::istringstream inp(buffer);
+            std::string temp;
+            inp >> temp;
+            if (temp == "FULL")
+                sci_type = FULL;
+            else if (temp == "HOR")
+                sci_type = HOR;
+            else if (temp == "VERT")
+                sci_type = VERT;
+            else
+                std::cout << "Unkown interpolation type. Valid options are FULL, HOR, VERT" << std::endl;
         }
 
         {// Read interpolation style
@@ -148,7 +192,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
             for (unsigned int i = 0; i < Npnts; ++i){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if (dim == 1 || (dim == 2 && Stratified)){
+                if (dim == 1 || (dim == 2 && Stratified) || normalized){
                     inp >> x;
                     X_1D.push_back(x);
                     std::vector<double> temp;
@@ -177,23 +221,64 @@ void ScatterInterp<dim>::get_data(std::string filename){
 }
 
 template <int dim>
-double ScatterInterp<dim>::interpolate(Point<dim> point)const{
+double ScatterInterp<dim>::interpolate(Point<dim> point)const{    
+    if (dim == 3){
+        if (sci_type == FULL){
+            Point<3> pp;
+            pp[0] = point[0];
+            pp[1] = point[1];
+            pp[2] = point[2];
+            return scatter_2D_interpolation(T, function_values, point);
+        }
+        else if (sci_type == HOR){
+            Point<3> pp;
+            pp[0] = point[0];
+            pp[1] = point[1];
+            pp[2] = 0;
+            return scatter_2D_interpolation(T, function_values, point);
+        }
+        else if (sci_type == VERT){
+            if (!Stratified){
+                std::cerr << "Not implemented yet, but its easy to do so" << std::endl;
+                return 0;
+            }
+            else{
+                // find the distance from the first point
+                double xx = distance_on_2D_line(P1[0], P1[1], P2[0], P2[1], point[0], point[1]);
+            }
+        }
+    }
+    else if (dim == 2){
+
+    }
     Point<3> pp;
-    if (dim == 1 || (dim == 2 && Stratified)){
+    if (dim == 1 || (dim == 2 && Stratified) || normalized){
         // find main parametric value
         double t;
         int ind;
         bool first = false;
         bool last = false;
+        double xx = 0;
+        double zz = 0;
+        double yy = 0;
+        if (dim == 1)
+            xx = point[0];
+        else if (dim == 2 && Stratified){
+            xx = point[0];
+            yy = point[dim-1];
+        }
+        else if (normalized){
 
-        if (point[0] <=X_1D[0])
+        }
+
+        if (xx <=X_1D[0])
             first = true;
-        else if (point[0] >= X_1D[X_1D.size()-1])
+        else if (xx >= X_1D[X_1D.size()-1])
             last = true;
         else{
             for (unsigned int i = 0; i < X_1D.size()-1; ++i){
-                if (point[0] >= X_1D[i] && point[0] <= X_1D[i+1]){
-                    t = (point[0] - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
+                if (xx >= X_1D[i] && xx <= X_1D[i+1]){
+                    t = (xx - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
                     ind = i;
                     break;
                 }
