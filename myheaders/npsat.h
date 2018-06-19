@@ -154,8 +154,8 @@ void NPSAT<dim>::make_grid(){
                                  distributed_mesh_Offset_vertices,
                                  mpi_communicator, pcout);
 
-    const MyFunction<dim, dim-1> top_function(AQProps.top_elevation);
-    const MyFunction<dim, dim-1> bottom_function(AQProps.bottom_elevation);
+    const MyFunction<dim, dim> top_function(AQProps.top_elevation);
+    const MyFunction<dim, dim> bottom_function(AQProps.bottom_elevation);
 
     mesh_struct.compute_initial_elevations(top_function,bottom_function);
 
@@ -242,7 +242,7 @@ void NPSAT<dim>::solve_refine(){
                                                     AQProps.HydraulicConductivity[2]);
     }
 
-    MyFunction<dim, dim-1> GR_funct(AQProps.GroundwaterRecharge);
+    MyFunction<dim, dim> GR_funct(AQProps.GroundwaterRecharge);
 
 
     for (unsigned int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){

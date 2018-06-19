@@ -38,7 +38,7 @@ public:
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
-           MyFunction<dim,dim-1>&               groundwater_recharge,
+           MyFunction<dim,dim>&               groundwater_recharge,
            std::vector<int>&                    top_boundary_ids);
 
 
@@ -66,7 +66,7 @@ private:
     ConstraintMatrix&                          	constraints;
     typename FunctionMap<dim>::type				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
-    MyFunction<dim,dim-1> 						GWRCH;
+    MyFunction<dim,dim> 						GWRCH;
     std::vector<int>                            top_boundary_ids;
     ConditionalOStream                        	pcout;
     TimerOutput                               	computing_timer;
@@ -90,7 +90,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
                     TrilinosWrappers::MPI::Vector&       locally_relevant_solution_in,
                     typename FunctionMap<dim>::type&     dirichlet_boundary_in,
                     MyTensorFunction<dim>&               HK_function,
-                    MyFunction<dim,dim-1>&               groundwater_recharge,
+                    MyFunction<dim, dim> &groundwater_recharge,
                     std::vector<int>&                    top_boundary_ids_in)
     :
       mpi_communicator(mpi_communicator_in),

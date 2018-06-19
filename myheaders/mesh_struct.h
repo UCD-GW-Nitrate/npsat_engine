@@ -171,8 +171,8 @@ public:
 
     //! This method calculates the top and bottom elevation on the points of the #PointsMap
     //! This should be called on the initial grid before any refinement.
-    void compute_initial_elevations(MyFunction<dim, dim-1> top_function,
-                                    MyFunction<dim, dim-1> bot_function);
+    void compute_initial_elevations(MyFunction<dim, dim> top_function,
+                                    MyFunction<dim, dim> bot_function);
 
     void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
                            ConditionalOStream pcout,
@@ -1289,15 +1289,20 @@ void Mesh_struct<dim>::make_dof_ij_map(){
 }
 
 template <int dim>
-void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim-1> top_function,
-                                                  MyFunction<dim, dim-1> bot_function){
+void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_function,
+                                                  MyFunction<dim, dim> bot_function){
     // Any modifications here maybe have to be copied on assign_top_bottom method at the end
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
     std::vector<Zinfo>::iterator itz;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-        double top = top_function.value(it->second.PNT);
-        double bot = bot_function.value(it->second.PNT);
+        Point<dim> p_dim;
+        for (unsigned ii = 0; ii < dim-1; ++ii)
+            p_dim[ii] = it->second.PNT[ii];
+        p_dim[dim-1] = 0;
+
+        double top = top_function.value(p_dim);
+        double bot = bot_function.value(p_dim);
         it->second.T = top;
         it->second.B = bot;
         itz = it->second.Zlist.begin();

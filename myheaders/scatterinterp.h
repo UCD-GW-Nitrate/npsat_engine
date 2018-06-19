@@ -111,6 +111,9 @@ private:
     Point<dim> P1;
     Point<dim> P2;
 
+    void interp_X1D(double x, int &ind, double &t)const;
+    double interp_V1D_stratified(double z, double t, int ind)const;
+
 };
 
 template<int dim>
@@ -228,14 +231,14 @@ double ScatterInterp<dim>::interpolate(Point<dim> point)const{
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = point[2];
-            return scatter_2D_interpolation(T, function_values, point);
+            return scatter_2D_interpolation(T, function_values, pp);
         }
         else if (sci_type == HOR){
             Point<3> pp;
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = 0;
-            return scatter_2D_interpolation(T, function_values, point);
+            return scatter_2D_interpolation(T, function_values, pp);
         }
         else if (sci_type == VERT){
             if (!Stratified){
@@ -245,107 +248,99 @@ double ScatterInterp<dim>::interpolate(Point<dim> point)const{
             else{
                 // find the distance from the first point
                 double xx = distance_on_2D_line(P1[0], P1[1], P2[0], P2[1], point[0], point[1]);
+                double t;
+                int ind;
+                interp_X1D(xx, ind, t);
+                return interp_V1D_stratified(point[2], t, ind);
             }
         }
     }
     else if (dim == 2){
-
-    }
-    Point<3> pp;
-    if (dim == 1 || (dim == 2 && Stratified) || normalized){
-        // find main parametric value
-        double t;
-        int ind;
-        bool first = false;
-        bool last = false;
-        double xx = 0;
-        double zz = 0;
-        double yy = 0;
-        if (dim == 1)
-            xx = point[0];
-        else if (dim == 2 && Stratified){
-            xx = point[0];
-            yy = point[dim-1];
-        }
-        else if (normalized){
-
-        }
-
-        if (xx <=X_1D[0])
-            first = true;
-        else if (xx >= X_1D[X_1D.size()-1])
-            last = true;
-        else{
-            for (unsigned int i = 0; i < X_1D.size()-1; ++i){
-                if (xx >= X_1D[i] && xx <= X_1D[i+1]){
-                    t = (xx - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
-                    ind = i;
-                    break;
-                }
+        if (sci_type == FULL){
+            if (!Stratified){
+                Point<3> pp;
+                pp[0] = point[0];
+                pp[1] = point[1];
+                pp[2] = 0;
+                return scatter_2D_interpolation(T, function_values, pp);
             }
-        }
-
-        if (dim == 1){
-            if (first)
-                return V_1D[0][0];
-            else if (last)
-                return  V_1D[V_1D.size()-1][0];
             else{
-                return V_1D[ind][0]*(1-t) + V_1D[ind+1][0]*t;
+                double t;
+                int ind;
+                interp_X1D(point[0], ind, t);
+                return interp_V1D_stratified(point[1], t, ind);
             }
         }
-        else if (dim == 2 && Stratified){
-            std::vector<double> v;
-            std::vector<double> el;
-            bool push_v = true;
-            double v_temp;
-            for (unsigned int i = 0; i < Ndata; ++i){
-                if (first)
-                    v_temp = V_1D[0][i];
-                else if (last)
-                    v_temp = V_1D[V_1D.size()-1][i];
-                else{
-                    v_temp = V_1D[ind][i]*(1-t) + V_1D[ind+1][i]*t;
-                }
-
-                if (push_v){
-                    v.push_back(v_temp);
-                    push_v = false;
-                }
-                else{
-                    el.push_back(v_temp);
-                    push_v = true;
-                }
-            }
-
-            if (point[1] <= el[0])
-                return v[0];
-            else if (point[1]>=el[el.size()-1])
-                return v[v.size()-1];
-            else{
-                for (unsigned int i = 0; i < el.size()-1; ++i){
-                    if (point[1] >= el[i] && point[1] <= el[i+1]){
-                        double u = (point[1] - el[i])/(el[i+1] - el[i]);
-                        return v[i]*(1-u) + v[i+1]*u;
-                    }
-                }
-            }
-
+        else if (sci_type == HOR){
+            double t;
+            int ind;
+            interp_X1D(point[0], ind, t);
+            return interp_V1D_stratified(point[1], t, ind);
+        }
+        else if (sci_type == VERT){
+            std::cerr << "Vertical interpolation in 2D is not yet implemented" << std::endl;
+            return 0;
         }
     }
-    else if (dim == 2) {
-        pp[0] = point[0];
-        pp[1] = point[1];
-        pp[2] = 0;
-    } else if (dim == 3){
-        pp[0] = point[0];
-        pp[1] = point[1];
-        pp[2] = point[2];
-    }
-
-    double value = scatter_2D_interpolation(T, function_values, pp);
-    return  value;
+    return 0;
 }
 
+template <int dim>
+void ScatterInterp<dim>::interp_X1D(double x, int &ind, double &t)const{
+    t = -9999;
+    if (x <= X_1D[0]){
+        ind = 0;
+    }
+    else if (x >= X_1D[X_1D.size()-1])
+        ind = X_1D.size()-1;
+    else{
+        for (unsigned int i = 0; i < X_1D.size()-1; ++i){
+            if (x >= X_1D[i] && x <= X_1D[i+1]){
+                t = (x - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
+                ind = i;
+                break;
+            }
+        }
+    }
+}
+
+template <int dim>
+double ScatterInterp<dim>::interp_V1D_stratified(double z, double t, int ind)const{
+    std::vector<double> v;
+    std::vector<double> el;
+    bool push_v = true;
+    double v_temp;
+    for (unsigned int i = 0; i < Ndata; ++i){
+        if (t < -9990){
+            v_temp = V_1D[ind][i];
+        }
+        else{
+            v_temp = V_1D[ind][i]*(1-t) + V_1D[ind+1][i]*t;
+        }
+    }
+
+    if (push_v){
+        v.push_back(v_temp);
+        push_v = false;
+    }
+    else{
+        el.push_back(v_temp);
+        push_v = true;
+    }
+
+    if (z <= el[0])
+        return v[0];
+    else if (z >= el[el.size()-1])
+        return v[v.size()-1];
+    else{
+        for (unsigned int i = 0; i < el.size()-1; ++i){
+            if (z >= el[i] && z <= el[i+1]){
+                double u = (z - el[i])/(el[i+1] - el[i]);
+                return v[i]*(1-u) + v[i+1]*u;
+            }
+        }
+    }
+    return 0;
+}
 
 #endif // SCATTERINTERP_H

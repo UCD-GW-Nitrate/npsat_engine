@@ -154,10 +154,10 @@ public:
     std::vector<double>             vert_discr;
 
     //! This is a 2D interpolation function for the top elevation
-    InterpInterface<dim-1>          top_elevation;
+    InterpInterface<dim>          top_elevation;
 
     //! This is a 2D interpolation function for the bottom elevation
-    InterpInterface<dim-1>          bottom_elevation;
+    InterpInterface<dim>          bottom_elevation;
 
     //! The minimum cell dimension that is expected in the x-y plane
     //! Triangulation points closer than #xy_thres distance will be considered identical
@@ -201,7 +201,7 @@ public:
     InterpInterface<dim>                Porosity;
 
     //! This is a 2D interpolation function for the groundwater recharge
-    InterpInterface<dim-1>              GroundwaterRecharge;
+    InterpInterface<dim>              GroundwaterRecharge;
 
     //! This holds the information for the streams
     Streams<dim>                        streams;

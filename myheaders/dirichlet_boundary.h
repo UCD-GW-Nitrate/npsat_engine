@@ -180,8 +180,8 @@ public:
 
     std::string namefile;
     std::vector<BoundPrim> boundary_parts;
-    std::vector<InterpInterface<dim-1>> interp_funct;
-    std::vector<MyFunction<dim,dim-1>> DirFunctions;
+    std::vector<InterpInterface<dim>> interp_funct;
+    std::vector<MyFunction<dim,dim>> DirFunctions;
     int Nbnd;
 
 };
@@ -229,7 +229,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
 
                 interp_funct[i].get_data(boundary_parts[i].value);
 
-                MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                MyFunction<dim,dim> tempfnc(interp_funct[i]);
                 DirFunctions.push_back(tempfnc);
             }
             else if (dim == 3){
@@ -273,7 +273,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     Nbnd++;
 
                     interp_funct[i].get_data(boundary_parts[i].value);
-                    MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                    MyFunction<dim,dim> tempfnc(interp_funct[i]);
                     DirFunctions.push_back(tempfnc);
                 }
                 else if (boundary_parts[i].TYPE == "EDGE"){// we read the value associated with the edge
@@ -288,7 +288,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     }
                     Nbnd++;
                     interp_funct[i].get_data(boundary_parts[i].value);
-                    MyFunction<dim,dim-1> tempfnc(interp_funct[i]);
+                    MyFunction<dim,dim> tempfnc(interp_funct[i]);
                     DirFunctions.push_back(tempfnc);
                 }
             }

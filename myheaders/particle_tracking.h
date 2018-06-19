@@ -1049,6 +1049,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
             }
         }
     }
+    return outcome;
 }
 
 template <int dim>
@@ -1401,6 +1402,8 @@ int Particle_Tracking<dim>::cell_type(typename DoFHandler<dim>::active_cell_iter
         return 1;
     else if (cell->is_artificial())
         return 2;
+
+    return -9;
 }
 
 template <int dim>
