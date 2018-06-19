@@ -117,6 +117,35 @@ bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
 }
 
 /*!
+ * \brief distance_on_2D_line projects the point (px, py) onto line and returns the distance from the first point
+ * \param l1x
+ * \param l1y
+ * \param l2x
+ * \param l2y
+ * \param px
+ * \param py
+ * \return
+ */
+double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, double px, double py){
+    double e1x = l2x - l1x;
+    double e1y = l2y - l1y;
+    double len2 = e1x*e1x + e1y*e1y;
+    double e2x = px - l1x;
+    double e2y = py - l1y;
+    double dot = e1x*e2x + e1y*e2y;
+    double ppx = l1x + dot*e1x/len2;
+    double ppy = l1y + dot*e1y/len2;
+    double dst = sqrt((ppx-l1x)*(ppx-l1x)+(ppy-l1y)*(ppy-l1y));
+    double t = (ppx - l1x)/(l2x-l1x);
+    if (t<0)
+        return -dst;
+    else
+        return dst;
+
+
+}
+
+/*!
  * \brief is_input_a_scalar check if the string can be converted into a scalar value
  * \param input is the string to test
  * \return true if the input can be a scalars
