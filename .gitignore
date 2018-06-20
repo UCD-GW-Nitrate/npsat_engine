@@ -62,12 +62,20 @@
 !/examples/BoxNPSAT/*.npsat
 #unignore the *.py files
 !/examples/BoxNPSAT/*.py
-# unignore the BoxNPSAT example ----------Tule-----------
+# unignore the Tule example ----------Tule-----------
 !/examples/Tule
 #ignore all the content of the folder
 /examples/Tule/*
 #unignore the *.npsat files
 !/examples/Tule/*.npsat
+# unignore the Modesto example ---------Modesto----------
+!/examples/Modesto
+#ignore all the content of the folder
+/examples/Modesto/*
+#unignore the *.npsat files
+!/examples/Modesto/*.npsat
+
+
 
 
 

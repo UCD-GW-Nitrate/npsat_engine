@@ -245,7 +245,7 @@ void NPSAT<dim>::solve_refine(){
     MyFunction<dim, dim> GR_funct(AQProps.GroundwaterRecharge);
 
 
-    for (unsigned int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){
+    for (int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){
         pcout << "|----------- Iteration : " << iter << " -------------|" << std::endl;
 
         DirBC.assign_dirichlet_to_triangulation(triangulation,
