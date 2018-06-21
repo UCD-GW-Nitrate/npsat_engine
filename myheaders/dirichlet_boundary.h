@@ -251,7 +251,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     boundary_parts[i].BBmin[1] = 99999999999;
                     boundary_parts[i].BBmax[0] = -99999999999;
                     boundary_parts[i].BBmax[1] = -99999999999;
-                    for (unsigned int iv = 0; iv < N; ++iv){
+                    for (int iv = 0; iv < N; ++iv){
                         datafile.getline(buffer,512);
                         std::istringstream inp(buffer);
                         inp >> x;
@@ -288,6 +288,14 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     }
                     Nbnd++;
                     interp_funct[i].get_data(boundary_parts[i].value);
+                    Point<dim> a,b;
+                    a[0] = boundary_parts[i].Xcoords[0];
+                    a[1] = boundary_parts[i].Ycoords[0];
+                    a[2] = 0;
+                    b[0] = boundary_parts[i].Xcoords[1];
+                    b[1] = boundary_parts[i].Ycoords[1];
+                    b[2] = 0;
+                    interp_funct[i].set_SCI_EDGE_points(a,b);
                     MyFunction<dim,dim> tempfnc(interp_funct[i]);
                     DirFunctions.push_back(tempfnc);
                 }

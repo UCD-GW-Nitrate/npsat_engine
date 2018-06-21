@@ -102,7 +102,7 @@ void mix_mesh<dim>::reset(){
 template <int dim>
 bool mix_mesh<dim>::add_element(std::vector<int> element_ids){
     for (unsigned int i = 0; i < element_ids.size(); ++i){
-        if (element_ids[i] < 0 || element_ids[i] > P.size()-1){
+        if (element_ids[i] < 0 || element_ids[i] > static_cast<int>(P.size()-1)){
             std::cerr << "The element index " << element_ids[i] << " does not exists in the P vector." << std::endl;
             return false;
 

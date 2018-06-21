@@ -29,6 +29,8 @@ public:
     //! or in ScatterInterp#get_data.
     void get_data(std::string namefile);
 
+    void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
+
 private:
     //! The type of interpolation
     std::string TYPE;
@@ -85,6 +87,11 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
         std::cerr << "Unknown interpolation method" << std::endl;
     }
     return 0;
+}
+
+template <int dim>
+void InterpInterface<dim>::set_SCI_EDGE_points(Point<dim> a, Point<dim> b){
+    SCI.set_edge_points(a,b);
 }
 
 #endif // INTERPINTERFACE_H

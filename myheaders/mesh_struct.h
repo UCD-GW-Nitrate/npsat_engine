@@ -595,7 +595,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
             for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
                 for (unsigned int i = 0; i < top_z_reply[i_proc].size(); ++i){
                     // if the processor that has asked for this point is me
-                    if (top_info_proc[i_proc][i] == my_rank){
+                    if (top_info_proc[i_proc][i] == static_cast<int>(my_rank)){
                         // This is the dof that has the unknown top
                         int dof_asked = top_info_dof_ask[i_proc][i];
                         //this is the new top that the other processor suggested
@@ -621,7 +621,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
                 // Similarly for the bottom.
                 for (unsigned int i = 0; i < bot_z_reply[i_proc].size(); ++i){
-                    if (bot_info_reply[i_proc][3*i] == my_rank){
+                    if (bot_info_reply[i_proc][3*i] == static_cast<int>(my_rank)){
                         int dof_asked = bot_info_reply[i_proc][3*i+1];
                         int newdof = bot_info_reply[i_proc][3*i+2];
                         double newz = bot_z_reply[i_proc][i];
@@ -1440,7 +1440,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
             if (i == my_rank)
                 continue;
             for (unsigned int j = 0; j < which_proc[i].size(); ++j){
-                if (which_proc[i][j] == my_rank){
+                if (which_proc[i][j] == static_cast<int>(my_rank)){
                      it = PointsMap.find(id_top[which_point[i][j]]);
                      it->second.T = top_new[i][j];
                 }
@@ -1489,7 +1489,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
             if (i == my_rank)
                 continue;
             for (unsigned int j = 0; j < which_proc[i].size(); ++j){
-                if (which_proc[i][j] == my_rank){
+                if (which_proc[i][j] == static_cast<int>(my_rank)){
                     it = PointsMap.find(id_bot[which_point[i][j]]);
                     it->second.B = bottom[i][j];
                     //std::cout << "Rank " << my_rank << ":" <<it->second.PNT << " : " << it->second.B << std::endl;

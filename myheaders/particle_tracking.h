@@ -332,7 +332,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
     std::vector<Streamline<dim>> new_particles;
 
     int trace_iter = 0;
-    int cnt_stuck_particles = 0;
+    //int cnt_stuck_particles = 0;
     while (true){
         new_particles.clear();
 
@@ -351,7 +351,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
             }
         }
         Range_tree_3_type ParticlesXY(prtclsxy.begin(), prtclsxy.end());
-        int cnt_ptr = 0;int cnt_cells = 0;
+        //int cnt_ptr = 0;int cnt_cells = 0;
         typename DoFHandler<dim>::active_cell_iterator
         cell = dof_handler.begin_active(),
         endc = dof_handler.end();
@@ -1195,6 +1195,9 @@ int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::activ
     else{
         return return_value;
     }
+    // The code should never reach this point but I added return statement to supress warnings
+    std::cerr << "Particle_Tracking<dim>::add_streamline_point should never reach this point" << std::endl;
+    return return_value;
 }
 
 template <int dim>

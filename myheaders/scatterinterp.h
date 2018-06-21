@@ -82,7 +82,7 @@ public:
      */
     double interpolate(Point<dim> p)const;
 
-    void set_normalized(Point<dim> a, Point<dim> b);
+    void set_edge_points(Point<dim> a, Point<dim> b);
 
 private:
 
@@ -106,7 +106,6 @@ private:
     std::vector<std::vector<double>> V_1D;
 
     bool Stratified;
-    bool normalized;
     SCI_TYPE sci_type;
     Point<dim> P1;
     Point<dim> P2;
@@ -123,14 +122,13 @@ ScatterInterp<dim>::ScatterInterp(){
 }
 
 template <int dim>
-void ScatterInterp<dim>::set_normalized(Point<dim> a, Point<dim> b){
-    if (dim == 3 && Stratified){
+void ScatterInterp<dim>::set_edge_points(Point<dim> a, Point<dim> b){
+    if (sci_type == VERT && Stratified){
         P1 = a;
         P2 = b;
-        normalized = true;
     }
     else{
-        std::cout << "Doesn't make sence to use normalized interpolation in other than 2D and stratified" << std::endl;
+        std::cerr << "You tried to assign points on SCI_TYPE " << sci_type << " and not stratified " << std::endl;
     }
 }
 
@@ -195,7 +193,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
             for (unsigned int i = 0; i < Npnts; ++i){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if (dim == 1 || (dim == 2 && Stratified) || normalized){
+                if ((dim == 2 && Stratified) || (dim == 3 && sci_type == VERT)){
                     inp >> x;
                     X_1D.push_back(x);
                     std::vector<double> temp;
