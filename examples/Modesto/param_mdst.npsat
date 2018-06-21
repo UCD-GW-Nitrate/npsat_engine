@@ -133,7 +133,7 @@ subsection F. Sources & Sinks ==================================
   # b----------------------------------
   # Stream network
   # The name of a file that defines the streams and the rates
-  set b Stream recharge      = 
+  set b Stream recharge      = Modesto_Streams.npsat
 
   # c----------------------------------
   # Well network
@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 10
+  set a Nonlinear iterations = 3
 
   # b----------------------------------
   # Tolerance of solver
@@ -161,7 +161,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 5
+  set a Max refinements iterations = 10
 
   # b----------------------------------
   # Top refinement fraction
@@ -214,7 +214,7 @@ subsection I. Particle tracking ================================
   # the diameter of each cell with the given number.
   # Essensially this number indicates the average number of steps
   # of the algorithm within a cell
-  set g Step size                  = 6
+  set g Step size                  = 4
 
   # h----------------------------------
   # How many neighbor to search for the next point if the point has left the
@@ -257,10 +257,10 @@ subsection J. Output Parameters ================================
   # b----------------------------------
   # This should be roughly equal to the maximum dimension
   # along the X Y
-  set b Domain Scale X = 1000
+  set b Domain Scale X = 1
 
   # c----------------------------------
   # This should be roughly equal to the maximum dimension
   # along the Z
-  set c Domain Scale Z = 500
+  set c Domain Scale Z = 5
 end
