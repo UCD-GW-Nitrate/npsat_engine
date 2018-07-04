@@ -8,6 +8,7 @@
 #include "interpinterface.h"
 #include "my_functions.h"
 #include "cgal_functions.h"
+#include "helper_functions.h"
 
 
 namespace BoundaryConditions{
@@ -431,8 +432,8 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     x4 = cell->face(iface)->vertex(2)[0]; y4 = cell->face(iface)->vertex(2)[1]; z4 = cell->face(iface)->vertex(2)[2];
                                 }
                                 //std::cout << "plot([" << x1 << " " << x2 << "],[" << y1 << " " << y2 << "],'o-g');" << std::endl;
-                                std::cout << "plot([" << x3 << " " << x4 << "],[" << y3 << " " << y4 << "],'.-r');" << std::endl;
-                                std::cout << z3 << " , " << z4 << std::endl;
+                                //std::cout << "plot([" << x3 << " " << x4 << "],[" << y3 << " " << y4 << "],'.-r');" << std::endl;
+                                //std::cout << z3 << " , " << z4 << std::endl;
 
                                 double dst3 = abs((x2 - x1)*(y1 - y3) - (x1 - x3)*(y2 - y1))/L;
                                 if (dst3 < 0.001){
@@ -442,6 +443,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                         CGAL::Segment_2< exa_Kernel > segm(exa_Point2(x1,y1),exa_Point2(x2,y2));
                                         if (segm.collinear_has_on(exa_Point2(x3,y3)) || segm.collinear_has_on(exa_Point2(x4,y4))){
                                             cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                            print_cell_face_matlab<dim>(cell,iface);
                                         }
                                     }
                                 }

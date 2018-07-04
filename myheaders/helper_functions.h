@@ -66,6 +66,7 @@ void print_cell_coords(typename dealii::DoFHandler<dim>::active_cell_iterator ce
     }
 }
 
+
 template <int dim>
 bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& punit,
                  typename dealii::DoFHandler<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
@@ -141,8 +142,29 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
         return -dst;
     else
         return dst;
+}
 
+double distance_point_line(double px, double py, // Point coordinates
+                           double l1x, double l1y, // first point of line
+                           double l2x, double l2y){ // second point of line
 
+    double e1x = l2x - l1x;
+    double e1y = l2y - l1y;
+    double len2 = e1x*e1x + e1y*e1y;
+    double e2x = px - l1x;
+    double e2y = py - l1y;
+    double dot = e1x*e2x + e1y*e2y;
+    double ppx = l1x + dot*e1x/len2;
+    double ppy = l1y + dot*e1y/len2;
+
+    double t = (ppx - l1x)/(l2x-l1x);
+
+    double dst = sqrt((ppx-px)*(ppx-px)+(ppy-py)*(ppy-py));
+    if (t <0 || t > 1){
+        dst = -dst;
+    }
+
+    return dst;
 }
 
 /*!
@@ -399,6 +421,41 @@ void print_poly_matlab(std::vector<double> xp, std::vector<double> yp){
     for (unsigned int kk = 0; kk < yp.size(); ++kk)
         std::cout << yp[kk] << " ";
     std::cout << yp[0] << "])" << std::endl;
+}
+
+template <int dim>
+void print_cell_face_matlab(typename dealii::Triangulation<dim>::active_cell_iterator cell, int iface){
+    if (dim == 3){
+        std::vector<int> id;
+        id.push_back(0);
+        id.push_back(1);
+        id.push_back(3);
+        id.push_back(2);
+        std::vector<double> xp;
+        std::vector<double> yp;
+        std::vector<double> zp;
+        for (unsigned int i = 0; i < 4; ++i){
+            xp.push_back(cell->face(iface)->vertex(i)[0]);
+            yp.push_back(cell->face(iface)->vertex(i)[1]);
+            zp.push_back(cell->face(iface)->vertex(i)[2]);
+        }
+
+        std::cout << "plot3([";
+        for (unsigned int i = 0; i < 4; ++i)
+            std::cout << xp[id[i]] << " ";
+        std::cout << xp[0] << "]";
+
+        std::cout << ",[";
+        for (unsigned int i = 0; i < 4; ++i)
+            std::cout << yp[id[i]] << ",";
+        std::cout << yp[0] << "]";
+
+        std::cout << ",[";
+        for (unsigned int i = 0; i < 4; ++i)
+            std::cout << zp[id[i]] << ",";
+        std::cout << zp[0] << "])" << std::endl;;
+
+    }
 }
 
 
