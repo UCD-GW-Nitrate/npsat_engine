@@ -16,6 +16,8 @@ template <int dim, int griddim>
 class MyFunction : public Function<dim>{
 public:
 
+    MyFunction();
+
     /*!
      * \brief MyFunction is the constructor which initialize the interpolation interface variable
      * \param grid_in is the interpolation interface
@@ -36,9 +38,18 @@ public:
                     std::vector<double>                 &values,
                     const unsigned int                  component = 0)const;
 
+    void set_interpolant(InterpInterface<griddim> interpolant_in);
+
 private:
-    const InterpInterface<griddim>&	interpolant;
+    InterpInterface<griddim>	interpolant;
 };
+
+template <int dim, int griddim>
+MyFunction<dim, griddim>::MyFunction()
+    :
+      interpolant(InterpInterface<griddim>())
+
+{}
 
 template<int dim, int griddim>
 MyFunction<dim, griddim>::MyFunction(InterpInterface<griddim>& grid_in)
@@ -79,6 +90,12 @@ void MyFunction<dim, griddim>::value_list(const std::vector<Point<dim> > &points
             p_grd[ii] = points[i][ii];
         values[i] = MyFunction::value(p_grd);
     }
+}
+
+template <int dim, int griddim>
+void MyFunction<dim, griddim>::set_interpolant(InterpInterface<griddim>	interpolant_in){
+    //interpolant.copy_from(interpolant_in);
+    interpolant = interpolant_in;
 }
 
 /*!

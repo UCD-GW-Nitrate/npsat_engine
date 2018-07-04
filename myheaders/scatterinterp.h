@@ -28,7 +28,7 @@ using namespace dealii;
  * into layers and it does not support fully unstructured 3D interpolation. For 1D interpolation the class uses
  * a simple linear interpolation.
  *
- * The class has to main functionalities
+ * The class has two main functionalities
  * i) reads scattered data from a file. ii) interpolates value of a given point.
  */
 template<int dim>
@@ -46,9 +46,11 @@ public:
      * The first line should have the keyword SCATTERED which indicates that the data
      * that follow data correspond to scattered interpolation
      *
-     * The second line is the keyward STRATIFIED or SIMPLE
+     * The second line is one of the three keywords FULL, HOR, VERT
      *
-     * The second line provides two numbers #Npnts and #Ndata.
+     * The third line is the keyward STRATIFIED or SIMPLE
+     *
+     * The fourth line provides two numbers #Npnts and #Ndata.
      *
      * The following lines after that expect an array of #Npnts rows and #Ndata+2 columns with the following format
      * X Y V_1 Z_1 V_2 Z_2 ... V_lay-1 Z_lay-1 V_lay
@@ -82,6 +84,13 @@ public:
      */
     double interpolate(Point<dim> p)const;
 
+    /*!
+     * \brief set_edge_points In the case of VERT interpolation the class has to know the coordinates of the
+     * line that defines the vertical plane. Note the order of the points is important. The first point should
+     * correspond to coordinate 0.
+     * \param a is the first point of the line
+     * \param b is the last point of the line
+     */
     void set_edge_points(Point<dim> a, Point<dim> b);
 
 private:
@@ -92,7 +101,7 @@ private:
     //! This is a map between the triangulation and the values that correspond to each 2D point
     std::vector<std::map<ine_Point2, ine_Coord_type, ine_Kernel::Less_xy_2> > function_values;
 
-    //! Ndata is the number of values for interpolation. For the STRITIFIED option this number must be equal to (Nlay-1)*2 +1
+    //! Ndata is the number of values for interpolation. For the STRATIFIED option this number must be equal to (Nlay-1)*2 +1
     unsigned int Ndata;
 
     //! Npnts is the number of 2D points that the scattered interpolation set contains
@@ -106,9 +115,16 @@ private:
     std::vector<std::vector<double>> V_1D;
 
     bool Stratified;
-    SCI_TYPE sci_type;
+    /*!
+     * \brief sci_type gets
+     * * 0 -> FULL
+     * * 1 -> HOR
+     * * 2 -> VERT
+     */
+    unsigned sci_type;
     Point<dim> P1;
     Point<dim> P2;
+    bool points_known;
 
     void interp_X1D(double x, int &ind, double &t)const;
     double interp_V1D_stratified(double z, double t, int ind)const;
@@ -119,13 +135,15 @@ template<int dim>
 ScatterInterp<dim>::ScatterInterp(){
     Ndata = 0;
     Npnts = 0;
+    points_known = false;
 }
 
 template <int dim>
 void ScatterInterp<dim>::set_edge_points(Point<dim> a, Point<dim> b){
-    if (sci_type == VERT && Stratified){
+    if (sci_type == 2 && Stratified){
         P1 = a;
         P2 = b;
+        points_known = true;
     }
     else{
         std::cerr << "You tried to assign points on SCI_TYPE " << sci_type << " and not stratified " << std::endl;
@@ -158,11 +176,11 @@ void ScatterInterp<dim>::get_data(std::string filename){
             std::string temp;
             inp >> temp;
             if (temp == "FULL")
-                sci_type = FULL;
+                sci_type = 0;
             else if (temp == "HOR")
-                sci_type = HOR;
+                sci_type = 1;
             else if (temp == "VERT")
-                sci_type = VERT;
+                sci_type = 2;
             else
                 std::cout << "Unkown interpolation type. Valid options are FULL, HOR, VERT" << std::endl;
         }
@@ -193,7 +211,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
             for (unsigned int i = 0; i < Npnts; ++i){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if ((dim == 2 && Stratified) || (dim == 3 && sci_type == VERT)){
+                if ((dim == 2 && Stratified) || (dim == 3 && sci_type == 2)){
                     inp >> x;
                     X_1D.push_back(x);
                     std::vector<double> temp;
@@ -216,6 +234,10 @@ void ScatterInterp<dim>::get_data(std::string filename){
                     }
                 }
             }
+
+            if ((dim == 2 && Stratified) || (dim == 3 && sci_type == 2)){
+                function_values.clear();
+            }
         }// Read data block
 
     }
@@ -224,37 +246,43 @@ void ScatterInterp<dim>::get_data(std::string filename){
 template <int dim>
 double ScatterInterp<dim>::interpolate(Point<dim> point)const{    
     if (dim == 3){
-        if (sci_type == FULL){
+        if (sci_type == 0){
             Point<3> pp;
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = point[2];
             return scatter_2D_interpolation(T, function_values, pp);
         }
-        else if (sci_type == HOR){
+        else if (sci_type == 1){
             Point<3> pp;
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = 0;
             return scatter_2D_interpolation(T, function_values, pp);
         }
-        else if (sci_type == VERT){
+        else if (sci_type == 2){
             if (!Stratified){
                 std::cerr << "Not implemented yet, but its easy to do so" << std::endl;
                 return 0;
             }
             else{
+                if (!points_known){
+                    std::cerr << "You attempt to use VERT interpolation but the two points are not known" << std::endl;
+                    return -9999.9;
+                }
+                else{
                 // find the distance from the first point
                 double xx = distance_on_2D_line(P1[0], P1[1], P2[0], P2[1], point[0], point[1]);
                 double t;
                 int ind;
                 interp_X1D(xx, ind, t);
                 return interp_V1D_stratified(point[2], t, ind);
+                }
             }
         }
     }
     else if (dim == 2){
-        if (sci_type == FULL){
+        if (sci_type == 0){
             if (!Stratified){
                 Point<3> pp;
                 pp[0] = point[0];
@@ -269,13 +297,13 @@ double ScatterInterp<dim>::interpolate(Point<dim> point)const{
                 return interp_V1D_stratified(point[1], t, ind);
             }
         }
-        else if (sci_type == HOR){
+        else if (sci_type == 1){
             double t;
             int ind;
             interp_X1D(point[0], ind, t);
             return interp_V1D_stratified(point[1], t, ind);
         }
-        else if (sci_type == VERT){
+        else if (sci_type == 2){
             std::cerr << "Vertical interpolation in 2D is not yet implemented" << std::endl;
             return 0;
         }

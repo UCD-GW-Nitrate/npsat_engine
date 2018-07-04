@@ -204,8 +204,10 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
         std::istringstream inp(buffer);
         int N_bnd;
         inp >> N_bnd;
-        boundary_parts.resize(N_bnd + boundary_parts.size());
-        interp_funct.resize(N_bnd + boundary_parts.size());
+        int new_size = N_bnd + boundary_parts.size();
+        boundary_parts.resize(new_size);
+        interp_funct.resize(new_size);
+        DirFunctions.resize(new_size);
 
         std::string type;
         for (int i = 0; i < N_bnd; ++i){
@@ -229,8 +231,9 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
 
                 interp_funct[i].get_data(boundary_parts[i].value);
 
-                MyFunction<dim,dim> tempfnc(interp_funct[i]);
-                DirFunctions.push_back(tempfnc);
+                //MyFunction<dim,dim> tempfnc(interp_funct[i]);
+                //DirFunctions.push_back(tempfnc);
+                DirFunctions[i].set_interpolant(interp_funct[i]);
             }
             else if (dim == 3){
                 int N;  // Number of points that define the polygon
@@ -273,8 +276,9 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     Nbnd++;
 
                     interp_funct[i].get_data(boundary_parts[i].value);
-                    MyFunction<dim,dim> tempfnc(interp_funct[i]);
-                    DirFunctions.push_back(tempfnc);
+                    //MyFunction<dim,dim> tempfnc(interp_funct[i]);
+                    //DirFunctions.push_back(tempfnc);
+                    DirFunctions[i].set_interpolant(interp_funct[i]);
                 }
                 else if (boundary_parts[i].TYPE == "EDGE"){// we read the value associated with the edge
                     double x;
@@ -288,6 +292,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     }
                     Nbnd++;
                     interp_funct[i].get_data(boundary_parts[i].value);
+
                     Point<dim> a,b;
                     a[0] = boundary_parts[i].Xcoords[0];
                     a[1] = boundary_parts[i].Ycoords[0];
@@ -296,8 +301,11 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     b[1] = boundary_parts[i].Ycoords[1];
                     b[2] = 0;
                     interp_funct[i].set_SCI_EDGE_points(a,b);
-                    MyFunction<dim,dim> tempfnc(interp_funct[i]);
-                    DirFunctions.push_back(tempfnc);
+                    //MyFunction<dim,dim> tempfnc(interp_funct[i]);
+                    DirFunctions[i].set_interpolant(interp_funct[i]);
+                    //DirFunctions.push_back(MyFunction<dim,dim>(interp_funct[i]));
+                    //DirFunctions[DirFunctions.size()-1].set_interpolant(interp_funct[i]);
+                    //DirFunctions[DirFunctions.size()-1].set_interpolant(interp_funct[i]);
                 }
             }
         }
@@ -416,11 +424,18 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 x2 = boundary_parts[i].Xcoords[1]; y2 = boundary_parts[i].Ycoords[1];
                                 double L = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
 
-                                x3 = cell->face(iface)->vertex(0)[0]; y3 = cell->face(iface)->vertex(0)[1];
+                                double z3, z4;
+                                x3 = cell->face(iface)->vertex(0)[0]; y3 = cell->face(iface)->vertex(0)[1]; z3 = cell->face(iface)->vertex(0)[2];
+                                x4 = cell->face(iface)->vertex(1)[0]; y4 = cell->face(iface)->vertex(1)[1]; z4 = cell->face(iface)->vertex(1)[2];
+                                if (Point<2>(x3,y3).distance(Point<2>(x4,y4)) < 0.01){
+                                    x4 = cell->face(iface)->vertex(2)[0]; y4 = cell->face(iface)->vertex(2)[1]; z4 = cell->face(iface)->vertex(2)[2];
+                                }
+                                //std::cout << "plot([" << x1 << " " << x2 << "],[" << y1 << " " << y2 << "],'o-g');" << std::endl;
+                                std::cout << "plot([" << x3 << " " << x4 << "],[" << y3 << " " << y4 << "],'.-r');" << std::endl;
+                                std::cout << z3 << " , " << z4 << std::endl;
+
                                 double dst3 = abs((x2 - x1)*(y1 - y3) - (x1 - x3)*(y2 - y1))/L;
                                 if (dst3 < 0.001){
-                                    x4 = cell->face(iface)->vertex(1)[0];
-                                    y4 = cell->face(iface)->vertex(1)[1];
                                     double dst4 = abs((x2 - x1)*(y1 - y4) - (x1 - x4)*(y2 - y1))/L;
                                     if (dst4 < 0.001){
                                         // the face is colinear with the boundary

@@ -18,6 +18,9 @@ public:
     //!An empty constructor that does nothing
     InterpInterface();
 
+    //!Copy constructor
+    InterpInterface(const InterpInterface<dim>& Interp_in);
+
     //!This is the core of the class that swithes to the right type and calls
     //! the respective function
     double interpolate(Point<dim>)const;
@@ -31,9 +34,13 @@ public:
 
     void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
 
+    void copy_from(InterpInterface<dim> interp_in);
+
 private:
     //! The type of interpolation
-    std::string TYPE;
+    //! * 0 -> Constrant interpolation
+    //! * 1-> Scattered interpolation
+    unsigned int TYPE;
 
      //! Constant interpolation function
      ConstInterp<dim> CNI;
@@ -46,23 +53,39 @@ template <int dim>
 InterpInterface<dim>::InterpInterface(){}
 
 template <int dim>
+InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
+    :
+      TYPE(Interp_in.TYPE),
+      CNI(Interp_in.CNI),
+      SCI(Interp_in.SCI)
+{}
+
+
+template <int dim>
 void InterpInterface<dim>::get_data(std::string namefile){
     if (is_input_a_scalar(namefile)){
         double value = dealii::Utilities::string_to_double(namefile);
         CNI.set_value(value);
-        TYPE = "CONST";
+        TYPE = 0;
     }else{
         std::ifstream  datafile(namefile.c_str());
         if (!datafile.good()){
             std::cerr << "Can't open " << namefile << std::endl;
         }
         else{
+            {
+                //ConstInterp<dim> cni_temp;
+                CNI = ConstInterp<dim>();
+            }
+
             // read the first line to determine what type of interpolant is
             char buffer[512];
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
-            inp >> TYPE;
-            if (TYPE == "SCATTERED"){
+            std::string type_temp;
+            inp >> type_temp;
+            if (type_temp == "SCATTERED"){
+                TYPE = 1;
                 SCI.get_data(namefile);
             }
             else{
@@ -74,13 +97,13 @@ void InterpInterface<dim>::get_data(std::string namefile){
 
 template <int dim>
 double InterpInterface<dim>::interpolate(Point<dim> p)const{
-    if (TYPE == "CONST"){
+    if (TYPE == 0){
         return CNI.interpolate(p);
     }
-    else if (TYPE == "SCATTERED") {
+    else if (TYPE == 1) {
         return SCI.interpolate(p);
     }
-    else if (TYPE == "GRIDDED") {
+    else if (TYPE == 2) {
         std::cerr << "Not Implemented yet" << std::endl;
         return 0;
     }else{
@@ -92,6 +115,17 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
 template <int dim>
 void InterpInterface<dim>::set_SCI_EDGE_points(Point<dim> a, Point<dim> b){
     SCI.set_edge_points(a,b);
+}
+
+template <int dim>
+void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
+    TYPE = interp_in.TYPE;
+    if (TYPE == 0){
+        CNI = interp_in.CNI;
+    }
+    else if (TYPE == 1){
+        SCI = interp_in.SCI;
+    }
 }
 
 #endif // INTERPINTERFACE_H
