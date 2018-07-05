@@ -83,11 +83,11 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 0
+  set e Stream Refinement       = 2
 end
 
 
@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 3
+  set a Nonlinear iterations = 5
 
   # b----------------------------------
   # Tolerance of solver

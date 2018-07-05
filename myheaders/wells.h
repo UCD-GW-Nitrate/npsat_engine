@@ -633,7 +633,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         for (unsigned int q_point = 0; q_point < temp_quadrature.size(); ++q_point){
                             for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
                                 double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
-                                std::cout << i << " : " << Q_temp << std::endl;
+                                //std::cout << i << " : " << Q_temp << std::endl;
                                 cell_rhs_wells(ii) += Q_temp;
                                 Qwell_total += Q_temp;
                             }

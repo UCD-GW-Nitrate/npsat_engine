@@ -275,7 +275,7 @@ bool mix_mesh<dim>::is_point_inside(Point<dim> p, int el_id){
         // buffer polygon
         boost::geometry::model::multi_polygon<b_polygon> buffer_poly;
         {
-            const double buffer_distance = 0.05;
+            const double buffer_distance = 0.5;
             const int points_per_circle = 5;
             boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(buffer_distance);
             boost::geometry::strategy::buffer::join_round join_strategy(points_per_circle);
