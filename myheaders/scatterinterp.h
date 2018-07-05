@@ -246,21 +246,21 @@ void ScatterInterp<dim>::get_data(std::string filename){
 template <int dim>
 double ScatterInterp<dim>::interpolate(Point<dim> point)const{    
     if (dim == 3){
-        if (sci_type == 0){
+        if (sci_type == 0){// FULL 3D INTERPOLATION
             Point<3> pp;
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = point[2];
             return scatter_2D_interpolation(T, function_values, pp);
         }
-        else if (sci_type == 1){
+        else if (sci_type == 1){// HORIZONTAL 3D INTERPOLATION
             Point<3> pp;
             pp[0] = point[0];
             pp[1] = point[1];
             pp[2] = 0;
             return scatter_2D_interpolation(T, function_values, pp);
         }
-        else if (sci_type == 2){
+        else if (sci_type == 2){// VERTICAL INTERPOLATION
             if (!Stratified){
                 std::cerr << "Not implemented yet, but its easy to do so" << std::endl;
                 return 0;
@@ -343,25 +343,26 @@ double ScatterInterp<dim>::interp_V1D_stratified(double z, double t, int ind)con
         else{
             v_temp = V_1D[ind][i]*(1-t) + V_1D[ind+1][i]*t;
         }
+
+        if (push_v){
+            v.push_back(v_temp);
+            push_v = false;
+        }
+        else{
+            el.push_back(v_temp);
+            push_v = true;
+        }
     }
 
-    if (push_v){
-        v.push_back(v_temp);
-        push_v = false;
-    }
-    else{
-        el.push_back(v_temp);
-        push_v = true;
-    }
 
-    if (z <= el[0])
+    if (z >= el[0])
         return v[0];
-    else if (z >= el[el.size()-1])
+    else if (z <= el[el.size()-1])
         return v[v.size()-1];
     else{
         for (unsigned int i = 0; i < el.size()-1; ++i){
-            if (z >= el[i] && z <= el[i+1]){
-                double u = (z - el[i])/(el[i+1] - el[i]);
+            if (z >= el[i+1] && z <= el[i]){
+                double u = (z - el[i+1])/(el[i] - el[i+1]);
                 return v[i]*(1-u) + v[i+1]*u;
             }
         }

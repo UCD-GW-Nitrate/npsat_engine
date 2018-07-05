@@ -203,18 +203,46 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
         }
 
         bool p_found = false;
-        if (point[2] > z[0]){
+        if (point[2] >= z[0]){
             result = v[0];
             p_found = true;
         }
-        if (point[2] < z[Nlay - 2] && !p_found){
+        if (point[2] <= z[Nlay - 2] && !p_found){
             result = v[Nlay-1];
             p_found = true;
         }
         if (!p_found){
+
+            // Constant cell interpolation
+            /*
             for (unsigned int k = 0; k < z.size()-1; ++k){
-                if (point[2] <= z[k] && point[2] > z[k+1]){
+                if (point[2] <= z[k] && point[2] > z[k+1])
                     result = v[k+1];
+            }
+            */
+
+            // interpolate between cells
+            for (unsigned int k = 0; k < z.size(); ++k){
+                double mid_ztop, mid_zbot, val_top, val_bot;
+                if (k == 0){
+                    mid_ztop = z[k];
+                    mid_zbot = (z[k] + z[k+1]) / 2.0;
+                }
+                else if (k == z.size()-1){
+                    mid_ztop = (z[k-1] + z[k]) / 2.0;
+                    mid_zbot = z[k];
+                }
+                else{
+                    mid_ztop = (z[k-1] + z[k]) / 2.0;
+                    mid_zbot = (z[k+1] + z[k]) / 2.0;
+                }
+                val_top = v[k];
+                val_bot = v[k+1];
+
+                if (point[2] <= mid_ztop && point[2] >= mid_zbot){
+                    double u = (point[2] - mid_zbot)/(mid_ztop - mid_zbot);
+                    result = val_bot*(1-u) + val_top*u;
+                    break;
                 }
             }
         }

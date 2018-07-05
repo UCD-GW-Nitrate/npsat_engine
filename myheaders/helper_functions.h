@@ -117,6 +117,10 @@ bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
     return mapping_done;
 }
 
+double distance_2_points(double px1, double py1, double px2, double py2){
+    return std::sqrt((px1-px2)*(px1-px2)+(py1-py2)*(py1-py2));
+}
+
 /*!
  * \brief distance_on_2D_line projects the point (px, py) onto line and returns the distance from the first point
  * \param l1x
@@ -136,7 +140,8 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
     double dot = e1x*e2x + e1y*e2y;
     double ppx = l1x + dot*e1x/len2;
     double ppy = l1y + dot*e1y/len2;
-    double dst = sqrt((ppx-l1x)*(ppx-l1x)+(ppy-l1y)*(ppy-l1y));
+    double dst = distance_2_points(ppx, ppy, l1x, l1y);
+    //double dst = sqrt((ppx-l1x)*(ppx-l1x)+(ppy-l1y)*(ppy-l1y));
     double t = (ppx - l1x)/(l2x-l1x);
     if (t<0)
         return -dst;
@@ -144,6 +149,8 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
         return dst;
 }
 
+//! distance_point_line calculates the distance between a point and a line segment.
+//! If the projection of the point to the line falls outside the line segment then the distances is negated
 double distance_point_line(double px, double py, // Point coordinates
                            double l1x, double l1y, // first point of line
                            double l2x, double l2y){ // second point of line
@@ -159,7 +166,8 @@ double distance_point_line(double px, double py, // Point coordinates
 
     double t = (ppx - l1x)/(l2x-l1x);
 
-    double dst = sqrt((ppx-px)*(ppx-px)+(ppy-py)*(ppy-py));
+    double dst = distance_2_points(ppx, ppy, px, py);
+    //double dst = sqrt((ppx-px)*(ppx-px)+(ppy-py)*(ppy-py));
     if (t <0 || t > 1){
         dst = -dst;
     }

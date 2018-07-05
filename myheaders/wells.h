@@ -272,6 +272,11 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
             inp >> top;
             inp >> bot;
             inp >> Q;
+
+            if (top - bot <= 0){
+                std::cerr << "Well " << i << " has " << top-bot << " screen length" << std::endl;
+            }
+
             Point<dim> p_top;
             Point<dim> p_bot;
             if (dim == 2){
@@ -628,6 +633,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         for (unsigned int q_point = 0; q_point < temp_quadrature.size(); ++q_point){
                             for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
                                 double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
+                                std::cout << i << " : " << Q_temp << std::endl;
                                 cell_rhs_wells(ii) += Q_temp;
                                 Qwell_total += Q_temp;
                             }

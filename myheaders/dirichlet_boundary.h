@@ -343,6 +343,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 Point<dim> x1 = cell->face(iface)->vertex(0);
                                 if (abs(x1[0] - boundary_parts[i].Xcoords[0]) < 0.01){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    break;
                                 }
                             }
                             else if (boundary_parts[i].TYPE == "TOP" && cell->face(iface)->boundary_id() == 3){
@@ -364,6 +365,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 if (assign_this){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
                                     add_id(top_boundary_ids, JJ+i);
+                                    break;
                                 }
                             }
                             else if (boundary_parts[i].TYPE == "BOT" && cell->face(iface)->boundary_id() == 2){
@@ -385,6 +387,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 if (assign_this){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
                                     add_id(bottom_boundary_ids, JJ+i);
+                                    break;
                                 }
                             }
                         }
@@ -411,6 +414,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                         add_id(top_boundary_ids, JJ+i);
                                     else if (boundary_parts[i].TYPE == "BOT")
                                         add_id(bottom_boundary_ids, JJ+i);
+                                    break;
                                 }
                             }
                             else if (boundary_parts[i].TYPE == "EDGE" && (
@@ -420,30 +424,74 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                          cell->face(iface)->boundary_id() == 3) )
                             {
 
-                                double x1,y1,x2,y2,x3,y3,x4,y4;
-                                x1 = boundary_parts[i].Xcoords[0]; y1 = boundary_parts[i].Ycoords[0];
-                                x2 = boundary_parts[i].Xcoords[1]; y2 = boundary_parts[i].Ycoords[1];
-                                double L = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+                                double lx1,ly1,lx2,ly2; // variables for storing the boundary coordinates
+                                double cx3,cy3,cx4,cy4; // variables for storing the cell face coordinates
+                                lx1 = boundary_parts[i].Xcoords[0]; ly1 = boundary_parts[i].Ycoords[0];
+                                lx2 = boundary_parts[i].Xcoords[1]; ly2 = boundary_parts[i].Ycoords[1];
+                                //double L = sqrt(pow(lx2 - lx1, 2) + pow(ly2 - ly1, 2));
 
-                                double z3, z4;
-                                x3 = cell->face(iface)->vertex(0)[0]; y3 = cell->face(iface)->vertex(0)[1]; z3 = cell->face(iface)->vertex(0)[2];
-                                x4 = cell->face(iface)->vertex(1)[0]; y4 = cell->face(iface)->vertex(1)[1]; z4 = cell->face(iface)->vertex(1)[2];
-                                if (Point<2>(x3,y3).distance(Point<2>(x4,y4)) < 0.01){
-                                    x4 = cell->face(iface)->vertex(2)[0]; y4 = cell->face(iface)->vertex(2)[1]; z4 = cell->face(iface)->vertex(2)[2];
+                                double cz3, cz4;// z variables are used only fo debuging
+                                cx3 = cell->face(iface)->vertex(0)[0]; cy3 = cell->face(iface)->vertex(0)[1]; cz3 = cell->face(iface)->vertex(0)[2];
+                                cx4 = cell->face(iface)->vertex(1)[0]; cy4 = cell->face(iface)->vertex(1)[1]; cz4 = cell->face(iface)->vertex(1)[2];
+
+
+                                // Sometimes the faces are oriented in such a way that vertices 0 and 1 have the same x and y coordinates
+                                // In such cases we use the 2nd point
+                                if (Point<2>(cx3,cy3).distance(Point<2>(cx4,cy4)) < 0.1){
+                                    cx4 = cell->face(iface)->vertex(2)[0]; cy4 = cell->face(iface)->vertex(2)[1]; cz4 = cell->face(iface)->vertex(2)[2];
                                 }
-                                //std::cout << "plot([" << x1 << " " << x2 << "],[" << y1 << " " << y2 << "],'o-g');" << std::endl;
-                                //std::cout << "plot([" << x3 << " " << x4 << "],[" << y3 << " " << y4 << "],'.-r');" << std::endl;
-                                //std::cout << z3 << " , " << z4 << std::endl;
 
-                                double dst3 = abs((x2 - x1)*(y1 - y3) - (x1 - x3)*(y2 - y1))/L;
-                                if (dst3 < 0.001){
-                                    double dst4 = abs((x2 - x1)*(y1 - y4) - (x1 - x4)*(y2 - y1))/L;
-                                    if (dst4 < 0.001){
-                                        // the face is colinear with the boundary
-                                        CGAL::Segment_2< exa_Kernel > segm(exa_Point2(x1,y1),exa_Point2(x2,y2));
-                                        if (segm.collinear_has_on(exa_Point2(x3,y3)) || segm.collinear_has_on(exa_Point2(x4,y4))){
+                                /*
+                                if (std::abs(cy3 - 200) < 1 || std::abs(cy4 - 200) < 1){
+                                    std::cout << "this face should be assigned a BC" << std::endl;
+
+                                    std::cout << "plot([" << lx1 << " " << lx2 << "],[" << ly1 << " " << ly2 << "],'o-g');" << std::endl;
+                                    std::cout << "plot([" << cx3 << " " << cx4 << "],[" << cy3 << " " << cy4 << "],'.-r');" << std::endl;
+                                    std::cout << cz3 << " , " << cz4 << std::endl;
+                                    double a = 0;
+                                    if (a > cz3)
+                                        std::cout << "DO nothing" << std::endl;
+                                    else
+                                        std::cout << " DO alos nothing" << std::endl;
+                                }
+                                */
+
+
+                                // Next we will calculate the distance of the two cell points from the boundary line
+                                double dst1 = distance_point_line(cx3,cy3,lx1,ly1,lx2,ly2);
+                                double dst2 = distance_point_line(cx4,cy4,lx1,ly1,lx2,ly2);
+
+                                // The cell face is collinear with the boundary line if the distances is very close to zero
+                                // and one of the two distances is positive.
+                                bool are_colinear = false;
+                                if (std::abs(dst1) < 20 && std::abs(dst2) < 20){
+                                    if ( !(dst1 < 0) || !(dst2 < 0)){
+                                        are_colinear = true;
+                                    }
+                                    else{ // It maybe possible due to numerical errors that the distances are both negative
+                                        // This can happen under two circumstances.
+                                        // 1) The boundary line is smaller than the cell face. This means that the boundary condition
+                                        //    lines have not been set correctly.
+                                        //    FUTURE VERSION OF THE CODE SHOULD ADDRESS THIS CASE
+                                        // 2) The boundary segment is identical with the cell face. Then it is possible that both points
+                                        //    of the cell may appear outside of the boundary by very small amount.
+
+                                        //====== Case 2 ======
+                                        {
+                                            double min_dst1 = std::min(distance_2_points(cx3,cy3,lx1,ly1),distance_2_points(cx3,cy3,lx2,ly2));
+                                            double min_dst2 = std::min(distance_2_points(cx4,cy4,lx1,ly1),distance_2_points(cx4,cy4,lx2,ly2));
+                                            if (min_dst1 < 0.1 && min_dst2 < 0.1){
+                                                are_colinear = true;
+                                            }
+                                        }
+                                    }
+                                    if (are_colinear){
+                                        // the face is colinear with the boundary however we will do an extra check using cgal methods
+                                        CGAL::Segment_2< exa_Kernel > segm(exa_Point2(lx1,ly1),exa_Point2(lx2,ly2));
+                                        if (segm.collinear_has_on(exa_Point2(cx3,cy3)) || segm.collinear_has_on(exa_Point2(cx4,cy4))){
                                             cell->face(iface)->set_all_boundary_ids(JJ+i);
-                                            print_cell_face_matlab<dim>(cell,iface);
+                                            //print_cell_face_matlab<dim>(cell,iface);
+                                            break;
                                         }
                                     }
                                 }
