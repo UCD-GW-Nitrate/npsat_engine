@@ -1350,8 +1350,11 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
 
         if (top_elev.Np > 0 && top_elev.Nel > 0){
             // sometimes the processor does not own any part of the top or bottom
-            if (std::abs(temp_point[0]-55000.0) < 0.1 && std::abs(temp_point[1]-60944.7) < 0.1){//1451.53
+            if ((std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 1451.53) < 0.1) ||
+                (std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 60944.7) < 0.1)){//1451.53 60944.7
                 bool debug_this = true;
+                int ii = 3;
+                dummy_function(debug_this, ii);
             }
             bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
             if (point_found){

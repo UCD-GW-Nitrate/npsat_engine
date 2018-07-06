@@ -153,7 +153,7 @@ template <int dim>
 bool mix_mesh<dim>::interpolate_on_nodes(Point<dim> p, std::vector<double>& values){
 
     for (unsigned int i = 0; i < dim; ++i){
-        if (p[i] < MIN[i] || p[i] > MAX[i]){
+        if (p[i] < MIN[i] - 0.5 || p[i] > MAX[i] + 0.5){
             return false;
         }
     }

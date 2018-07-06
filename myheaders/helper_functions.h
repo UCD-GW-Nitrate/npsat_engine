@@ -466,6 +466,18 @@ void print_cell_face_matlab(typename dealii::Triangulation<dim>::active_cell_ite
     }
 }
 
+void dummy_function(bool in, int &ii){
+    ii = 1;
+    if (in){
+        std::cout << "Input is true" << std::endl;
+        ii = ii + 1;
+    }
+    else{
+        std::cout << "Input is false" << std::endl;
+        ii = ii - 1;
+    }
+}
+
 
 /*
 template <int dim>
