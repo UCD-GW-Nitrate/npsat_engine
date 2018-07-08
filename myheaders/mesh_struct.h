@@ -92,6 +92,9 @@ public:
     //! In other words: <dof> - <xy_index, z_index>
     std::map<int,std::pair<int,int> > dof_ij;
 
+    //! This is a Map that holds the dof of the locally owned dofs and their elevation
+    std::map<int, double> local_dof;
+
     //! this is a cgal container of the points of this class stored in an optimized way for spatial queries
     //! based on CGAL classes
     PointSet2 CGALset;
@@ -209,7 +212,7 @@ private:
 
     void respect_hanging_nodes();
 
-    void dependency_scan(std::map<int, std::vector<int> > &dep, std::map<int, std::vector<int> > &ord);
+    //void dependency_scan(std::map<int, std::vector<int> > &dep, std::map<int, std::vector<int> > &ord);
 };
 
 template <int dim>
@@ -384,7 +387,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                     //pcout << "dir:" << dir << ", idof:" << idof << ", cur_dof:" << current_dofs[dir]
                     //      <<   ", cur_nd:" << current_node[dir] << ", spi:" << support_point_index << std::endl;
                 }
-                // We have now loop throught dofs of a given cell point and we initialize a trianode
+                // We have now loop throught dims of a given cell point and we initialize a trianode
                 trianode<dim> temp;
                 temp.pnt = current_node;
                 temp.dof = current_dofs[dim-1];
@@ -406,6 +409,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                     }
                 }
                 curr_cell_info[idof] = temp;
+                if (temp.islocal)
+                    local_dof.insert(std::pair<int,double>(temp.dof, temp.pnt[dim-1]));
             }
 
             typename std::map<int, trianode<dim> >::iterator it;
@@ -666,6 +671,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     }
 
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "second", my_rank);
+    //dbg_meshStructInfo3D("Third", my_rank);
     std::clock_t end_t = std::clock();
     double elapsed_secs = double(end_t - begin_t)/CLOCKS_PER_SEC;
     //std::cout << "====================================================" << std::endl;
@@ -682,6 +688,7 @@ void Mesh_struct<dim>::reset(){
     PointsMap.clear();
     dof_ij.clear();
     CGALset.clear();
+    local_dof.clear();
 }
 
 template <int dim>
@@ -698,7 +705,7 @@ void Mesh_struct<dim>::n_vertices(int myrank){
 template <int dim>
 void Mesh_struct<dim>::dbg_meshStructInfo2D(std::string filename, unsigned int my_rank){
     const std::string log_file_name = (filename	+ "_" +
-                                       Utilities::int_to_string(my_rank+1, 4) +
+                                       Utilities::int_to_string(my_rank, 4) +
                                        ".txt");
      std::ofstream log_file;
      log_file.open(log_file_name.c_str());
@@ -726,7 +733,7 @@ void Mesh_struct<dim>::dbg_meshStructInfo2D(std::string filename, unsigned int m
 template <int dim>
 void Mesh_struct<dim>::dbg_meshStructInfo3D_point(Point<dim> p, std::string name, unsigned int my_rank){
     const std::string log_file_name = (folder_Path + prefix + "_" + name + "_pnt_" +
-                                       Utilities::int_to_string(my_rank+1, 4) +
+                                       Utilities::int_to_string(my_rank, 4) +
                                        ".txt");
     std::ofstream log_file;
     log_file.open(log_file_name.c_str());
@@ -772,7 +779,7 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D_point(Point<dim> p, std::string name
 template <int dim>
 void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string name, unsigned int my_rank){
     const std::string log_file_name = (folder_Path + prefix + "_" + name + "_pnt_" +
-                                       Utilities::int_to_string(my_rank+1, 4) +
+                                       Utilities::int_to_string(my_rank, 4) +
                                        ".txt");
      std::ofstream log_file;
      log_file.open(log_file_name.c_str());
@@ -957,11 +964,11 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             else{
                                 count_not_set++;
                             }
-                        }//-----------------------IS HANGING-------------------------------
+                        }//-----------------------IS NOT HANGING-------------------------------
                         else{
                             if (!itz->Top.isSet){
                                 // Check if the top is local
-                                if (itz->Top.proc == static_cast<int>(my_rank)){
+                                if (local_dof.find(itz->Top.dof) != local_dof.end() /*itz->Top.proc == static_cast<int>(my_rank)*/){
                                     it_ij = dof_ij.find(itz->Top.dof);
                                     if (it_ij != dof_ij.end()){
                                         if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
@@ -970,7 +977,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                         }
                                     }
                                     else{
-                                        std::cerr << "Node with id " << itz->Top.dof << " is local for proc " << my_rank << " but was not found" << std::endl;
+                                        std::cerr << "The node " << itz->dof << " seems to have local Top " << itz->Top.dof << " for proc " << my_rank << " but was not found" << std::endl;
                                     }
                                 }
                                 else{
@@ -989,7 +996,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
                             if (!itz->Bot.isSet){
                                 // Check if the bottom is local
-                                if (itz->Bot.proc == static_cast<int>(my_rank)){
+                                if (local_dof.find(itz->Bot.dof) != local_dof.end()/*itz->Bot.proc == static_cast<int>(my_rank)*/){
                                     it_ij = dof_ij.find(itz->Bot.dof);
                                     if (it_ij != dof_ij.end()){
                                         if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
@@ -998,7 +1005,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                         }
                                     }
                                     else{
-                                        std::cerr << "Node with id " << itz->Bot.dof << " is local for proc " << my_rank << " but was not found" << std::endl;
+                                        std::cerr << "The node " << itz->dof <<  " seems to have local Bottom "  << itz->Bot.dof << " for proc " << my_rank << " but was not found" << std::endl;
                                     }
                                 }
                                 else{
@@ -1042,7 +1049,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         if (dbg_cnt == 20){
             std::cout << "updateMeshElevation didnt converge after 20 iterations" << std::endl;
 
-            std::string mesh_err_file = ("mesh_error" + Utilities::int_to_string(my_rank+1, 4) + ".txt");
+            std::string mesh_err_file = ("mesh_error" + Utilities::int_to_string(my_rank, 4) + ".txt");
             std::ofstream mesh_err_stream;
             mesh_err_stream.open(mesh_err_file);
             for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
@@ -1350,12 +1357,12 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
 
         if (top_elev.Np > 0 && top_elev.Nel > 0){
             // sometimes the processor does not own any part of the top or bottom
-            if ((std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 1451.53) < 0.1) ||
-                (std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 60944.7) < 0.1)){//1451.53 60944.7
-                bool debug_this = true;
-                int ii = 3;
-                dummy_function(debug_this, ii);
-            }
+            //if ((std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 1451.53) < 0.1) ||
+            //    (std::abs(temp_point[0] - 55000.0) < 0.2 && std::abs(temp_point[1] - 60944.7) < 0.1)){//1451.53 60944.7
+            //    bool debug_this = true;
+            //    int ii = 3;
+            //    dummy_function(debug_this, ii);
+            //}
             bool point_found = top_elev.interpolate_on_nodes(temp_point,values);
             if (point_found){
                 it->second.T = values[0];
@@ -1537,6 +1544,7 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
 
 }
 
+
 template <int dim>
 void Mesh_struct<dim>::respect_hanging_nodes(){
     //First collect all elevations from the other processors
@@ -1574,6 +1582,8 @@ void Mesh_struct<dim>::respect_hanging_nodes(){
     }
 }
 
+
+/*
 template <int dim>
 void Mesh_struct<dim>::dependency_scan(std::map<int, std::vector<int>> &dep, std::map<int, std::vector<int>> &ord){
     std::cout << "dependency scan..." << std::endl;
@@ -1603,6 +1613,7 @@ void Mesh_struct<dim>::dependency_scan(std::map<int, std::vector<int>> &dep, std
         }
     }
 }
+*/
 
 
 #endif // MESH_STRUCT_H

@@ -430,15 +430,15 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 lx2 = boundary_parts[i].Xcoords[1]; ly2 = boundary_parts[i].Ycoords[1];
                                 //double L = sqrt(pow(lx2 - lx1, 2) + pow(ly2 - ly1, 2));
 
-                                double cz3, cz4;// z variables are used only fo debuging
-                                cx3 = cell->face(iface)->vertex(0)[0]; cy3 = cell->face(iface)->vertex(0)[1]; cz3 = cell->face(iface)->vertex(0)[2];
-                                cx4 = cell->face(iface)->vertex(1)[0]; cy4 = cell->face(iface)->vertex(1)[1]; cz4 = cell->face(iface)->vertex(1)[2];
+                                //double cz3, cz4;// z variables are used only fo debuging
+                                cx3 = cell->face(iface)->vertex(0)[0]; cy3 = cell->face(iface)->vertex(0)[1]; //cz3 = cell->face(iface)->vertex(0)[2];
+                                cx4 = cell->face(iface)->vertex(1)[0]; cy4 = cell->face(iface)->vertex(1)[1]; //cz4 = cell->face(iface)->vertex(1)[2];
 
 
                                 // Sometimes the faces are oriented in such a way that vertices 0 and 1 have the same x and y coordinates
                                 // In such cases we use the 2nd point
                                 if (Point<2>(cx3,cy3).distance(Point<2>(cx4,cy4)) < 0.1){
-                                    cx4 = cell->face(iface)->vertex(2)[0]; cy4 = cell->face(iface)->vertex(2)[1]; cz4 = cell->face(iface)->vertex(2)[2];
+                                    cx4 = cell->face(iface)->vertex(2)[0]; cy4 = cell->face(iface)->vertex(2)[1]; //cz4 = cell->face(iface)->vertex(2)[2];
                                 }
 
                                 /*

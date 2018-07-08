@@ -279,6 +279,7 @@ void NPSAT<dim>::solve_refine(){
             flag_cells_for_refinement();
             do_refinement1();
 
+            mesh_struct.prefix = "iter" + std::to_string(iter);
             mesh_struct.updateMeshStruct(mesh_dof_handler,
                                          mesh_fe,
                                          mesh_constraints,
@@ -291,7 +292,6 @@ void NPSAT<dim>::solve_refine(){
                                          mpi_communicator, pcout);
 
             mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
-            mesh_struct.prefix = "iter" + std::to_string(iter);
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
                                             mesh_constraints,
