@@ -101,6 +101,8 @@ private:
     void create_dim_1_grids();
     void flag_cells_for_refinement();
     void print_mesh();
+    void save_solution();
+    void load_solution();
 
 
 };
@@ -305,6 +307,7 @@ void NPSAT<dim>::solve_refine(){
 
         }
     }
+    save_solution();
 }
 
 template <int dim>
@@ -666,7 +669,17 @@ void NPSAT<dim>::print_mesh(){
         std::ofstream pvtu_master (pvtu_master_filename.c_str());
         data_out.write_pvtu_record(pvtu_master, filenames);
     }
+}
 
+template <int dim>
+void NPSAT<dim>::save_solution(){
+    std::vector<const TrilinosWrappers::MPI::Vector *> x_system(1);
+    x_system[0] = &locally_relevant_solution;
+
+    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> solution_tranfser(dof_handler);
+    solution_tranfser.prepare_serialization(x_system);
+    std::string outfile = AQProps.Dirs.output + AQProps.sim_prefix + ".sol";
+    triangulation.save(outfile.c_str());
 }
 
 #endif // NPSAT_H

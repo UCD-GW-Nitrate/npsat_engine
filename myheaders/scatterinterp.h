@@ -323,7 +323,7 @@ void ScatterInterp<dim>::interp_X1D(double x, int &ind, double &t)const{
         for (unsigned int i = 0; i < X_1D.size()-1; ++i){
             if (x >= X_1D[i] && x <= X_1D[i+1]){
                 t = (x - X_1D[i]) / (X_1D[i+1] - X_1D[i]);
-                ind = i;
+                ind = static_cast<int>(i);
                 break;
             }
         }
@@ -363,7 +363,7 @@ double ScatterInterp<dim>::interp_V1D_stratified(double z, double t, int ind)con
         for (unsigned int i = 0; i < el.size()-1; ++i){
             if (z >= el[i+1] && z <= el[i]){
                 double u = (z - el[i+1])/(el[i] - el[i+1]);
-                return v[i]*(1-u) + v[i+1]*u;
+                return v[i+1]*(1-u) + v[i]*u;
             }
         }
     }
