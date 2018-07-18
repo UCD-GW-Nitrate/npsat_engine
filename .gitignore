@@ -31,6 +31,23 @@
 #unignore the *.m files
 !/matlab/*.m
 
+# unignore the Doc folder =========Doc========
+!/Doc
+# now ignore all the content of the folder
+/Doc/*
+#unignore doxygen parameter file
+!doxy_npsat.txt
+
+# unignore the Logo folder =========Logo========
+!/Logo
+# now ignore all the content of the folder
+/Logo/*
+#unignore code files
+!/Logo/*.cc
+!/Logo/*.m
+!/Logo/*.txt
+!/Logo/*.png
+
 
 # unignore the example folder =========Examples========
 !/examples
