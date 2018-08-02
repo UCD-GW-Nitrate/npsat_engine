@@ -330,15 +330,15 @@ void Streams<dim>::create_river_outline(std::vector<double>& xx,
     }
     else if(abs(A[0] - B[0]) < 0.1){// if the river is vertical
         xx.push_back(A[0]-width);    yy.push_back(A[1]);
-        xx.push_back(A[0]+width);    yy.push_back(A[1]);
-        xx.push_back(B[0]-width);    yy.push_back(B[1]);
+        xx.push_back(A[0]-width);    yy.push_back(B[1]);
         xx.push_back(B[0]+width);    yy.push_back(B[1]);
+        xx.push_back(B[0]+width);    yy.push_back(A[1]);
     }
     else if (abs(A[1] - B[1]) < 0.1) {
         xx.push_back(A[0]);    yy.push_back(A[1]-width);
         xx.push_back(A[0]);    yy.push_back(A[1]+width);
-        xx.push_back(B[0]);    yy.push_back(B[1]-width);
         xx.push_back(B[0]);    yy.push_back(B[1]+width);
+        xx.push_back(B[0]);    yy.push_back(B[1]-width);
     }
     else{
         // find slope and intercept

@@ -83,11 +83,11 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 2
+  set d Well Refinement         = 0
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 2
+  set e Stream Refinement       = 0
 end
 
 
@@ -161,7 +161,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 10
+  set a Max refinements iterations = 3
 
   # b----------------------------------
   # Top refinement fraction
