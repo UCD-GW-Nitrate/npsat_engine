@@ -1161,7 +1161,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         dbg_cnt++;
     }
     //dbg_meshStructInfo3D("Third", my_rank);
-    respect_hanging_nodes();
+    //respect_hanging_nodes();
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 
     MPI_Barrier(mpi_communicator);

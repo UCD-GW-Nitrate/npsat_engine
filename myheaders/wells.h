@@ -418,6 +418,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
         if (cell->is_locally_owned()){
             std::vector<int> well_id_in_cell;
             std::vector<double> xp; std::vector<double> yp;
+            //double xm,ym;
             if (dim == 2){
                 xp.push_back(cell->face(2)->vertex(0)[0]);yp.push_back(0);
                 xp.push_back(cell->face(2)->vertex(1)[0]);yp.push_back(0);
@@ -427,7 +428,23 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 xp.push_back(cell->face(4)->vertex(1)[0]); yp.push_back(cell->face(4)->vertex(1)[1]);
                 xp.push_back(cell->face(4)->vertex(3)[0]); yp.push_back(cell->face(4)->vertex(3)[1]);
                 xp.push_back(cell->face(4)->vertex(2)[0]); yp.push_back(cell->face(4)->vertex(2)[1]);
+                //xm = 0;ym = 0;
+                //for (unsigned int kk = 0; kk < xp.size(); kk++){
+                //    xm += xp[kk];
+                //    ym += yp[kk];
+                //}
+                //xm = xm/static_cast<double>(xp.size());
+                //ym = ym/static_cast<double>(xp.size());
             }
+            //std::cout << xm << " " << ym << std::endl;
+            //double dst = std::sqrt(std::pow(xm - 33474.74070, 2.0) + std::pow(ym - 1027.05735, 2.0));
+            //std::cout << dst << std::endl;
+            //if (dst < 1.0){
+            //    std::cout << "You should really check this cell" << std::endl;
+            //    int a = 0;
+            //    dummy_function(true,a);
+            //}
+
             bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
             if (!are_wells)
                 continue;
@@ -594,7 +611,9 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     // Now each processor will loop though the wells.
     // if there are well with owned == true we will distribute the pumping rate to all cells
     // even to those that have owned == false but we will assign rates only to the owned == true
+    //int Cnt_wellsQ = 0;
     for (int i = 0; i < Nwells; ++i){
+        //double Qwell_temp = 0;
         //std::cout << "well-> i: " << i << " wid:  " << wells[i].well_id << " pnt: " << wells[i].bottom << std::endl;
         bool any_true = false;
         int N_cells = wells[i].owned.size();
@@ -636,6 +655,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                 //std::cout << i << " : " << Q_temp << std::endl;
                                 cell_rhs_wells(ii) += Q_temp;
                                 Qwell_total += Q_temp;
+                                //Qwell_temp += Q_temp;
                             }
                         }
                         wells[i].well_cells[j]->get_dof_indices (local_dof_indices);
@@ -646,7 +666,16 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 }
             }
         }
+
+        //if (std::abs(Qwell_temp) > 0){
+        //    Cnt_wellsQ++;
+        //}
+        //else{
+        //    std::cout << "Well " << wells[i].well_id << " at " << wells[i].top << " has zero Q" << std::endl;
+        //}
+
     }
+    //std::cout << "Wells with pumping rates: " << Cnt_wellsQ << std::endl;
     MPI_Barrier(mpi_communicator);
     sum_scalar<double>(Qwell_total,n_proc, mpi_communicator, MPI_DOUBLE);
     if (my_rank == 0)

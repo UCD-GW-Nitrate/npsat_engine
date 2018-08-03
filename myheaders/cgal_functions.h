@@ -263,10 +263,29 @@ bool get_point_ids_in_set(PointSet2& Pset, std::vector<double>& xp, std::vector<
     std::list<Vertex_handle> LV;
 
     if (xp.size() == 4 && yp.size() == 4){
-        ine_Point2 p1(xp[0], yp[0]);
-        ine_Point2 p2(xp[1], yp[1]);
-        ine_Point2 p3(xp[2], yp[2]);
-        ine_Point2 p4(xp[3], yp[3]);
+        double xmin, xmax, ymin, ymax;
+        xmin = 99999999999.9;
+        xmax = -99999999999.9;
+        ymin = 99999999999.9;
+        ymax = -99999999999.9;
+        for (unsigned int i = 0; i < xp.size(); ++i){
+            if (xp[i] < xmin)
+                xmin = xp[i];
+            if (xp[i] > xmax)
+                xmax = xp[i];
+            if (yp[i] < ymin)
+                ymin = yp[i];
+            if (yp[i] > ymax)
+                ymax = yp[i];
+        }
+        ine_Point2 p1(xmin, ymax);
+        ine_Point2 p2(xmin, ymin);
+        ine_Point2 p3(xmax, ymin);
+        ine_Point2 p4(xmax, ymax);
+        // a is the upper left point,
+        // b the lower left,
+        // c the lower right and
+        // d the upper right point of the iso rectangle
         Pset.range_search(p1,p2,p3,p4, std::back_inserter(LV));
     }
     else if(xp.size() == 2 && yp.size() == 2){

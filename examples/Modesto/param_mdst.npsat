@@ -83,11 +83,11 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 0
+  set e Stream Refinement       = 2
 end
 
 
