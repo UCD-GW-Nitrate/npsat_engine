@@ -44,26 +44,30 @@ public:
      * \return True upon successful reading
      *
      * The format of the file is
-     * N_seg = the number of line segments that corresponds to each stream with uniform width and rate
+     * N_seg = the number of river segments
      *
      * Repeat N_seg lines the following:
      *
-     * X_start Y_start X_end Y_end Q_rate Width
+     * N_points Q_rate [Width]
      *
-     * where:
+     * where N_points is the number of points associated with the segment,
+     * Q_rate is the recharge rate of water that is dischagred/recharged in the aquifer [L/T]
+     * with is used only if N_points is 2, and represents the width of the river
      *
-     * -X_start, Y_start, X_end, Y_end are the coordinates of the two ends of the line segment
+     * The next N_points lines correspond to the coordinates of the rivel segment
      *
-     * -Q_rate is the recharge or discharge rate
+     * X_node Y_node
+     * .        .
+     * .        .
      *
-     * -Width is the width of the line segment. The width variable should correspond to the half of the actual width of the stream
      */
+
     bool read_streams(std::string namefile);
     //! A list with the coordinates of the starting points of the stream.
     //! Note that it is not important which end is set as starting or ending pooint
-    std::vector<Point<dim-1>>    A;
+    //std::vector<Point<dim-1>>    A;
     //! A list with the coordinates of the ending points of the stream.
-    std::vector<Point<dim-1> >    B;
+    //std::vector<Point<dim-1> >    B;
     //! A list of the recharge or discharge rates
     std::vector<double>         Q_rate;
     //! A list of the stream line lenghts. These calculated by the program
@@ -83,7 +87,8 @@ public:
     //! A list of stream outlines. Each stream outline consists of a number of points which define the shape of the stream.
     //! Currently 4-point outlines is used i.e.
     //! Future version may allow users to define the shape of the rivers as polygons
-    std::vector<std::vector<Point<dim-1>>> river_outline;
+    //std::vector<std::vector<Point<dim-1>>> river_BBox;
+    //std::vector<std::vector<Point<dim-1>>> river_outline;
     //! This is a list of the maximum x point of each stream outline.
     //! It is used to define a bounding box for each stream segment to avoid unecessary computations.
     std::vector<double> Xmax;
@@ -95,9 +100,11 @@ public:
     std::vector<double> Ymax;
 
     //! A list of the X coordinates of the stream outlines
-    std::vector<std::vector<double> > Xoutline;
+    //! std::vector<std::vector<double> > Xoutline;
+    std::vector<std::vector<double> > Xpoly;
     //! A list of the Y coordinates of the stream outlines
-    std::vector<std::vector<double> > Youtline;
+    //std::vector<std::vector<double> > Youtline;
+    std::vector<std::vector<double> > Ypoly;
 
     //! Calculate the stream rate that corresponds to the point p
     //!
@@ -222,13 +229,13 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
             inp >> N_seg;
         }
         {// read the river segments info
-            A.resize(N_seg);
-            B.resize(N_seg);
+            //A.resize(N_seg);
+            //B.resize(N_seg);
             length.resize(N_seg);
             Q_rate.resize(N_seg);
             width.resize(N_seg);
-            Xoutline.resize(N_seg);
-            Youtline.resize(N_seg);
+            Xpoly.resize(N_seg);
+            Ypoly.resize(N_seg);
             Xmin.resize(N_seg);
             Xmax.resize(N_seg);
             Ymin.resize(N_seg);
@@ -236,22 +243,59 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
 
             double x, y, q, w;
             for (unsigned int i = 0; i < N_seg; ++i){
-                datafile.getline(buffer,512);
-                std::istringstream inp(buffer);
-                inp >> x; inp>> y;
-                A[i] = Point<dim-1>(x,y);
-                inp >> x; inp>> y;
-                B[i] = Point<dim-1>(x,y);
-                inp >> q;
-                Q_rate[i] = q;
-                length[i] = A[i].distance(B[i]);
-                inp >> w;
-                width[i] = w;
+                unsigned int N_points;
+                {
+                    datafile.getline(buffer,512);
+                    std::istringstream inp(buffer);
+                    inp >> N_points;
+                    inp >> q;
+                    Q_rate[i] = q;
+                    if (N_points == 2){
+                        inp >> w;
+                        width[i] = w;
+                    }
+                }
+
                 std::vector<double> xx;
                 std::vector<double> yy;
-                create_river_outline(xx, yy, A[i], B[i], width[i]);
-                Xoutline[i] = xx;
-                Youtline[i] = yy;
+
+                if (N_points == 2){
+                    Point<dim-1> A, B;
+                    {//Point A
+                        datafile.getline(buffer,512);
+                        std::istringstream inp(buffer);
+                        inp >> x; inp>> y;
+                        if (dim == 3){
+                            A[0] = x; A[1] = x;
+                        }
+                        else{
+                            std::cout << "Streams cannot be defined in problems other than 3D" << std::endl;
+                        }
+                    }
+                    {//Point B
+                        datafile.getline(buffer,512);
+                        std::istringstream inp(buffer);
+                        inp >> x; inp>> y;
+                        if (dim == 3){
+                            A[0] = x; A[1] = x;
+                        }
+                        else{
+                            std::cout << "Streams cannot be defined in problems other than 3D" << std::endl;
+                        }
+                    }
+                    create_river_outline(xx, yy, A, B, width[i]);
+                }
+                else{
+                    for (unsigned int j = 0; j < N_points; ++j){
+                        datafile.getline(buffer,512);
+                        std::istringstream inp(buffer);
+                        inp >> x; inp>> y;
+                        xx.push_back(x);
+                        yy.push_back(y);
+                    }
+                }
+                Xpoly[i] = xx;
+                Ypoly[i] = yy;
                 Xmin[i] = 100000000; Xmax[i] = -100000000;
                 Ymin[i] = 100000000; Ymax[i] = -100000000;
                 for (unsigned j = 0; j < xx.size(); ++j){
@@ -394,7 +438,7 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
         for (; it != unique_ids.end(); ++it){
             double d_xc, d_yc;
             try {
-                double area = polyXpoly(xp, yp, Xoutline[it->first], Youtline[it->first], d_xc, d_yc);
+                double area = polyXpoly(xp, yp, Xpoly[it->first], Ypoly[it->first], d_xc, d_yc);
                 ar +=area;
                 //std::cout << "Cell: ";
                 //print_poly_matlab(xp,yp);
