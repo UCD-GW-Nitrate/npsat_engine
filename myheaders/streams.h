@@ -73,7 +73,7 @@ public:
     //! A list of the stream line lenghts. These calculated by the program
     std::vector<double>         length;
     //! A list of the stream line widths.
-    std::vector<double>         width;
+    //std::vector<double>         width;
     //! A list of triangles
     ineTriangle_list            stream_triangles;
     //! A list of stream ids. The stream id depends by the order they are listed in the input file. It set by the program
@@ -233,7 +233,7 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
             //B.resize(N_seg);
             length.resize(N_seg);
             Q_rate.resize(N_seg);
-            width.resize(N_seg);
+            //width.resize(N_seg);
             Xpoly.resize(N_seg);
             Ypoly.resize(N_seg);
             Xmin.resize(N_seg);
@@ -250,10 +250,8 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                     inp >> N_points;
                     inp >> q;
                     Q_rate[i] = q;
-                    if (N_points == 2){
+                    if (N_points == 2)
                         inp >> w;
-                        width[i] = w;
-                    }
                 }
 
                 std::vector<double> xx;
@@ -266,7 +264,7 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                         std::istringstream inp(buffer);
                         inp >> x; inp>> y;
                         if (dim == 3){
-                            A[0] = x; A[1] = x;
+                            A[0] = x; A[1] = y;
                         }
                         else{
                             std::cout << "Streams cannot be defined in problems other than 3D" << std::endl;
@@ -277,13 +275,13 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                         std::istringstream inp(buffer);
                         inp >> x; inp>> y;
                         if (dim == 3){
-                            A[0] = x; A[1] = x;
+                            B[0] = x; B[1] = y;
                         }
                         else{
                             std::cout << "Streams cannot be defined in problems other than 3D" << std::endl;
                         }
                     }
-                    create_river_outline(xx, yy, A, B, width[i]);
+                    create_river_outline(xx, yy, A, B, w);
                 }
                 else{
                     for (unsigned int j = 0; j < N_points; ++j){

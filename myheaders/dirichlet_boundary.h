@@ -121,6 +121,7 @@ public:
     * -# TOP
     * -# BOT
     * -# EDGE
+    * -# EDGETOP
     *
     * N is the number of points that discribes the geometry
     *
@@ -163,7 +164,7 @@ public:
     *
     * If the boundary TYPE is EDGE and the boundary indicator is (for the 3D case) 0, 1, 2 or 3 we test if this face is part of the boundary edge.
     * First we compute the distance between the boundary line and the vertices of the face. Since those faces are the vertical ones we can simply test
-    * the first two vertices. If the distance is less than a specified threshold we used CGAL munctions to test if there are
+    * the first two vertices. If the distance is less than a specified threshold we used CGAL functions to test if there are
     * overlapping parts between the two segments.
     */
     void assign_dirichlet_to_triangulation(parallel::distributed::Triangulation<dim>& triangulation,
@@ -417,12 +418,14 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     break;
                                 }
                             }
-                            else if (boundary_parts[i].TYPE == "EDGE" && (
+                            else if ((boundary_parts[i].TYPE == "EDGE" || boundary_parts[i].TYPE == "EDGETOP") && (
                                          cell->face(iface)->boundary_id() == 0 ||
                                          cell->face(iface)->boundary_id() == 1 ||
                                          cell->face(iface)->boundary_id() == 2 ||
                                          cell->face(iface)->boundary_id() == 3) )
                             {
+                                if (boundary_parts[i].TYPE == "EDGETOP" && !cell->face(5)->at_boundary())
+                                    continue;
 
                                 double lx1,ly1,lx2,ly2; // variables for storing the boundary coordinates
                                 double cx3,cy3,cx4,cy4; // variables for storing the cell face coordinates
@@ -452,7 +455,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     if (a > cz3)
                                         std::cout << "DO nothing" << std::endl;
                                     else
-                                        std::cout << " DO alos nothing" << std::endl;
+                                        std::cout << " DO also nothing" << std::endl;
                                 }
                                 */
 

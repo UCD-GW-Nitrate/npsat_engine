@@ -1,8 +1,10 @@
 function out = read_Scattered( filename, PDIM)
-% read_Scattered reads the scattered interpolation file
+% out = read_Scattered reads the scattered interpolation file
 % filename is the name of the file
+%
 % PDIM is the dimension of the points. This can be 1 or 2.
-% OUT is a structure with the following fields
+%
+% out is a structure with the following fields
 %   p the interpolation points
 %   v the values
 %   info information about the interpolation data
