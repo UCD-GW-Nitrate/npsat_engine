@@ -1,13 +1,13 @@
 function out = read_Scattered( filename, PDIM)
-% out = read_Scattered reads the scattered interpolation file
-% filename is the name of the file
+% out = read_Scattered( filename, PDIM) reads the scattered interpolation file
+% filename: is the name of the file
 %
-% PDIM is the dimension of the points. This can be 1 or 2.
+% PDIM: is the dimension of the points. This can be 1 or 2.
 %
-% out is a structure with the following fields
-%   p the interpolation points
-%   v the values
-%   info information about the interpolation data
+% out: is a structure with the following fields:
+%     p: the interpolation points
+%     v: the values
+%     info: information about the interpolation data
 
 fid = fopen(filename);
 interp_type = fgetl(fid);
