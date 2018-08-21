@@ -37,6 +37,8 @@ public:
 
     void copy_from(InterpInterface<dim> interp_in);
 
+    bool is_face_part_of_BND(Point<dim> A, Point<dim> B);
+
 private:
     //! The type of interpolation
     //! * 0 -> Constrant interpolation
@@ -63,7 +65,7 @@ InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
       TYPE(Interp_in.TYPE),
       CNI(Interp_in.CNI),
       SCI(Interp_in.SCI),
-      BND_LINE(Interp_in.BND)
+      BND_LINE(Interp_in.BND_LINE)
 {}
 
 
@@ -139,6 +141,15 @@ void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
     else if (TYPE == 1){
         SCI = interp_in.SCI;
     }
+}
+
+template <int dim>
+bool InterpInterface<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
+    if (TYPE == 2){
+        return BND_LINE.is_face_part_of_BND(A, B);
+    }
+    else
+        return false;
 }
 
 #endif // INTERPINTERFACE_H

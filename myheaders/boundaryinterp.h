@@ -16,10 +16,13 @@ public:
     BoundaryInterp();
 
     //! returns the interpolated value
-    double interpolate(Point<dim> p);
+    double interpolate(Point<dim> p)const;
 
     //! read data from file
     void get_data(std::string filename);
+
+    //! This will return true if the face defined by the two nodes is part of any segment of the boundary
+    bool is_face_part_of_BND(Point<dim> A, Point<dim> B);
 
 private:
 
@@ -67,7 +70,7 @@ void BoundaryInterp<dim>::get_data(std::string filename){
             std::string temp;
             inp >> temp;
             if (temp != "BOUNDARY_LINE"){
-                std::cerr << " ScatterInterp Cannot read " << temp << " data." << std::endl;
+                std::cerr << " BOUNDARY_LINE Cannot read " << temp << " data." << std::endl;
                 return;
             }
         }
@@ -77,6 +80,7 @@ void BoundaryInterp<dim>::get_data(std::string filename){
             std::istringstream inp(buffer);
             inp >> Npnts;
             inp >> Ndata;
+            inp >> tolerance;
             Pnts.resize(Npnts);
             Values.resize(Npnts);
             Length.resize(Npnts);
@@ -165,6 +169,63 @@ bool BoundaryInterp<dim>::isPoint_onBoundary(Point<dim> p){
     }
 
     return false;
+}
+
+template <int dim>
+bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
+    double lx1, ly1, lx2, ly2; // variables for storing the boundary coordinates
+    double cx3, cy3, cx4, cy4; // variables for storing the cell face coordinates
+
+    cx3 = A[0]; cy3 = A[1];
+    cx4 = B[0]; cy4 = B[1];
+    if (Point<2>(cx3,cy3).distance(Point<2>(cx4,cy4)) < 0.1){
+        std::cerr << " This face is too small. Maybe its an error" << std::endl;
+    }
+
+    for (unsigned int ii = 0; ii < Npnts - 1; ii++){
+        lx1 = Pnts[ii][0]; ly1 = Pnts[ii][1];
+        lx2 = Pnts[ii+1][0]; ly2 = Pnts[ii+1][1];
+
+        // Calculate the distance of the two cell points from the boundary line
+        double dst1 = distance_point_line(cx3,cy3,lx1,ly1,lx2,ly2);
+        double dst2 = distance_point_line(cx4,cy4,lx1,ly1,lx2,ly2);
+
+        // The cell face is collinear with the boundary line if the distances are very close to zero
+        // and one of the two distances is positive.
+        bool are_colinear = false;
+        if (std::abs(dst1) < 20 && std::abs(dst2) < tolerance){
+            if ( !(dst1 < 0) || !(dst2 < 0)){
+                are_colinear = true;
+            }
+            else {
+                // It may be possible due to numerical errors that the distances are both negative
+                // This can happen under two circumstances.
+                // 1) The boundary line is smaller than the cell face. This means that the boundary condition
+                //    lines have not been set correctly.
+                //    FUTURE VERSION OF THE CODE SHOULD ADDRESS THIS CASE
+                // 2) The boundary segment is identical with the cell face. Then it is possible that both points
+                //    of the cell may appear outside of the boundary by very small amount.
+
+                //====== Case 2 ======
+                { // Take care the second case
+                    double min_dst1 = std::min(distance_2_points(cx3,cy3,lx1,ly1),distance_2_points(cx3,cy3,lx2,ly2));
+                    double min_dst2 = std::min(distance_2_points(cx4,cy4,lx1,ly1),distance_2_points(cx4,cy4,lx2,ly2));
+                    if (min_dst1 < 0.1 && min_dst2 < 0.1){
+                        are_colinear = true;
+                    }
+                }
+            }
+        }
+        if (are_colinear){
+            return true;
+        }
+    }
+    return false;
+}
+
+template <int dim>
+double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
+    return 0.0;
 }
 
 
