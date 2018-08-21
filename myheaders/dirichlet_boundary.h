@@ -218,7 +218,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
             std::istringstream inp(buffer);
             inp >> boundary_parts[i].TYPE;
             if (dim == 2){
-                if (boundary_parts[i].TYPE == "EDGE"){// in 2D an EDGE is represented by one point
+                if (boundary_parts[i].TYPE == "EDGE" || boundary_parts[i].TYPE == "EDGETOP"){// in 2D an EDGE is represented by one point
                     double x;
                     inp >> x; boundary_parts[i].Xcoords.push_back(x);
                     boundary_parts[i].Ycoords.push_back(0.0);
@@ -282,7 +282,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     //DirFunctions.push_back(tempfnc);
                     DirFunctions[i].set_interpolant(interp_funct[i]);
                 }
-                else if (boundary_parts[i].TYPE == "EDGE"){// we read the value associated with the edge
+                else if (boundary_parts[i].TYPE == "EDGE" || boundary_parts[i].TYPE == "EDGETOP"){// we read the value associated with the edge
                     double x;
                     for (unsigned int iv = 0; iv < 2; ++iv){
                         datafile.getline(buffer,512);
@@ -328,7 +328,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
     for (unsigned int i = 0; i < DirFunctions.size(); ++i){
         dirichlet_boundary[JJ + i] = &DirFunctions[i];
     }
-
+    int cnt_bnd_id = 0;
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
     endc = triangulation.end();
@@ -492,7 +492,12 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                         // the face is colinear with the boundary however we will do an extra check using cgal methods
                                         CGAL::Segment_2< exa_Kernel > segm(exa_Point2(lx1,ly1),exa_Point2(lx2,ly2));
                                         if (segm.collinear_has_on(exa_Point2(cx3,cy3)) || segm.collinear_has_on(exa_Point2(cx4,cy4))){
+                                            if (JJ + i == 255 || JJ + i == 1279 || JJ + i == 1023 || JJ + i == 511 || JJ + i == 767)
+                                                continue;
+                                            std::cout << "Bnd indicator: " << JJ + i << " : " << cnt_bnd_id << std::endl;
+                                            cnt_bnd_id++;
                                             cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                            std::cout << "Asigned Bnd: " << static_cast<int>(cell->face(iface)->boundary_id()) << std::endl;
                                             //print_cell_face_matlab<dim>(cell,iface);
                                             break;
                                         }

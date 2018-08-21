@@ -8,6 +8,7 @@
 #include "constantinterp.h"
 #include "helper_functions.h"
 #include "scatterinterp.h"
+#include "boundaryinterp.h"
 
 using namespace dealii;
 
@@ -39,7 +40,8 @@ public:
 private:
     //! The type of interpolation
     //! * 0 -> Constrant interpolation
-    //! * 1-> Scattered interpolation
+    //! * 1 -> Scattered interpolation
+    //! * 2 -> Boundary Line interpolation
     unsigned int TYPE;
 
      //! Constant interpolation function
@@ -47,6 +49,9 @@ private:
 
      //! Container for scattered interpolation data
      ScatterInterp<dim> SCI;
+
+     //! Container for boundary line interpolation
+     BoundaryInterp<dim> BND_LINE;
 };
 
 template <int dim>
@@ -57,7 +62,8 @@ InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
     :
       TYPE(Interp_in.TYPE),
       CNI(Interp_in.CNI),
-      SCI(Interp_in.SCI)
+      SCI(Interp_in.SCI),
+      BND_LINE(Interp_in.BND)
 {}
 
 
@@ -88,6 +94,10 @@ void InterpInterface<dim>::get_data(std::string namefile){
                 TYPE = 1;
                 SCI.get_data(namefile);
             }
+            else if(type_temp == "BOUNDARY_LINE"){
+                TYPE = 2;
+                BND_LINE.get_data(namefile);
+            }
             else{
                 std::cerr << "Unknown interpolation method on " << namefile << std::endl;
             }
@@ -103,7 +113,10 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
     else if (TYPE == 1) {
         return SCI.interpolate(p);
     }
-    else if (TYPE == 2) {
+    else if (TYPE == 2){
+        return BND_LINE.interpolate(p);
+    }
+    else if (TYPE == 3) {
         std::cerr << "Not Implemented yet" << std::endl;
         return 0;
     }else{
