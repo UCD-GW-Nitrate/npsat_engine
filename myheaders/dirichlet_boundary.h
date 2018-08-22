@@ -444,6 +444,14 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     cx4 = cell->face(iface)->vertex(2)[0]; cy4 = cell->face(iface)->vertex(2)[1]; //cz4 = cell->face(iface)->vertex(2)[2];
                                 }
 
+                                /*{// Debug code
+                                    Point<2> dbg(32374.5,1359430);
+                                    if (dbg.distance(Point<2>(cx3,cy3)) < 100 || dbg.distance(Point<2>(cx4,cy4)) < 100){
+                                        int iii = 0;
+                                        dummy_function(true,iii);
+                                    }
+                                }*/
+
 
                                 if (boundary_parts[i].Xcoords.size() == 2){
                                     double lx1,ly1,lx2,ly2; // variables for storing the boundary coordinates

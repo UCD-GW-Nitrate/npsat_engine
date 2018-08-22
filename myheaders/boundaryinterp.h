@@ -6,6 +6,7 @@
 #include <deal.II/base/point.h>
 
 #include "helper_functions.h"
+#include "scatterinterp.h"
 
 using namespace dealii;
 
@@ -42,9 +43,11 @@ private:
     //! will be considered as part of the boundary
     double tolerance;
 
-    bool isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t);
+    bool isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t)const;
 
     bool isPoint_onBoundary(Point<dim> p);
+
+
 };
 
 
@@ -131,15 +134,15 @@ void BoundaryInterp<dim>::get_data(std::string filename){
 }
 
 template <int dim>
-bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t){
+bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) const{
 
     dst_t = -9999999999;
     if (iSeg >= Pnts.size() - 1)
         return false;
 
-    double dst = distance_point_line(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][2], Pnts[iSeg+1][0], Pnts[iSeg+1][2]);
+    double dst = distance_point_line(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
     double dstA = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
-    double dstB = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][0]);
+    double dstB = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
     double min_dst = std::min(dstA, dstB);
 
     if (std::abs(dst) < tolerance){
@@ -193,7 +196,7 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
         // The cell face is collinear with the boundary line if the distances are very close to zero
         // and one of the two distances is positive.
         bool are_colinear = false;
-        if (std::abs(dst1) < 20 && std::abs(dst2) < tolerance){
+        if (std::abs(dst1) < tolerance && std::abs(dst2) < tolerance){
             if ( !(dst1 < 0) || !(dst2 < 0)){
                 are_colinear = true;
             }
@@ -225,7 +228,49 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
 
 template <int dim>
 double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
-    return 0.0;
+
+    for (unsigned int i = 0; i < Npnts - 1; ++i){
+        double dst_t = 0;
+        if (isPoint_onSeg(p, i, dst_t)){
+            double t = dst_t/(Length[i+1] - Length[i]);
+            if (Ndata == 1){
+                //std::cout << "plot(" << p[0] << "," << p[1] << ",'xg')" << std::endl;
+                return Values[i][0] * (1-t) + Values[i+1][0]*t;
+            }
+            else{
+                std::cout << "WARNING: This part of the BoundaryInterp<dim>::interpolate has NOT been debuged" << std::endl;
+                std::cout << "The interpolations are more than likely wrong!!!" << std::endl;
+                double zup, zdown;
+                zup = Elevations[i][0] * t + Elevations[i+1][0]*(1-t);
+                if (p(2) > zup){
+                    return Values[i][0] * t + Values[i+1][0]*(1-t);
+                }
+                else{
+                    for (unsigned int j = 1; j < Elevations[i].size(); ++j){
+                        zdown = Elevations[i][j] * t + Elevations[i+1][j]*(1-t);
+                        if (p(2) < zup && p(2) > zdown){
+                            double u = (p(2) - zdown)/(zup - zdown);
+                            double vup = Values[i][j-1] * t + Values[i+1][j-1]*(1-t);
+                            double vdown = Values[i][j] * t + Values[i+1][j]*(1-t);
+                            return u*vdown + (1-u)*vup;
+                        }
+                    }
+                    if (p(2) < zdown){
+                        unsigned int j = Elevations[i].size()-1;
+                        return Values[i][j] * t + Values[i+1][j]*(1-t);
+                    }
+                    else{
+                        std::cerr << "The z of point " << p << " is out of this world!" << std::endl;
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    //std::cerr << "The Interpolation should never reach this point. There must be something wrong when assigning BC" << std::endl;
+    std::cout << "plot(" << p[0] << "," << p[1] << ",'or')" << std::endl;
+    return -999999999;
 }
 
 

@@ -150,7 +150,8 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
 }
 
 //! distance_point_line calculates the distance between a point and a line segment.
-//! If the projection of the point to the line falls outside the line segment then the distances is negated
+//! If the projection of the point to the line falls outside the line segment then
+//! returns the minimum distance from the the two points
 double distance_point_line(double px, double py, // Point coordinates
                            double l1x, double l1y, // first point of line
                            double l2x, double l2y){ // second point of line
@@ -165,13 +166,13 @@ double distance_point_line(double px, double py, // Point coordinates
     double ppy = l1y + dot*e1y/len2;
 
     double t = (ppx - l1x)/(l2x-l1x);
-
-    double dst = distance_2_points(ppx, ppy, px, py);
-    //double dst = sqrt((ppx-px)*(ppx-px)+(ppy-py)*(ppy-py));
+    double dst;
     if (t <0 || t > 1){
-        dst = -dst;
+        dst = std::min(distance_2_points(px,py,l1x,l1y), distance_2_points(px,py,l1x,l1y));
     }
-
+    else{
+        dst = distance_2_points(ppx, ppy, px, py);
+    }
     return dst;
 }
 
