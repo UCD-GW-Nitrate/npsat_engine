@@ -84,10 +84,5 @@ int main (int argc, char **argv){
             }
         }
     }
-
-    //InterpInterface<2> II;
-    //II.get_data("10");
-    //std::cout << II.interpolate(Point<2>(0,0)) << std::endl;
-
 	return 0;
 }
