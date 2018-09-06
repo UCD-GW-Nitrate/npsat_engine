@@ -314,10 +314,10 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
                                                   Utilities::int_to_string(iter,3) + ".pvtu");
         std::ofstream pvtu_master (pvtu_master_filename.c_str());
         data_out.write_pvtu_record(pvtu_master, filenames);
-        const std::string visit_master_filename = (output_file +
-                                                    Utilities::int_to_string(iter, 3) + ".visit");
-        std::ofstream visit_master(visit_master_filename.c_str());
-        data_out.write_visit_record(visit_master, filenames);
+        //const std::string visit_master_filename = (output_file +
+        //                                            Utilities::int_to_string(iter, 3) + ".visit");
+        //std::ofstream visit_master(visit_master_filename.c_str());
+        //data_out.write_visit_record(visit_master, filenames);
     }
 }
 
