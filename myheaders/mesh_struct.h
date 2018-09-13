@@ -1184,7 +1184,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     // The compress sends the data to the processors that owns the data
     distributed_mesh_Offset_vertices.compress(VectorOperation::insert);
-    distributed_mesh_vertices.compress(VectorOperation::insert); // This was commented in the original dev code but i dont see any reason
+    distributed_mesh_vertices.compress(VectorOperation::add); // This was commented in the original dev code but i dont see any reason
 
     // updates the elevations and offsets to the constraint nodes --------------------------
     // although they should be ok
