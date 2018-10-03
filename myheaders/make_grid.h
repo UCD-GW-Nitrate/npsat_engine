@@ -115,6 +115,7 @@ namespace AquiferGrid{
                 if (done){
 #if _DIM>2
                     //dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 100, tria3D);
+
                     // This is going to work for deal version 9 and higher
                     std::vector<double> slices;
                     for (unsigned int i = 0; i < geom_param.vert_discr.size(); ++i)
