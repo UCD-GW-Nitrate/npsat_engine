@@ -506,7 +506,7 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 if(cell->face(i_face)->at_boundary()){
                     bool isfacetop = false;
                     for (unsigned int jj = 0; jj < top_boundary_ids.size(); ++jj){
-                        if (top_boundary_ids[jj] == cell->face(i_face)->boundary_id()){
+                        if (top_boundary_ids[jj] == static_cast<int>(cell->face(i_face)->boundary_id())){
                             isfacetop = true;
                             break;
                         }

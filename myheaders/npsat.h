@@ -347,14 +347,14 @@ void NPSAT<dim>::create_dim_1_grids(){
                     bool is_top = false;
                     bool is_bottom = false;
                     for (unsigned int ibnd = 0; ibnd < top_boundary_ids.size(); ++ibnd){
-                        if (cell->face(face)->boundary_id() == top_boundary_ids[ibnd]){
+                        if (static_cast<int>(cell->face(face)->boundary_id()) == top_boundary_ids[ibnd]){
                             is_top = true;
                             break;
                         }
                     }
                     if (!is_top){
                         for (unsigned int ibnd = 0; ibnd < bottom_boundary_ids.size(); ++ibnd){
-                            if (cell->face(face)->boundary_id() == bottom_boundary_ids[ibnd]){
+                            if (static_cast<int>(cell->face(face)->boundary_id()) == bottom_boundary_ids[ibnd]){
                                 is_bottom = true;
                                 break;
                             }

@@ -137,7 +137,7 @@ template <int dim>
 bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) const{
 
     dst_t = -9999999999;
-    if (iSeg >= Pnts.size() - 1)
+    if (iSeg >= static_cast<int>(Pnts.size() - 1))
         return false;
 
     double dst = distance_point_line(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);

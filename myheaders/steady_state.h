@@ -58,12 +58,12 @@ private:
     MPI_Comm                                    mpi_communicator;
     DoFHandler<dim>&                            dof_handler;
     const FE_Q<dim>&                            fe;
+    ConstraintMatrix&                          	constraints;
     IndexSet                                  	locally_owned_dofs;
     IndexSet                                  	locally_relevant_dofs;
     TrilinosWrappers::MPI::Vector& 				locally_relevant_solution;
     TrilinosWrappers::SparseMatrix 			  	system_matrix;
     TrilinosWrappers::MPI::Vector       	  	system_rhs;
-    ConstraintMatrix&                          	constraints;
     typename FunctionMap<dim>::type				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
