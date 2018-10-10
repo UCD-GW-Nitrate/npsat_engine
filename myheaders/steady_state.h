@@ -25,6 +25,7 @@
 #include "helper_functions.h"
 #include "wells.h"
 #include "streams.h"
+#include "cgal_functions.h"
 
 using namespace dealii;
 
@@ -80,6 +81,8 @@ private:
                 parallel::distributed::Triangulation<dim>& 	triangulation);
     void refine (parallel::distributed::Triangulation<dim>& 	triangulation,
                  double top_fraction, double bot_fraction);
+
+    void output_xyz_top(int iter, std::string output_file);
 };
 
 template <int dim>
@@ -319,6 +322,9 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
         //std::ofstream visit_master(visit_master_filename.c_str());
         //data_out.write_visit_record(visit_master, filenames);
     }
+
+    // Write a point cloud of the Top surface only
+    output_xyz_top(iter, output_file);
 }
 
 template <int dim>
@@ -383,6 +389,80 @@ void GWFLOW<dim>::refine(parallel::distributed::Triangulation<dim>& 	triangulati
 
     triangulation.execute_coarsening_and_refinement ();
 
+}
+
+template <int dim>
+void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
+
+    const std::string top_filename = (output_file + "_top_" +
+                                      Utilities::int_to_string(iter,3) + "_" +
+                                      Utilities::int_to_string(my_rank,4) +
+                                      ".xyz");
+
+    std::ofstream top_stream_file;
+    top_stream_file.open(top_filename.c_str());
+
+    QTrapez<dim-1> face_trapez_formula;
+    FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
+    std::vector< double > values(face_trapez_formula.size());
+    // solution_points is a vector of vectors of DIM+1 (x, y, z, value) or (x, y, value)
+    std::vector<std::vector<double>> solution_points;
+    CGAL::Point_set_2<ine_Kernel, Tds> PointSet;
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face = 0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if (cell->face(i_face)->at_boundary()){
+                    for (unsigned int i = 0; i < top_boundary_ids.size(); ++i){
+                        if (cell->face(i_face)->boundary_id() == static_cast<unsigned int>(top_boundary_ids[i])){
+                            // This is a top boundary face
+                            fe_face_values.reinit (cell, i_face);
+                            fe_face_values.get_function_values(locally_relevant_solution, values);
+                            for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                                Point<dim> current_point = cell->face(i_face)->vertex(ii);
+                                std::vector<int> ids;
+                                if (dim == 2)
+                                    ids = circle_search_in_2DSet(PointSet, ine_Point3(current_point[0], 0, 0 ), 0.001);
+                                else if (dim == 3)
+                                    ids = circle_search_in_2DSet(PointSet, ine_Point3(current_point[0], current_point[1], 0 ), 0.001);
+                                else
+                                    std::cerr << "That was a good one!!" << std::endl;
+
+                                if (ids.size() == 0){
+                                    // Insert the point
+                                    std::vector< std::pair<ine_Point2, unsigned> > newpoint;
+                                    if (dim == 2)
+                                        newpoint.push_back(std::make_pair(ine_Point2(current_point[0], 0), solution_points.size()));
+                                    else if (dim == 3)
+                                        newpoint.push_back(std::make_pair(ine_Point2(current_point[0], current_point[1]), solution_points.size()));
+                                    else
+                                        std::cerr << "Don't give up your day job " << std::endl;
+                                    PointSet.insert(newpoint.begin(), newpoint.end());
+                                    std::vector<double> v_temp;
+                                    for (unsigned int idim = 0; idim < dim; idim++)
+                                        v_temp.push_back(current_point[idim]);
+                                    v_temp.push_back(values[ii]);
+                                    solution_points.push_back(v_temp);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    top_stream_file << solution_points.size() << std::endl;
+    for (unsigned int i = 0; i < solution_points.size(); i++){
+        for (unsigned int idim = 0; idim < dim; idim++){
+            top_stream_file <<  std::setprecision(15) << solution_points[i][idim] << " ";
+        }
+        top_stream_file <<  std::setprecision(15) << solution_points[i][dim] << std::endl;
+    }
+    top_stream_file.close();
 }
 
 #endif // STEADY_STATE_H

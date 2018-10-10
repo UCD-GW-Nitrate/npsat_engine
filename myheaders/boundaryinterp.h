@@ -242,6 +242,7 @@ double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
                 std::cout << "The interpolations are more than likely wrong!!!" << std::endl;
                 double zup, zdown;
                 zup = Elevations[i][0] * t + Elevations[i+1][0]*(1-t);
+                zdown = 999999.9;// Initialize just to suppress  a warning
                 if (p(2) > zup){
                     return Values[i][0] * t + Values[i+1][0]*(1-t);
                 }
