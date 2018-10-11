@@ -250,6 +250,7 @@ void GWFLOW<dim>::solve(){
     SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
+    data.output_details = true;
     preconditioner.initialize (system_matrix, data);
 
     solver.solve (system_matrix,

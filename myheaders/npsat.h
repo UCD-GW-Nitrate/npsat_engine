@@ -277,8 +277,8 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             create_dim_1_grids();
-
-            flag_cells_for_refinement();
+            if (iter < AQProps.refine_param.MaxRefinement)
+                flag_cells_for_refinement();
             do_refinement1();
 
             mesh_struct.prefix = "iter" + std::to_string(iter);
