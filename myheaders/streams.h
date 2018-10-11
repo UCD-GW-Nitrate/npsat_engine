@@ -248,6 +248,8 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                     datafile.getline(buffer,512);
                     std::istringstream inp(buffer);
                     inp >> N_points;
+                    if (N_points < 2 || N_points > 4 )
+                        std::cerr << "The stream segment " << i << " consists of " << N_points << " points." << std::endl;
                     inp >> q;
                     Q_rate[i] = q;
                     if (N_points == 2)
@@ -315,13 +317,14 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
 
 
                 stream_ids.push_back(i);
-
-                stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
-                                           ine_Point3(xx[3], yy[3], 0.0),
-                                           ine_Point3(xx[0], yy[0], 0.0)));
-                //std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
-                //std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
-                stream_ids.push_back(i);
+                if (N_points  == 4){
+                    stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
+                                               ine_Point3(xx[3], yy[3], 0.0),
+                                               ine_Point3(xx[0], yy[0], 0.0)));
+                    //std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
+                    //std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
+                    stream_ids.push_back(i);
+                }
             }
         }
         //stream_tree->insert(stream_triangles.begin(), stream_triangles.end());

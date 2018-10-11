@@ -251,6 +251,14 @@ void GWFLOW<dim>::solve(){
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
     data.output_details = true;
+    data.n_cycles = 1;
+    data.w_cycle = false;
+    data.aggregation_threshold = 0.000001;
+    data.smoother_sweeps = 4;
+    data.smoother_overlap = 0;
+    data.smoother_type = "Chebyshev";
+    data.coarse_type = "Amesos-KLU";
+
     preconditioner.initialize (system_matrix, data);
 
     solver.solve (system_matrix,

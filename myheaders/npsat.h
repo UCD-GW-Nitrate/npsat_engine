@@ -224,7 +224,7 @@ template <int dim>
 void NPSAT<dim>::solve_refine(){
 
     // Create a hydraulic conductivity function
-    MyTensorFunction<dim>* HK_function;
+    MyTensorFunction<dim>* HK_function = 0;
     if (dim == 2){
         if (AQProps.HKuse[1] == false)
             HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0]);
