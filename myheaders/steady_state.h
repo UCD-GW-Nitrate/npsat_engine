@@ -1,6 +1,8 @@
 #ifndef STEADY_STATE_H
 #define STEADY_STATE_H
 
+#include <math.h>
+
 #include <deal.II/distributed/tria.h>
 #include <deal.II/distributed/grid_refinement.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -210,6 +212,10 @@ void GWFLOW<dim>::assemble(){
                                 double Q_rch = (recharge_values[q_point] * weight *
                                                 fe_face_values.shape_value(i,q_point)*
                                                 fe_face_values.JxW(q_point));
+                                if (std::isnan(Q_rch) == 1){
+                                    std::cout << "Rval: " << recharge_values[q_point] << " | w: " << weight << std::endl;
+                                }
+
                                 cell_rhs(i) += Q_rch;
                                 QRCH_TOT += Q_rch;
                             }
