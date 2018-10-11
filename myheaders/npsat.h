@@ -307,7 +307,7 @@ void NPSAT<dim>::solve_refine(){
 
         }
     }
-    save_solution();
+    //save_solution();
 }
 
 template <int dim>
