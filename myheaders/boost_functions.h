@@ -13,6 +13,18 @@
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/assign.hpp>
 
+//#include <boost/utility.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/topological_sort.hpp>
+//#include <boost/graph/visitors.hpp>
+
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> Graph;
+typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
+typedef std::pair<int, int> Edge;
+
+
+
 template <typename Point>
 void list_coordinates(Point const& p){
     using boost::geometry::get;

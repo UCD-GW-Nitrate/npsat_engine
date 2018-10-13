@@ -22,6 +22,7 @@
 #include "mpi_help.h"
 #include "helper_functions.h"
 #include "mix_mesh.h"
+#include "boost_functions.h"
 
 //! custom struct to hold point data temporarily as we iterate through the cells
 template <int dim>
@@ -335,7 +336,10 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
     // to avoid duplicate executions we will maintain a map with the dofs that have been
     // already processed
-    std::map<int,int>::iterator itint;
+
+    std::map <int, double> inGraph;
+    std::map<int,double>::iterator itG;
+    std::vector<Edge> GraphEdges;
     MPI_Barrier(mpi_communicator);
 
     pcout << "Update Mesh structure..." << std::endl << std::flush;
@@ -360,7 +364,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
             fe_mesh_points.reinit(cell);
             cell->get_dof_indices (cell_dof_indices);
             // First we will loop through the cell dofs gathering all info we need for the points
-            // and then we will loop again though the points to add the into the structure.
+            // and then we will loop again though the points to add them into the structure.
             // Therefore we would need to initialize several vectors
             std::map<int, trianode<dim> > curr_cell_info;
 
@@ -441,9 +445,31 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                     ptemp[d] = it->second.pnt[d];
 
                 add_new_point(ptemp, zinfo);
+
+
+                itG = inGraph.find(zinfo.dof);
+                if (itG == inGraph.end()){
+                    inGraph.insert(std::pair<int,double>(zinfo.dof,zinfo.z));
+                    if (temp_cnstr.size() == 1)
+                        GraphEdges.push_back(Edge(zinfo.dof, -9));
+                    else{
+                        for (unsigned int i = 0; i < temp_cnstr.size(); i++){
+                            if (temp_cnstr[i] != zinfo.dof)
+                                GraphEdges.push_back(Edge(zinfo.dof, temp_cnstr[i]));
+                        }
+                    }
+                }
             }
         }
     }
+
+    Graph G(GraphEdges.begin(), GraphEdges.end(),inGraph.size()+1);
+    std::deque<int> topo_order;
+    boost::topological_sort(G, std::front_inserter(topo_order));
+    for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
+        std::cout << *itd << std::endl;
+    }
+
 
     //dbg_meshStructInfo3D("First", my_rank);
     MPI_Barrier(mpi_communicator);
