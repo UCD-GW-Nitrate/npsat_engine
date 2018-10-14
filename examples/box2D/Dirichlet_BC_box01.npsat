@@ -1,5 +1,3 @@
 2 					#Comments (make sure you leave some space between the value and the comment.
 EDGE 0 30 			#In 2D EDGE set the x coordinate and the value in one line
 TOP 3500 3600 40 	# In 2D TOP or BOT set the x coordinate of the 1st and 2nd point and the value in one row
-
-
