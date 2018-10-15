@@ -19,9 +19,21 @@
 #include <boost/graph/topological_sort.hpp>
 //#include <boost/graph/visitors.hpp>
 
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS> Graph;
+
+struct VertexData
+{
+  int id;
+};
+
+
+typedef boost::adjacency_list<boost::vecS,
+                              boost::vecS,
+                              boost::directedS,
+                              VertexData,
+                              boost::no_property> Graph;
 typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
 typedef std::pair<int, int> Edge;
+typedef std::vector<Edge> Edgelist;
 
 
 
@@ -136,6 +148,58 @@ void simplify_polyline(double thres,
         z.push_back(get<2>(points[i]));
     }
 
+}
+
+int addGraphVertex(std::map <int, int>& GraphVertices, int a){
+    int va = -9;
+    std::map<int, int>::iterator it = GraphVertices.find(a);
+    if (it == GraphVertices.end()){
+        va = GraphVertices.size();
+        GraphVertices.insert(std::pair<int,double>(a, va));
+    }
+    else{
+        va = it->second;
+    }
+    return va;
+}
+
+/*!
+ * \brief addGraphEdge is a method to add an edge to the graph. This method makes
+ * sure that the vertices will not be written twice. It does not actuall creates a
+ * graph but rather populates helper structures which will create the graph after
+ * all edges have been included.
+ *
+ * #b is the dof that depends on #a
+ * \param GraphVertices is a map between the actual dof of the vertex in the mesh and
+ * the graph id
+ * \param GraphEdges is a vector of pair integers
+ * \param a the first dof of the edge
+ * \param b the second dof of the edge.
+ */
+void addGraphEdge(std::map <int, int>& GraphVertices,
+                  Edgelist& GraphEdges, int a, int b){
+    std::map<int, int>::iterator it;
+    int v1 = addGraphVertex(GraphVertices, a);
+    int v2 = addGraphVertex(GraphVertices, b);
+
+    GraphEdges.push_back(Edge(v1, v2));
+}
+
+void CreateGraph(Graph& G,
+                 std::map <int, int>& GraphVertices,
+                 Edgelist& GraphEdges){
+
+    std::map<int, int>::iterator it;
+
+    // add vertices
+    for (it = GraphVertices.begin(); it !=GraphVertices.end(); it++ ){
+        add_vertex({it->first}, G);
+    }
+
+    // add edges
+    for (Edgelist::iterator ite = GraphEdges.begin(); ite != GraphEdges.end(); ite++){
+        add_edge(ite->first, ite->second, G);
+    }
 }
 
 #endif // BOOST_FUNCTIONS_H

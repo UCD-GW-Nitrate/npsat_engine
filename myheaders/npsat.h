@@ -126,6 +126,7 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     //user_input = CLI;
     my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     make_grid();
+    return;
     DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
 }
 
@@ -219,9 +220,9 @@ void NPSAT<dim>::make_grid(){
         count_refinements++;
     }
 
-    std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
-    GridOut grid_out;
-    grid_out.write_ucd(triangulation, out);
+    //std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
+    //GridOut grid_out;
+    //grid_out.write_ucd(triangulation, out);
 }
 
 template <int dim>

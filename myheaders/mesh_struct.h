@@ -100,6 +100,8 @@ public:
     //! based on CGAL classes
     PointSet2 CGALset;
 
+    Graph MeshGraph;
+
     //! Adds a new point in the structure. If the point exists adds the z coordinate only.
     void add_new_point(Point<dim-1>, Zinfo zinfo);
 
@@ -337,9 +339,10 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     // to avoid duplicate executions we will maintain a map with the dofs that have been
     // already processed
 
-    std::map <int, double> inGraph;
-    std::map<int,double>::iterator itG;
-    std::vector<Edge> GraphEdges;
+    std::map <int, int> GraphVertices; // <Mesh ID, Graph id>
+    int graphID = 0;
+    std::map<int,int>::iterator itg;
+    Edgelist GraphEdges;
     MPI_Barrier(mpi_communicator);
 
     pcout << "Update Mesh structure..." << std::endl << std::flush;
@@ -446,29 +449,21 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
 
                 add_new_point(ptemp, zinfo);
 
-
-                itG = inGraph.find(zinfo.dof);
-                if (itG == inGraph.end()){
-                    inGraph.insert(std::pair<int,double>(zinfo.dof,zinfo.z));
-                    if (temp_cnstr.size() == 1)
-                        GraphEdges.push_back(Edge(zinfo.dof, -9));
-                    else{
-                        for (unsigned int i = 0; i < temp_cnstr.size(); i++){
-                            if (temp_cnstr[i] != zinfo.dof)
-                                GraphEdges.push_back(Edge(zinfo.dof, temp_cnstr[i]));
-                        }
-                    }
+                // If the dof is local the we should add it to the graph
+                if (zinfo.is_local){
+                    addGraphVertex(GraphVertices, zinfo.dof);
                 }
+                for (unsigned int i = 0; i < temp_cnstr.size(); i++){
+                    if (temp_cnstr[i] != zinfo.dof)
+                        addGraphEdge(GraphVertices, GraphEdges, temp_cnstr[i], zinfo.dof);
+                }
+
             }
         }
     }
 
-    Graph G(GraphEdges.begin(), GraphEdges.end(),inGraph.size()+1);
-    std::deque<int> topo_order;
-    boost::topological_sort(G, std::front_inserter(topo_order));
-    for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
-        std::cout << *itd << std::endl;
-    }
+
+
 
 
     //dbg_meshStructInfo3D("First", my_rank);
@@ -697,6 +692,25 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
         }
     }
 
+    // Add the top and bottom dependencies on the graph
+    for (typename std::map<int ,  PntsInfo<dim> >::iterator it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        for (std::vector<Zinfo>::iterator itz = it->second.Zlist.begin(); itz != it->second.Zlist.end(); ++itz){
+            if (itz->is_local){
+                if (!itz->hanging){
+                    if (itz->dof != itz->Top.dof && itz->dof != itz->Bot.dof){
+                        addGraphEdge(GraphVertices, GraphEdges,itz->Top.dof, itz->dof);
+                        addGraphEdge(GraphVertices, GraphEdges,itz->Bot.dof, itz->dof);
+
+                    }
+                }
+            }
+        }
+    }
+
+    CreateGraph(MeshGraph, GraphVertices, GraphEdges);
+
+
+
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "second", my_rank);
     //dbg_meshStructInfo3D("Third", my_rank);
     std::clock_t end_t = std::clock();
@@ -716,6 +730,7 @@ void Mesh_struct<dim>::reset(){
     dof_ij.clear();
     CGALset.clear();
     local_dof.clear();
+    MeshGraph.clear();
 }
 
 template <int dim>
@@ -927,6 +942,14 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     std::map<int, double> elev_asked;
     int dbg_cnt = 0;
     pcout << "Update Mesh elevation..." << std::endl;
+
+    std::deque<int> topo_order;
+    boost::topological_sort(MeshGraph, std::front_inserter(topo_order));
+
+    //for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
+    //    std::cout << MeshGraph[*itd].id << std::endl;
+    //}
+
     while (true){
         MPI_Barrier(mpi_communicator);
         //pcout << "========= " << dbg_cnt << " =========" << std::endl;
@@ -938,21 +961,27 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         dof_ask_map.clear();
 
         int count_not_set = 0;
-        for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
-            std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
-            for (; itz != it->second.Zlist.end(); ++itz){
-                if (itz->is_local){
-                    if (!itz->isZset){
-                        if (itz->hanging == 1){ //-----------------------IS HANGING-------------------------------
+
+
+        for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
+            int this_dof = MeshGraph[*itd].id;
+            //std::cout << this_dof << std::endl;
+            it_ij = dof_ij.find(this_dof);
+            if (it_ij != dof_ij.end()){
+                int ii = it_ij->second.first;
+                int jj = it_ij->second.second;
+                if (PointsMap[ii].Zlist[jj].is_local){
+                    if (!PointsMap[ii].Zlist[jj].isZset){
+                        if (PointsMap[ii].Zlist[jj].hanging){//-----------------------IS HANGING-------------------------------
                             // if the node is hanging then compute its new elevation by averaging the
                             // elevations of the nodes that constraint this one. Do the computation only if all the nodes
                             // have been set
                             bool all_known = true;
                             double sum_z = 0;
-                            for (unsigned int ii = 0; ii < itz->cnstr_nds.size(); ++ii){
+                            for (unsigned int ic = 0; ic < PointsMap[ii].Zlist[jj].cnstr_nds.size(); ++ic){
                                 // Find if the node exists in the map
                                 bool not_local = false;
-                                it_ij = dof_ij.find(itz->cnstr_nds[ii]);
+                                it_ij = dof_ij.find(PointsMap[ii].Zlist[jj].cnstr_nds[ic]);
                                 if (it_ij != dof_ij.end()){// if exists, check if it's local
                                     if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].is_local){
                                         if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
@@ -963,103 +992,115 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                             break;
                                         }
                                     }
-                                    else{ // exists in the dof_ij map but is not local
+                                    else{// exists in the dof_ij map but is not local
                                         not_local = true;
                                     }
                                 }
-                                else{ // doesn't even exists in the dof_ij map
+                                else{// doesn't even exists in the dof_ij map
                                     not_local = true;
                                 }
 
                                 if (not_local){
                                     std::map<int, double>::iterator it_elev;
-                                    it_elev = elev_asked.find(itz->cnstr_nds[ii]);
+                                    it_elev = elev_asked.find(PointsMap[ii].Zlist[jj].cnstr_nds[ic]);
                                     if (it_elev != elev_asked.end()){
                                         sum_z += it_elev->second;
                                     }
                                     else{
                                         all_known = false;
-                                        dof_ask_map.insert(std::pair<int,int>(itz->cnstr_nds[ii],itz->cnstr_nds[ii]));
+                                        dof_ask_map.insert(std::pair<int,int>(PointsMap[ii].Zlist[jj].cnstr_nds[ic],PointsMap[ii].Zlist[jj].cnstr_nds[ic]));
                                         break;
+
                                     }
                                 }
                             }
                             if (all_known){
-                                itz->z = sum_z / static_cast<double>(itz->cnstr_nds.size());
-                                if (std::isnan(itz->z))
-                                    std::cout << "A Hanging point was set to nan. (sum_z/Constraint size): " << itz->cnstr_nds.size() << ", " << sum_z << std::endl;
-                                itz->isZset = true;
+                                PointsMap[ii].Zlist[jj].z = sum_z / static_cast<double>(PointsMap[ii].Zlist[jj].cnstr_nds.size());
+                                PointsMap[ii].Zlist[jj].isZset = true;
+                                if (std::isnan(PointsMap[ii].Zlist[jj].z))
+                                    std::cout << "A Hanging point was set to nan. (sum_z/Constraint size): " << sum_z << ", "
+                                              << PointsMap[ii].Zlist[jj].cnstr_nds.size()   << std::endl;
+
                             }
                             else{
                                 count_not_set++;
                             }
-                        }//-----------------------IS NOT HANGING-------------------------------
-                        else{
-                            if (!itz->Top.isSet){
+
+
+                        }
+                        else{//-----------------------IS NOT HANGING-------------------------------
+                            if (!PointsMap[ii].Zlist[jj].Top.isSet){
                                 // Check if the top is local
-                                if (local_dof.find(itz->Top.dof) != local_dof.end() /*itz->Top.proc == static_cast<int>(my_rank)*/){
-                                    it_ij = dof_ij.find(itz->Top.dof);
+                                // if its local then it should have been set before, unless it depends on other non local vertices
+                                if (local_dof.find(PointsMap[ii].Zlist[jj].Top.dof) == local_dof.end()){
+                                    // if its not local
+                                    // check if we already know its elevation from another processor
+                                    std::map<int, double>::iterator it_elev;
+                                    it_elev = elev_asked.find(PointsMap[ii].Zlist[jj].Top.dof);
+                                    if (it_elev != elev_asked.end()){
+                                        PointsMap[ii].Zlist[jj].Top.z = it_elev->second;
+                                        PointsMap[ii].Zlist[jj].Top.isSet = true;
+                                    }
+                                    else{
+                                        dof_ask_map.insert(std::pair<int,int>(PointsMap[ii].Zlist[jj].Top.dof, PointsMap[ii].Zlist[jj].Top.dof));
+                                    }
+                                }
+                                else{ // THe top is local
+                                    it_ij = dof_ij.find(PointsMap[ii].Zlist[jj].Top.dof);
                                     if (it_ij != dof_ij.end()){
                                         if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
-                                            itz->Top.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
-                                            itz->Top.isSet = true;
+                                            PointsMap[ii].Zlist[jj].Top.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
+                                            PointsMap[ii].Zlist[jj].Top.isSet = true;
                                         }
                                     }
                                     else{
-                                        std::cerr << "The node " << itz->dof << " seems to have local Top " << itz->Top.dof << " for proc " << my_rank << " but was not found" << std::endl;
+                                        std::cerr << "The node " << PointsMap[ii].Zlist[jj].dof << " seems to have local Top " << PointsMap[ii].Zlist[jj].Top.dof << " for proc " << my_rank << " but was not found" << std::endl;
                                     }
                                 }
-                                else{
-                                    // check if we already know its elevation from another processor
-                                    std::map<int, double>::iterator it_elev;
-                                    it_elev = elev_asked.find(itz->Top.dof);
-                                    if (it_elev != elev_asked.end()){
-                                        itz->Top.z = it_elev->second;
-                                        itz->Top.isSet = true;
-                                    }
-                                    else{
-                                        dof_ask_map.insert(std::pair<int,int>(itz->Top.dof,itz->Top.dof));
-                                    }
-                                }
+
                             }
 
-                            if (!itz->Bot.isSet){
+                            if (!PointsMap[ii].Zlist[jj].Bot.isSet){
                                 // Check if the bottom is local
-                                if (local_dof.find(itz->Bot.dof) != local_dof.end()/*itz->Bot.proc == static_cast<int>(my_rank)*/){
-                                    it_ij = dof_ij.find(itz->Bot.dof);
-                                    if (it_ij != dof_ij.end()){
-                                        if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
-                                            itz->Bot.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
-                                            itz->Bot.isSet = true;
-                                        }
-                                    }
-                                    else{
-                                        std::cerr << "The node " << itz->dof <<  " seems to have local Bottom "  << itz->Bot.dof << " for proc " << my_rank << " but was not found" << std::endl;
-                                    }
-                                }
-                                else{
+                                if (local_dof.find(PointsMap[ii].Zlist[jj].Bot.dof) == local_dof.end()){
+                                    // if its not local
                                     // check if we already know its elevation from another processor
                                     std::map<int, double>::iterator it_elev;
-                                    it_elev = elev_asked.find(itz->Bot.dof);
+                                    it_elev = elev_asked.find(PointsMap[ii].Zlist[jj].Bot.dof);
                                     if (it_elev != elev_asked.end()){
-                                        itz->Bot.z = it_elev->second;
-                                        itz->Bot.isSet = true;
+                                        PointsMap[ii].Zlist[jj].Bot.z = it_elev->second;
+                                        PointsMap[ii].Zlist[jj].Bot.isSet = true;
                                     }
                                     else{
-                                        dof_ask_map.insert(std::pair<int,int>(itz->Bot.dof,itz->Bot.dof));
+                                        dof_ask_map.insert(std::pair<int,int>(PointsMap[ii].Zlist[jj].Bot.dof, PointsMap[ii].Zlist[jj].Bot.dof));
+                                    }
+                                }
+                                else {// The bottom is local
+                                    it_ij = dof_ij.find(PointsMap[ii].Zlist[jj].Bot.dof);
+                                    if (it_ij != dof_ij.end()){
+                                        PointsMap[ii].Zlist[jj].Bot.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
+                                        PointsMap[ii].Zlist[jj].Bot.isSet = true;
+                                    }
+                                    else{
+                                        std::cerr << "The node " << PointsMap[ii].Zlist[jj].dof << " seems to have local Bottom " << PointsMap[ii].Zlist[jj].Bot.dof << " for proc " << my_rank << " but was not found" << std::endl;
                                     }
                                 }
                             }
 
-                            if (itz->Top.isSet && itz->Bot.isSet){
-                                itz->z = itz->Top.z * itz->rel_pos + (1.0 - itz->rel_pos) * itz->Bot.z;
-                                if (std::isnan(itz->z))
-                                    std::cout << "A regular point was set to nan. (Top, Rel, Bot:)" << itz->Top.z << ", " << itz->rel_pos << ", " << itz->Bot.z << std::endl;
-                                itz->isZset = true;
+                            if (PointsMap[ii].Zlist[jj].Top.isSet && PointsMap[ii].Zlist[jj].Bot.isSet){
+                                PointsMap[ii].Zlist[jj].z = PointsMap[ii].Zlist[jj].Top.z * PointsMap[ii].Zlist[jj].rel_pos + (1.0 - PointsMap[ii].Zlist[jj].rel_pos) * PointsMap[ii].Zlist[jj].Bot.z;
+                                PointsMap[ii].Zlist[jj].isZset = true;
+                                if (std::isnan(PointsMap[ii].Zlist[jj].z))
+                                    std::cout << "A point was set to nan. (Top, Rel, Bot:)"
+                                              << PointsMap[ii].Zlist[jj].Top.z << ", "
+                                              << PointsMap[ii].Zlist[jj].rel_pos << ", "
+                                              << PointsMap[ii].Zlist[jj].Bot.z << std::endl;
+
                             }
                             else{
                                 count_not_set++;
                             }
+
                         }
                     }
                 }
