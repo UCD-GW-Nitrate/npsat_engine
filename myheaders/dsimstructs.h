@@ -25,6 +25,8 @@ struct SolverParameters{
 
     //! Solver tolerance
     double solver_tol;
+
+    int output_details;
 };
 
 //! RefinementParameters is a struct with parameters that control the mesh refinements
@@ -223,6 +225,9 @@ public:
 
     //! Holds the Solver parameters
     SolverParameters                    solver_param;
+
+    //! This is the main parameter file.
+    std::string main_param_file;
 };
 
 template <int dim>

@@ -23,11 +23,13 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/grid/grid_out.h>
+
 #include "my_functions.h"
 #include "helper_functions.h"
 #include "wells.h"
 #include "streams.h"
 #include "cgal_functions.h"
+#include "dsimstructs.h"
 
 using namespace dealii;
 
@@ -42,7 +44,8 @@ public:
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
            MyFunction<dim,dim>&               groundwater_recharge,
-           std::vector<int>&                    top_boundary_ids);
+           std::vector<int>&                    top_boundary_ids,
+           SolverParameters&                    solver_param_in);
 
 
     void Simulate(int iter,                                     std::string output_file,
@@ -71,8 +74,11 @@ private:
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
     std::vector<int>                            top_boundary_ids;
+    SolverParameters                            solver_param;
+
     ConditionalOStream                        	pcout;
     TimerOutput                               	computing_timer;
+
     int                                         my_rank;
     int                                         n_proc;
 
@@ -96,7 +102,8 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
                     typename FunctionMap<dim>::type&     dirichlet_boundary_in,
                     MyTensorFunction<dim>&               HK_function,
                     MyFunction<dim, dim> &groundwater_recharge,
-                    std::vector<int>&                    top_boundary_ids_in)
+                    std::vector<int>&                    top_boundary_ids_in,
+                    SolverParameters&                    solver_param_in)
     :
       mpi_communicator(mpi_communicator_in),
       dof_handler(dof_handler_in),
@@ -107,6 +114,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
       HK(HK_function),
       GWRCH(groundwater_recharge),
       top_boundary_ids(top_boundary_ids_in),
+      solver_param(solver_param_in),
       pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0)),
       computing_timer(pcout, TimerOutput::summary, TimerOutput::wall_times)
 {
@@ -259,7 +267,7 @@ void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
     pcout << "\t Solving system..." << std::endl << std::flush;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
-    SolverControl solver_control (dof_handler.n_dofs(), 1e-8);
+    SolverControl solver_control (dof_handler.n_dofs(), solver_param.solver_tol);
     solver_control.log_result(true);
     solver_control.log_history(true);
     solver_control.log_frequency(0);
@@ -267,7 +275,7 @@ void GWFLOW<dim>::solve(){
     SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
-    data.output_details = false;
+    data.output_details = static_cast<bool>(solver_param.output_details);
     data.n_cycles = 1;
     data.w_cycle = false;
     data.aggregation_threshold = 0.000001;

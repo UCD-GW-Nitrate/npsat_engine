@@ -409,9 +409,13 @@ void CL_arguments<dim>::declare_parameters(){
                           "b----------------------------------\n"
                           "Tolerance of solver");
 
-        prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,20000),
+        prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,50000),
                           "c----------------------------------\n"
                           "Number of maximum solver iterations");
+
+        prm.declare_entry("d Output details", "0", Patterns::Integer(0,2),
+                          "d----------------------------------\n"
+                          "If 1 displays details about the ML solver");
     }
     prm.leave_subsection();
 
@@ -448,49 +452,49 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     prm.enter_subsection("I. Particle tracking ================================");
     {
-        prm.declare_entry("a Print entity frequency", "1", Patterns::Integer(0,1000),
+        prm.declare_entry("a Do particle tracking","1", Patterns::Integer(0,1),
                           "a----------------------------------\n"
+                          "Set to 0 to deactivate particle tracking. Default is 1");
+
+        prm.declare_entry("b Print entity frequency", "1", Patterns::Integer(0,1000),
+                          "b----------------------------------\n"
                           "This will print the streamlines every N Entities (e.g. every 10 wells)");
 
-        prm.declare_entry("b Print streamline frequency", "1", Patterns::Integer(0,1000),
-                          "b----------------------------------\n"
+        prm.declare_entry("c Print streamline frequency", "1", Patterns::Integer(0,1000),
+                          "c----------------------------------\n"
                           "For each Entity will print every N streamlines");
 
-        prm.declare_entry("c Stuck iterations", "50", Patterns::Integer(0,1000),
-                          "c----------------------------------\n"
+        prm.declare_entry("d Stuck iterations", "50", Patterns::Integer(0,1000),
+                          "d----------------------------------\n"
                           "If the streamline has not been expanded after N iterations, stop tracing this particle");
 
-        prm.declare_entry("d Outer iterations", "100", Patterns::Integer(0,1000),
-                          "d----------------------------------\n"
+        prm.declare_entry("e Outer iterations", "100", Patterns::Integer(0,1000),
+                          "e----------------------------------\n"
                           "The number of times that processors are allowed to exchange particles\n"
                           "This will prevent case where a particle moves back and forth between processors");
 
-        prm.declare_entry("e Streamline iterations", "1000", Patterns::Integer(0,10000),
-                          "e----------------------------------\n"
+        prm.declare_entry("f Streamline iterations", "1000", Patterns::Integer(0,10000),
+                          "f----------------------------------\n"
                           "The maximum number of steps per streamline");
 
-        prm.declare_entry("f Tracking method", "3", Patterns::Integer(1,3),
-                          "f----------------------------------\n"
+        prm.declare_entry("g Tracking method", "3", Patterns::Integer(1,3),
+                          "g----------------------------------\n"
                           "1-> Euler, 2->RK2, 3->RK4");
 
-        prm.declare_entry("g Step size", "6", Patterns::Double(1,100),
-                          "g----------------------------------\n"
+        prm.declare_entry("h Step size", "6", Patterns::Double(1,100),
+                          "h----------------------------------\n"
                           "The actual step size for each cell is calculated by dividing\n "
                           "the diameter of each cell with the given number.\n"
                           "Essensially this number indicates the average number of steps\n"
                           "of the algorithm within a cell");
 
-        prm.declare_entry("h Search iterations", "3", Patterns::Integer(1,10),
-                          "h----------------------------------\n"
+        prm.declare_entry("i Search iterations", "3", Patterns::Integer(1,10),
+                          "i----------------------------------\n"
                           "How many neighbor to search for the next point if the point has left the current cell");
 
-        prm.declare_entry("i Simplify threshold", "5.5", Patterns::Double(0,100),
-                          "i----------------------------------\n"
-                          "Simplification threshold used for plotting");
-
-        prm.declare_entry("j Do particle tracking","1", Patterns::Integer(0,1),
+        prm.declare_entry("j Simplify threshold", "5.5", Patterns::Double(0,100),
                           "j----------------------------------\n"
-                          "Set to 0 to deactivate particle tracking. Default is 1");
+                          "Simplification threshold used for plotting");
 
         prm.declare_entry("k N Particles in parallel", "5000", Patterns::Integer(1,10000),
                           "k----------------------------------\n"
@@ -539,6 +543,8 @@ bool CL_arguments<dim>::read_param_file(){
     std::ifstream f(param_file.c_str());
     if (!f.good())
         return false;
+
+    AQprop.main_param_file = param_file;
 
     prm.parse_input(param_file);
 
@@ -765,6 +771,7 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.solver_param.NonLinearIter = prm.get_integer("a Nonlinear iterations");
         AQprop.solver_param.solver_tol = prm.get_double("b Solver tolerance");
         AQprop.solver_param.Maxiter = prm.get_integer("c Max iterations");
+        AQprop.solver_param.output_details = prm.get_integer("d Output details");
     }
     prm.leave_subsection ();
 
@@ -784,16 +791,16 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     prm.enter_subsection("I. Particle tracking ================================");
     {
-        AQprop.part_param.Entity_freq = prm.get_integer("a Print entity frequency");
-        AQprop.part_param.Streaml_freq = prm.get_integer("b Print streamline frequency");
-        AQprop.part_param.Stuck_iter = prm.get_integer("c Stuck iterations");
-        AQprop.part_param.Outmost_iter = prm.get_integer("d Outer iterations");
-        AQprop.part_param.streaml_iter = prm.get_integer("e Streamline iterations");
-        AQprop.part_param.method = prm.get_integer("f Tracking method");
-        AQprop.part_param.step_size = prm.get_double("g Step size");
-        AQprop.part_param.search_iter = prm.get_integer("h Search iterations");
-        AQprop.part_param.simplify_thres = prm.get_double("i Simplify threshold");
-        AQprop.part_param.bDoParticleTracking = prm.get_integer("j Do particle tracking");
+        AQprop.part_param.bDoParticleTracking = prm.get_integer("a Do particle tracking");
+        AQprop.part_param.Entity_freq = prm.get_integer("b Print entity frequency");
+        AQprop.part_param.Streaml_freq = prm.get_integer("c Print streamline frequency");
+        AQprop.part_param.Stuck_iter = prm.get_integer("d Stuck iterations");
+        AQprop.part_param.Outmost_iter = prm.get_integer("e Outer iterations");
+        AQprop.part_param.streaml_iter = prm.get_integer("f Streamline iterations");
+        AQprop.part_param.method = prm.get_integer("g Tracking method");
+        AQprop.part_param.step_size = prm.get_double("h Step size");
+        AQprop.part_param.search_iter = prm.get_integer("i Search iterations");
+        AQprop.part_param.simplify_thres = prm.get_double("j Simplify threshold");
         AQprop.part_param.Nparallel_particles = prm.get_integer("k N Particles in parallel");
         AQprop.part_param.Wells_N_Layers = prm.get_integer("l Layers per well");
         AQprop.part_param.Wells_N_per_layer = prm.get_integer("m Particles per layer(well)");

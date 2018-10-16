@@ -4,6 +4,7 @@
 #include <vector>
 #include <math.h>
 #include <string>
+#include <ctime>
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -477,6 +478,18 @@ void dummy_function(bool in, int &ii){
         std::cout << "Input is false" << std::endl;
         ii = ii - 1;
     }
+}
+
+std::string print_current_time(){
+    std::time_t t = std::time(nullptr);
+    std::stringstream buffer;
+    buffer << std::put_time(std::localtime(&t), "%c %Z");
+    //std::string out =
+    //std::tm* now = std::localtime(&t);
+    //std::string out = "Simulation Started:";
+    //std::cout << (now->tm_year + 1900) << "/" << (now->tm_mon+1) << "/" << now->tm_mday << std::endl;
+    return buffer.str();;
+
 }
 
 

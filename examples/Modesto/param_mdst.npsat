@@ -154,7 +154,11 @@ subsection G. Solver parameters ================================
 
   # c----------------------------------
   # Number of maximum solver iterations
-  set c Max iterations       = 1000
+  set c Max iterations       = 5000
+
+  # d----------------------------------
+  # If 1 displays details about the ML solver
+  set d Output details       = 0
 end
 
 
@@ -183,55 +187,55 @@ end
 
 subsection I. Particle tracking ================================
   # a----------------------------------
-  # This will print the streamlines every N Entities (e.g. every 10 wells)
-  set a Print entity frequency     = 1
+  # Set to 0 to deactivate particle tracking. Default is 1
+  set a Do particle tracking       = 1
 
   # b----------------------------------
-  # For each Entity will print every N streamlines
-  set b Print streamline frequency = 1
+  # This will print the streamlines every N Entities (e.g. every 10 wells)
+  set b Print entity frequency     = 1
 
   # c----------------------------------
-  # If the streamline has not been expanded after N iterations, stop tracing
-  # this particle
-  set c Stuck iterations           = 50
+  # For each Entity will print every N streamlines
+  set c Print streamline frequency = 1
 
   # d----------------------------------
+  # If the streamline has not been expanded after N iterations, stop tracing
+  # this particle
+  set d Stuck iterations           = 50
+
+  # e----------------------------------
   # The number of times that processors are allowed to exchange particles
   # This will prevent case where a particle moves back and forth between
   # processors
-  set d Outer iterations           = 100
-
-  # e----------------------------------
-  # The maximum number of steps per streamline
-  set e Streamline iterations      = 1000
+  set e Outer iterations           = 100
 
   # f----------------------------------
-  # 1-> Euler, 2->RK2, 3->RK4
-  set f Tracking method            = 3
+  # The maximum number of steps per streamline
+  set f Streamline iterations      = 3000
 
   # g----------------------------------
+  # 1-> Euler, 2->RK2, 3->RK4
+  set g Tracking method            = 3
+
+  # h----------------------------------
   # The actual step size for each cell is calculated by dividing
   # the diameter of each cell with the given number.
   # Essensially this number indicates the average number of steps
   # of the algorithm within a cell
-  set g Step size                  = 4
-
-  # h----------------------------------
-  # How many neighbor to search for the next point if the point has left the
-  # current cell
-  set h Search iterations          = 3
+  set h Step size                  = 4
 
   # i----------------------------------
-  # Simplification threshold used for plotting
-  set i Simplify threshold         = 5.5
+  # How many neighbor to search for the next point if the point has left the
+  # current cell
+  set i Search iterations          = 3
 
   # j----------------------------------
-  # Set to 0 to deactivate particle tracking. Default is 1
-  set j Do particle tracking       = 1
+  # Simplification threshold used for plotting
+  set j Simplify threshold         = 2
 
   # k----------------------------------
   # The maximum number of particles that is allowed to run in parallel
-  set k N Particles in parallel    = 5000
+  set k N Particles in parallel    = 10000
 
   # l----------------------------------
   # The number of layers that the particles will be distributed around the

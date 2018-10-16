@@ -14,6 +14,7 @@
 #include "myheaders/npsat.h"
 #include "myheaders/gather_data.h"
 
+
 using namespace dealii;
 
 /*! \mainpage Home
@@ -79,7 +80,7 @@ int main (int argc, char **argv){
                 //G.print_vtk(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.AQprop.part_param);
             }
             else{
-                CLI.Debug_Prop();
+                //CLI.Debug_Prop();
                 NPSAT<_DIM> npsat(CLI.AQprop);
                 npsat.solve_refine();
                 npsat.particle_tracking();
