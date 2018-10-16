@@ -202,7 +202,7 @@ void GWFLOW<dim>::assemble(){
                     }
                 }
             }
-            
+
             if (print_this_cell)
                 print_cell_coords<dim>(cell);
 
@@ -267,7 +267,7 @@ void GWFLOW<dim>::solve(){
     SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
-    data.output_details = true;
+    data.output_details = false;
     data.n_cycles = 1;
     data.w_cycle = false;
     data.aggregation_threshold = 0.000001;

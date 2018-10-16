@@ -164,8 +164,7 @@ bool find_intersection_in_AABB_TREE(ine_Tree& tree,
  * \param point is a deal 3D point
  * \return the interpolated value. The code starts by calculating normalized coordinates of the point we seek its value. Then the
  * normalized coordinates are used as many times as needed to perform the interpolation for each layer.
- *
- * (This function can be more optimized and slightly modify so as to perform interpolation between the layers or at least has the option for that)
+
  */
 double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
                                 const std::vector<std::map<ine_Point2, ine_Coord_type, ine_Kernel::Less_xy_2> >& function_values, //const
@@ -188,14 +187,16 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
             double yr = p[1] + 0.01*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
             ine_Point2 p_try(xr, yr);
             norm = CGAL::natural_neighbor_coordinates_2(DT, p_try, std::back_inserter(coords)).second;
-            if (!std::isnan(norm))
+            if (!std::isnan(norm)){
                 break;
+			}
             else
                 cnt++;
             if (cnt > 20)
                 break;
         }
     }
+
     ine_Coord_type result = 0;
 
     if (Ndata == 1){
@@ -267,6 +268,7 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
     }
     if (std::isnan(result))
         std::cout << norm << "scatter_2D_interpolation will return NAN for Ndata=" << Ndata << " and p=(" << point[0] << "," << point[1] << "," << point[2] << ")" << std::endl;
+
     return result;
 }
 

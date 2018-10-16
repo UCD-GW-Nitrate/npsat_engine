@@ -218,9 +218,11 @@ void NPSAT<dim>::make_grid(){
 
         count_refinements++;
     }
-    std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
-    GridOut grid_out;
-    grid_out.write_ucd(triangulation, out);
+
+    //std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
+    //GridOut grid_out;
+    //grid_out.write_ucd(triangulation, out);
+
 }
 
 template <int dim>

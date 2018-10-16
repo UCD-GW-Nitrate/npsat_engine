@@ -1315,12 +1315,10 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_funct
 
         double top = top_function.value(p_dim);
         double bot = bot_function.value(p_dim);
-        
         if (std::isnan(top))
             std::cout << "Top was nan" << std::endl;
         if (std::isnan(bot))
             std::cout << "Bot was nan" << std::endl;
-        
         it->second.T = top;
         it->second.B = bot;
         itz = it->second.Zlist.begin();
