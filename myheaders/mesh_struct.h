@@ -960,6 +960,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             }
                             if (all_known){
                                 itz->z = sum_z / static_cast<double>(itz->cnstr_nds.size());
+                                if (std::isnan(itz->z))
+                                    std::cout << "A Hanging point was set to nan. (sum_z/Constraint size): " << itz->cnstr_nds.size() << ", " << sum_z << std::endl;
                                 itz->isZset = true;
                             }
                             else{
@@ -1025,6 +1027,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
                             if (itz->Top.isSet && itz->Bot.isSet){
                                 itz->z = itz->Top.z * itz->rel_pos + (1.0 - itz->rel_pos) * itz->Bot.z;
+                                if (std::isnan(itz->z))
+                                    std::cout << "A regular point was set to nan. (Top, Rel, Bot:)" << itz->Top.z << ", " << itz->rel_pos << ", " << itz->Bot.z << std::endl;
                                 itz->isZset = true;
                             }
                             else{
@@ -1311,6 +1315,12 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_funct
 
         double top = top_function.value(p_dim);
         double bot = bot_function.value(p_dim);
+        
+        if (std::isnan(top))
+            std::cout << "Top was nan" << std::endl;
+        if (std::isnan(bot))
+            std::cout << "Bot was nan" << std::endl;
+        
         it->second.T = top;
         it->second.B = bot;
         itz = it->second.Zlist.begin();

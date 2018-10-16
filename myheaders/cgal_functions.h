@@ -178,6 +178,24 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
     ine_Point2 p(point[0], point[1]);
     std::vector< std::pair< ine_Point2, ine_Coord_type > > coords;
     ine_Coord_type norm = CGAL::natural_neighbor_coordinates_2(DT, p, std::back_inserter(coords)).second;
+    if (std::isnan(norm)){
+        // jiggle the point
+        int cnt = 0;
+        while (true){
+			std::cout << "try # " << cnt + 1 << std::endl;
+            coords.clear();
+            double xr = p[0] + 0.01*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
+            double yr = p[1] + 0.01*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
+            ine_Point2 p_try(xr, yr);
+            norm = CGAL::natural_neighbor_coordinates_2(DT, p_try, std::back_inserter(coords)).second;
+            if (!std::isnan(norm))
+                break;
+            else
+                cnt++;
+            if (cnt > 20)
+                break;
+        }
+    }
     ine_Coord_type result = 0;
 
     if (Ndata == 1){
@@ -247,6 +265,8 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
             }
         }
     }
+    if (std::isnan(result))
+        std::cout << norm << "scatter_2D_interpolation will return NAN for Ndata=" << Ndata << " and p=(" << point[0] << "," << point[1] << "," << point[2] << ")" << std::endl;
     return result;
 }
 
