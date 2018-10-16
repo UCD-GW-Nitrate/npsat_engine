@@ -187,8 +187,8 @@ void GWFLOW<dim>::assemble(){
 
             HK.value_list(fe_values.get_quadrature_points(),
                           hydraulic_conductivity_values);
-
-            bool print_this_cell = false;
+			
+			bool print_this_cell = false;
             for (unsigned int q_point=0; q_point<n_q_points; ++q_point){
                 for (unsigned int i=0; i<dofs_per_cell; ++i){
                     for (unsigned int j=0; j<dofs_per_cell; ++j){
@@ -196,12 +196,13 @@ void GWFLOW<dim>::assemble(){
                                              hydraulic_conductivity_values[q_point]*
                                              fe_values.shape_grad(j,q_point)*
                                              fe_values.JxW(q_point));
-                        if (std::isnan(fe_values.JxW(q_point)) == 1){
+						if (std::isnan(fe_values.JxW(q_point)) == 1){
                             print_this_cell = true;
                         }
                     }
                 }
             }
+
             if (print_this_cell)
                 print_cell_coords<dim>(cell);
 
@@ -219,11 +220,11 @@ void GWFLOW<dim>::assemble(){
                                                 fe_face_values.shape_value(i,q_point)*
                                                 fe_face_values.JxW(q_point));
                                 if (std::isnan(Q_rch) == 1){
-                                    std::cout << "Rank: " << my_rank << " Rval: " << recharge_values[q_point] << " | w: " << weight
+                                    std::cout  << "Rank: " << my_rank << " Rval: " << recharge_values[q_point] << " | w: " << weight
                                               << " | ShVal: " << fe_face_values.shape_value(i,q_point)
                                               << " | JxW: " << fe_face_values.JxW(q_point) << std::endl;
-                                    //std::cout << "Bc: " << cell->barycenter() << std::endl;
-                                    print_cell_face_matlab<dim>(cell, i_face);
+								    //std::cout << "Bc: " << cell->barycenter() << std::endl;
+								    print_cell_face_matlab<dim>(cell, i_face);
                                 }
 
                                 cell_rhs(i) += Q_rch;

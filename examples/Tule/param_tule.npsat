@@ -4,11 +4,11 @@ subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/Tule/
+  set a Input directory  = /home/giorgk/Documents/test_npsat/NPSAT/examples/Tule/
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/Tule/output/
+  set b Output directory = /home/giorgk/Documents/test_npsat/NPSAT/examples/Tule/output/
 end
 
 
@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 2
+  set a Nonlinear iterations = 7
 
   # b----------------------------------
   # Tolerance of solver
@@ -161,7 +161,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 3
+  set a Max refinements iterations = 0
 
   # b----------------------------------
   # Top refinement fraction
@@ -227,7 +227,7 @@ subsection I. Particle tracking ================================
 
   # j----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set j Do particle tracking       = 1
+  set j Do particle tracking       = 0
 
   # k----------------------------------
   # The maximum number of particles that is allowed to run in parallel
@@ -236,11 +236,11 @@ subsection I. Particle tracking ================================
   # l----------------------------------
   # The number of layers that the particles will be distributed around the
   # well
-  set l Layers per well            = 25
+  set l Layers per well            = 10
 
   # m----------------------------------
   # The number of particles per layers for the wells
-  set m Particles per layer(well)  = 4
+  set m Particles per layer(well)  = 6
 
   # n----------------------------------
   # The distance from well that the particles will be releazed
