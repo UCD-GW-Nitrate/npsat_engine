@@ -28,6 +28,7 @@
 #include "mix_mesh.h"
 #include "particle_tracking.h"
 #include "streamlines.h"
+#include "snapshot.h"
 
 using namespace dealii;
 
@@ -101,10 +102,6 @@ private:
     void create_dim_1_grids();
     void flag_cells_for_refinement();
     void print_mesh();
-    void save_solution();
-    void load_solution();
-
-
 };
 
 template <int dim>
@@ -311,7 +308,11 @@ void NPSAT<dim>::solve_refine(){
 
         }
     }
-    //save_solution();
+
+    std::string temp_file = AQProps.Dirs.output + AQProps.sim_prefix;
+    Snapshot<dim> snapshot(mpi_communicator, dof_handler, fe, locally_relevant_solution);
+    snapshot.save(temp_file, 0, triangulation);
+
 }
 
 template <int dim>
@@ -675,15 +676,5 @@ void NPSAT<dim>::print_mesh(){
     }
 }
 
-template <int dim>
-void NPSAT<dim>::save_solution(){
-    std::vector<const TrilinosWrappers::MPI::Vector *> x_system(1);
-    x_system[0] = &locally_relevant_solution;
-
-    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> solution_tranfser(dof_handler);
-    solution_tranfser.prepare_serialization(x_system);
-    std::string outfile = AQProps.Dirs.output + AQProps.sim_prefix + ".sol";
-    triangulation.save(outfile.c_str());
-}
 
 #endif // NPSAT_H

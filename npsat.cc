@@ -65,7 +65,7 @@ int main (int argc, char **argv){
     deallog.depth_console (1);
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
 
-    CL_arguments<_DIM> CLI;
+  CL_arguments<_DIM> CLI;
     //std::cout << "Is here?" << std::endl;
     //return 0;
     if (CLI.parse_command_line(argc,argv)){
