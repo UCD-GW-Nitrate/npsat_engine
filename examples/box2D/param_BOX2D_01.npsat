@@ -4,11 +4,11 @@ subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set a Input directory  = /home/giorgk/Documents/test_npsat/topo/NPSAT/examples/box2D/
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/output/
+  set b Output directory = /home/giorgk/Documents/test_npsat/topo/NPSAT/examples/box2D/output/
 end
 
 
@@ -83,7 +83,7 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 2
+  set d Well Refinement         = 0
 
   # e----------------------------------
   # The number of initial refinements around the Streams
@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 1
+  set a Nonlinear iterations = 15
 
   # b----------------------------------
   # Tolerance of solver
@@ -161,7 +161,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 5
+  set a Max refinements iterations = 15
 
   # b----------------------------------
   # Top refinement fraction

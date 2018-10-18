@@ -126,7 +126,6 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     //user_input = CLI;
     my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     make_grid();
-    return;
     DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
 }
 

@@ -946,9 +946,11 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     std::deque<int> topo_order;
     boost::topological_sort(MeshGraph, std::front_inserter(topo_order));
 
-    //for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
-    //    std::cout << MeshGraph[*itd].id << std::endl;
-    //}
+	//if (my_rank == 1){
+	//	for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
+	//		std::cout << MeshGraph[*itd].id << std::endl;
+	//	}
+	//}
 
     while (true){
         MPI_Barrier(mpi_communicator);
@@ -965,12 +967,14 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
         for (std::deque<int>::iterator itd = topo_order.begin(); itd != topo_order.end(); ++itd){
             int this_dof = MeshGraph[*itd].id;
-            //std::cout << this_dof << std::endl;
+            
             it_ij = dof_ij.find(this_dof);
             if (it_ij != dof_ij.end()){
                 int ii = it_ij->second.first;
                 int jj = it_ij->second.second;
                 if (PointsMap[ii].Zlist[jj].is_local){
+					//if (my_rank == 1 && this_dof == 71)
+					//	std::cout << "Dof: " << this_dof << " z: " << PointsMap[ii].Zlist[jj].z << std::endl;
                     if (!PointsMap[ii].Zlist[jj].isZset){
                         if (PointsMap[ii].Zlist[jj].hanging){//-----------------------IS HANGING-------------------------------
                             // if the node is hanging then compute its new elevation by averaging the
@@ -979,12 +983,16 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             bool all_known = true;
                             double sum_z = 0;
                             for (unsigned int ic = 0; ic < PointsMap[ii].Zlist[jj].cnstr_nds.size(); ++ic){
+								//if (this_dof == 71 && my_rank == 1)
+								//	std::cout << "cc" << PointsMap[ii].Zlist[jj].cnstr_nds[ic] << std::endl;
                                 // Find if the node exists in the map
                                 bool not_local = false;
                                 it_ij = dof_ij.find(PointsMap[ii].Zlist[jj].cnstr_nds[ic]);
                                 if (it_ij != dof_ij.end()){// if exists, check if it's local
                                     if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].is_local){
                                         if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
+											//if (this_dof == 71 && my_rank == 1)
+											//	std::cout << PointsMap[ii].Zlist[jj].cnstr_nds[ic] << ":" << PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z << std::endl;
                                             sum_z += PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
                                         }
                                         else{
@@ -1017,6 +1025,10 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             if (all_known){
                                 PointsMap[ii].Zlist[jj].z = sum_z / static_cast<double>(PointsMap[ii].Zlist[jj].cnstr_nds.size());
                                 PointsMap[ii].Zlist[jj].isZset = true;
+                                //if (this_dof == 71 && my_rank == 1)
+								//	std::cout << "calc z: " << PointsMap[ii].Zlist[jj].z << std::endl;
+                                //if (my_rank == 1)
+								//	std::cout << "all set" << std::endl;
                                 if (std::isnan(PointsMap[ii].Zlist[jj].z))
                                     std::cout << "A Hanging point was set to nan. (sum_z/Constraint size): " << sum_z << ", "
                                               << PointsMap[ii].Zlist[jj].cnstr_nds.size()   << std::endl;
@@ -1024,6 +1036,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             }
                             else{
                                 count_not_set++;
+                                //if (my_rank == 1)
+								//	std::cout << "NOT set" << std::endl;
                             }
 
 
@@ -1078,8 +1092,10 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                 else {// The bottom is local
                                     it_ij = dof_ij.find(PointsMap[ii].Zlist[jj].Bot.dof);
                                     if (it_ij != dof_ij.end()){
-                                        PointsMap[ii].Zlist[jj].Bot.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
-                                        PointsMap[ii].Zlist[jj].Bot.isSet = true;
+										if (PointsMap[it_ij->second.first].Zlist[it_ij->second.second].isZset){
+											PointsMap[ii].Zlist[jj].Bot.z = PointsMap[it_ij->second.first].Zlist[it_ij->second.second].z;
+											PointsMap[ii].Zlist[jj].Bot.isSet = true;
+										}
                                     }
                                     else{
                                         std::cerr << "The node " << PointsMap[ii].Zlist[jj].dof << " seems to have local Bottom " << PointsMap[ii].Zlist[jj].Bot.dof << " for proc " << my_rank << " but was not found" << std::endl;
@@ -1090,6 +1106,10 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             if (PointsMap[ii].Zlist[jj].Top.isSet && PointsMap[ii].Zlist[jj].Bot.isSet){
                                 PointsMap[ii].Zlist[jj].z = PointsMap[ii].Zlist[jj].Top.z * PointsMap[ii].Zlist[jj].rel_pos + (1.0 - PointsMap[ii].Zlist[jj].rel_pos) * PointsMap[ii].Zlist[jj].Bot.z;
                                 PointsMap[ii].Zlist[jj].isZset = true;
+                                //if (this_dof == 75){
+								//	std::cout << PointsMap[ii].Zlist[jj].Top.z << "|" << PointsMap[ii].Zlist[jj].Bot.z << std::endl;
+								//}
+								
                                 if (std::isnan(PointsMap[ii].Zlist[jj].z))
                                     std::cout << "A point was set to nan. (Top, Rel, Bot:)"
                                               << PointsMap[ii].Zlist[jj].Top.z << ", "
@@ -1099,10 +1119,16 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                             }
                             else{
                                 count_not_set++;
+                                //if (my_rank == 1)
+								//	std::cout << "Not set" << std::endl;
                             }
 
                         }
                     }
+                    else{
+						//if (my_rank == 1);
+						//	std::cout  << "was set" << std::endl;
+					}
                 }
             }
         }
@@ -1232,7 +1258,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
         dbg_cnt++;
     }
-    //dbg_meshStructInfo3D("Third", my_rank);
+    //dbg_meshStructInfo3D("Fourth", my_rank);
     //respect_hanging_nodes();
     //dbg_meshStructInfo3D_point(Point<dim>(319598.96875, 3991660.25, 0.0), "Third", my_rank);
 
