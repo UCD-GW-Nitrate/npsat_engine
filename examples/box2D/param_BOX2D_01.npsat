@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 15
+  set a Nonlinear iterations = 10
 
   # b----------------------------------
   # Tolerance of solver
@@ -155,6 +155,10 @@ subsection G. Solver parameters ================================
   # c----------------------------------
   # Number of maximum solver iterations
   set c Max iterations       = 1000
+  
+  # d----------------------------------
+  # Load a solution instead of solving
+  set d Load Solution        = 1
 end
 
 

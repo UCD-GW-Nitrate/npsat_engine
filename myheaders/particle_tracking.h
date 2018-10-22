@@ -88,8 +88,8 @@ private:
     TrilinosWrappers::MPI::Vector       locally_relevant_solution;
     MyTensorFunction<dim>               HK_function;
     MyFunction<dim, dim>                porosity;
-    ConditionalOStream                  pcout;
     ParticleParameters                  param;
+    ConditionalOStream                  pcout;
 
     std::map<unsigned int, AverageVel<dim>> VelocityMap;
 

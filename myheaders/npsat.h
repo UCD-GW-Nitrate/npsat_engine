@@ -28,7 +28,7 @@
 #include "mix_mesh.h"
 #include "particle_tracking.h"
 #include "streamlines.h"
-#include "snapshot.h"
+//#include "snapshot.h"
 
 using namespace dealii;
 
@@ -102,6 +102,8 @@ private:
     void create_dim_1_grids();
     void flag_cells_for_refinement();
     void print_mesh();
+    void save();
+    void load();
 };
 
 template <int dim>
@@ -123,7 +125,7 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
     //user_input = CLI;
     my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     make_grid();
-    DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
+    //DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
 }
 
 template <int dim>
@@ -138,6 +140,23 @@ void NPSAT<dim>::make_grid(){
     //int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     AquiferGrid::GridGenerator<dim> gg(AQProps);
     gg.make_grid(triangulation);
+
+    // Load solution
+    if (AQProps.solver_param.load_solution > 0){
+
+        load();
+        mesh_struct.move_vertices(mesh_dof_handler, mesh_vertices);
+
+
+        std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
+
+        return;
+    }
+
+    // Refine uniformly if it is requested
+    triangulation.refine_global(AQProps.N_init_refinement);
 
     // set display scales only during debuging
     mesh_struct.dbg_set_scales(AQProps.dbg_scale_x, AQProps.dbg_scale_z);
@@ -216,6 +235,8 @@ void NPSAT<dim>::make_grid(){
         count_refinements++;
     }
 
+    // Prepare dirichlet Boudnary Conditions
+    DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
     //std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
     //GridOut grid_out;
     //grid_out.write_ucd(triangulation, out);
@@ -309,10 +330,7 @@ void NPSAT<dim>::solve_refine(){
         }
     }
 
-    std::string temp_file = AQProps.Dirs.output + AQProps.sim_prefix;
-    Snapshot<dim> snapshot(mpi_communicator, dof_handler, fe, locally_relevant_solution);
-    snapshot.save(temp_file, 0, triangulation);
-
+    save();
 }
 
 template <int dim>
@@ -673,6 +691,84 @@ void NPSAT<dim>::print_mesh(){
         const std::string pvtu_master_filename = ("Current_Mesh_.pvtu");
         std::ofstream pvtu_master (pvtu_master_filename.c_str());
         data_out.write_pvtu_record(pvtu_master, filenames);
+    }
+}
+
+template <int dim>
+void NPSAT<dim>::save(){
+    pcout << "Saving snapshot..." << std::endl << std::flush;
+    // preparing the solution
+    std::vector<const TrilinosWrappers::MPI::Vector *> x_system(1);
+    x_system[0] = &locally_relevant_solution;
+    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> sol_trans(dof_handler);
+    sol_trans.prepare_serialization (x_system);
+
+    // preparing the mesh vertices
+    std::vector<const TrilinosWrappers::MPI::Vector *> x_fs_system (1);
+    x_fs_system[0] = &mesh_vertices;
+    parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> msh_trans(mesh_dof_handler);
+    msh_trans.prepare_serialization(x_fs_system);
+
+    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_sol.npsat");
+    triangulation.save(filename.c_str());
+}
+
+template <int dim>
+void NPSAT<dim>::load(){
+    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_sol.npsat");
+    std::ifstream  datafile(filename.c_str());
+    if (!datafile.good()){
+        pcout << "Can't load the snapshot " << filename << std::endl;
+        return;
+    }
+    else{
+        pcout << "Loading snapshot..." << std::endl << std::flush;
+        triangulation.load(filename.c_str());
+
+        dof_handler.distribute_dofs (fe);
+
+        pcout << "number of locally owned cells: "
+              << triangulation.n_locally_owned_active_cells() << std::endl;
+
+        pcout << " Number of active cells: "
+              << triangulation.n_global_active_cells()
+              << std::endl
+              << " Number of degrees of freedom: "
+              << dof_handler.n_dofs()
+              << std::endl << std::flush;
+
+        IndexSet    locally_owned_dofs;
+        IndexSet    locally_relevant_dofs;
+        locally_owned_dofs = dof_handler.locally_owned_dofs ();
+        DoFTools::extract_locally_relevant_dofs(dof_handler, locally_relevant_dofs);
+        locally_relevant_solution.reinit (locally_owned_dofs,
+                                          locally_relevant_dofs, mpi_communicator);
+
+        TrilinosWrappers::MPI::Vector distributed_system(locally_owned_dofs, mpi_communicator);
+        std::vector<TrilinosWrappers::MPI::Vector *> x_system(1);
+        x_system[0] = & (distributed_system);
+        parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> sol_trans(dof_handler);
+        sol_trans.deserialize (x_system);
+        locally_relevant_solution = distributed_system;
+
+        Headconstraints.clear();
+        Headconstraints.reinit(locally_owned_dofs);
+        DoFTools::make_hanging_node_constraints (dof_handler, Headconstraints);
+        Headconstraints.close();
+
+
+        mesh_dof_handler.distribute_dofs(mesh_fe);
+        mesh_locally_owned = mesh_dof_handler.locally_owned_dofs();
+        DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
+        mesh_vertices.reinit (mesh_locally_owned,
+                              mesh_locally_relevant, mpi_communicator);
+        TrilinosWrappers::MPI::Vector distributed_mesh_system(mesh_locally_owned, mpi_communicator);
+        std::vector<TrilinosWrappers::MPI::Vector *> fs_system(1);
+
+        parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> msh_trans(mesh_dof_handler);
+        fs_system[0] = & (distributed_mesh_system);
+        msh_trans.deserialize(fs_system);
+        mesh_vertices = distributed_mesh_system;
     }
 }
 

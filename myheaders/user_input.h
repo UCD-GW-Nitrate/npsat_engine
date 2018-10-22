@@ -412,6 +412,10 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,20000),
                           "c----------------------------------\n"
                           "Number of maximum solver iterations");
+
+        prm.declare_entry("d Load Solution", "0", Patterns::Integer(0,2),
+                          "d----------------------------------\n"
+                          "Load a solution instead of solving");
     }
     prm.leave_subsection();
 
@@ -765,6 +769,7 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.solver_param.NonLinearIter = prm.get_integer("a Nonlinear iterations");
         AQprop.solver_param.solver_tol = prm.get_double("b Solver tolerance");
         AQprop.solver_param.Maxiter = prm.get_integer("c Max iterations");
+        AQprop.solver_param.load_solution = prm.get_integer("d Load Solution");
     }
     prm.leave_subsection ();
 

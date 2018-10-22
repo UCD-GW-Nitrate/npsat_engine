@@ -103,7 +103,7 @@ namespace AquiferGrid{
     void GridGenerator<dim>::make_grid(parallel::distributed::Triangulation<dim>& triangulation){
         if (geom_param.geomtype == "BOX"){
             make_box((triangulation));
-            triangulation.refine_global(geom_param.N_init_refinement);
+            //triangulation.refine_global(geom_param.N_init_refinement);
         }
         else if (geom_param.geomtype == "FILE"){
             if (dim !=3 ){
@@ -124,7 +124,7 @@ namespace AquiferGrid{
                     dealii::GridGenerator::extrude_triangulation(tria2D, slices, tria3D); */
 
                     convert_to_parallel(tria3D, triangulation);
-                    triangulation.refine_global(geom_param.N_init_refinement);
+                    //triangulation.refine_global(geom_param.N_init_refinement);
                     assign_default_boundary_id(triangulation);
 #endif
 

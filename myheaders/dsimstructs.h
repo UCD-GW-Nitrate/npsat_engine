@@ -25,6 +25,9 @@ struct SolverParameters{
 
     //! Solver tolerance
     double solver_tol;
+
+    //! Load a previously computed solution
+    int load_solution;
 };
 
 //! RefinementParameters is a struct with parameters that control the mesh refinements

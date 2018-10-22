@@ -81,8 +81,9 @@ int main (int argc, char **argv){
             else{
                 CLI.Debug_Prop();
                 NPSAT<_DIM> npsat(CLI.AQprop);
-                npsat.solve_refine();
-                //npsat.particle_tracking();
+                if (CLI.AQprop.solver_param.load_solution <=0)
+                    npsat.solve_refine();
+                npsat.particle_tracking();
             }
         }
     }

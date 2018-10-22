@@ -340,8 +340,8 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     // already processed
 
     std::map <int, int> GraphVertices; // <Mesh ID, Graph id>
-    int graphID = 0;
-    std::map<int,int>::iterator itg;
+    //int graphID = 0;
+    //std::map<int,int>::iterator itg;
     Edgelist GraphEdges;
     MPI_Barrier(mpi_communicator);
 
