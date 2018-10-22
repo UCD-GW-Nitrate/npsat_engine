@@ -1765,7 +1765,6 @@ bool Particle_Tracking<dim>::average_velocity_field(){
                                        AverageVel<dim>(locally_owned_indices.is_element(local_dof_indices[ii]),
                                                        local_dof_indices[ii], vel, temp_cnstr)));
                 }
-
             }
         }
     }

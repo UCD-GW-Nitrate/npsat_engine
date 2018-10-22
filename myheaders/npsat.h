@@ -752,7 +752,7 @@ void NPSAT<dim>::load(){
         locally_relevant_solution = distributed_system;
 
         Headconstraints.clear();
-        Headconstraints.reinit(locally_owned_dofs);
+        Headconstraints.reinit(locally_relevant_dofs);
         DoFTools::make_hanging_node_constraints (dof_handler, Headconstraints);
         Headconstraints.close();
 
