@@ -31,6 +31,10 @@ struct SolverParameters{
 
     //! Save the final solution before particle tracking
     int save_solution;
+
+    //! Print detailed output of the ML preconditioner
+    int output_details;
+
 };
 
 //! RefinementParameters is a struct with parameters that control the mesh refinements
@@ -248,6 +252,9 @@ public:
 
     //! Holds the Solver parameters
     SolverParameters                    solver_param;
+
+    //! This is the main parameter file.
+    std::string main_param_file;
 };
 
 template <int dim>

@@ -457,7 +457,6 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                     if (temp_cnstr[i] != zinfo.dof)
                         addGraphEdge(GraphVertices, GraphEdges, temp_cnstr[i], zinfo.dof);
                 }
-
             }
         }
     }

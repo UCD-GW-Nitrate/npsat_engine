@@ -32,8 +32,45 @@ cmake -DCMAKE_BUILD_TYPE=Release ../..
 make
 ```
 
+
+## Build NPSAT
 To compile the NPSAT code run the following command from the directory where the npsat.cc file is.
 ```
 cmake -DDEAL_II_DIR=Path/to/candi/compiled/libs/deal.II-v9.0.0 -DCGAL_DIR:PATH=/path/to/cgal-releases-CGAL-4.11.3/build/release .
 make
 ```
+
+
+## Run
+#### Calculate flow & particle tracking
+To run NPSAT you need to prepare a main parameter file. then you can do
+```
+mpirun -n nproc path/to/executable/npsat -p parameter_file.npsat
+```
+This is going to execute the problem described in the parameter file. using `nproc` processors. If the particle tracking is on, then most likely the particle trajectories have been written in several files per processor, where each file contains segments of the particle trajectories. To do anything useful with them you need first to gather them. You can do so by running the following
+```
+path/to/executable/npsat -p parameter_file.npsat -g nproc nchunk
+```
+where `nproc` is the number of processors that where used during the simulation and `nchunk` is a number that is specified at the end of the simulation. 
+
+#### Compute URFs
+This gather step is going to generate one or more files with the suffix *.urfs. This contains the data in a suitable format for Unit Response Function calculation. 
+
+From matlab or octave simply call 
+```
+WellURF = readURFs(filename);
+```
+
+Keep in mind that this is going to look for some [msim](http://subsurface.gr/software/msim/) commands. Therefore you need to make sure that the msin folders have been added to matlab search path.
+
+That concludes the workflow of this tool.
+
+For using the URFs see [Mantis](https://github.com/giorgk/Mantis) 
+
+
+Happy pollution predicting!
+
+
+
+
+

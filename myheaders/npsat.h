@@ -28,7 +28,9 @@
 #include "mix_mesh.h"
 #include "particle_tracking.h"
 #include "streamlines.h"
-//#include "snapshot.h"
+
+//#include "helper_functions.h"
+
 
 using namespace dealii;
 
@@ -125,8 +127,8 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
 {
     //user_input = CLI;
     my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    pcout << "Simulation started at \n" << print_current_time() << std::endl;
     make_grid();
-    //DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
 }
 
 template <int dim>
@@ -153,7 +155,6 @@ void NPSAT<dim>::make_grid(){
             GridOut grid_out;
             grid_out.write_ucd(triangulation, out);
         }
-
         return;
     }
 
@@ -292,7 +293,8 @@ void NPSAT<dim>::solve_refine(){
                        dirichlet_boundary,
                        HK_function[0],
                        GR_funct,
-                       top_boundary_ids);
+                       top_boundary_ids,
+                        AQProps.solver_param);
 
         gw.Simulate(iter,
                     AQProps.Dirs.output + AQProps.sim_prefix,
@@ -340,6 +342,8 @@ void NPSAT<dim>::solve_refine(){
 
     if (AQProps.solver_param.save_solution > 0)
         save();
+    pcout << "Simulation ended at \n" << print_current_time() << std::endl;
+
 }
 
 template <int dim>
@@ -602,6 +606,7 @@ void NPSAT<dim>::do_refinement1(){
 template <int dim>
 void NPSAT<dim>::particle_tracking(){
     pcout << "PARTICLE TRACKING..." << std::endl;
+    pcout << "Started at \n" << print_current_time() << std::endl;
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
     MyFunction<dim, dim> porosity_fnc(AQProps.Porosity);
@@ -642,7 +647,7 @@ void NPSAT<dim>::particle_tracking(){
             std::default_random_engine generator;
             // create a subvector of streamlines
             unsigned int N = AQProps.part_param.Nparallel_particles;
-            if (All_streamlines.size() < N + 10){ // This should be 1000, we set it to 10 for debug
+            if (All_streamlines.size() < N + 1000){ // This should be 1000 an maybe over, but set it to 10 for debug
                 N = All_streamlines.size();
             }
             for (unsigned int i = 0 ; i < N; ++i){
@@ -656,11 +661,12 @@ void NPSAT<dim>::particle_tracking(){
             }
             if (All_streamlines.size() == 0)
                 part_done[0] = 1;
+            pcout << "      There are " << All_streamlines.size()  << " particles to trace" << std::endl;
         }
 
         MPI_Barrier(mpi_communicator);
         Sent_receive_streamlines_all_to_all(part_of_streamlines, my_rank, n_proc, mpi_communicator);
-        std::cout << "I'm proc " << my_rank << " and have " << part_of_streamlines[my_rank].size() << " to trace" << std::endl;
+        //std::cout << "I'm proc " << my_rank << " and have " << part_of_streamlines[my_rank].size() << " to trace" << std::endl;
         MPI_Barrier(mpi_communicator);
 
         pt.trace_particles(part_of_streamlines[my_rank], particle_iter++, AQProps.Dirs.output + AQProps.sim_prefix);
@@ -671,6 +677,11 @@ void NPSAT<dim>::particle_tracking(){
         if (part_done[0] == 1)
             break;
     }
+    pcout << "Particle tracking ended at \n" << print_current_time() << std::endl;
+    pcout << "To gather the streamlines use the following command: \n"
+          << "npsat -p " << AQProps.main_param_file
+          << " -g " << n_proc << " " << particle_iter << std::endl;
+
 }
 
 template <int dim>

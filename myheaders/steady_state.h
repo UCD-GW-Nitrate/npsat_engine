@@ -23,11 +23,13 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/grid/grid_out.h>
+
 #include "my_functions.h"
 #include "helper_functions.h"
 #include "wells.h"
 #include "streams.h"
 #include "cgal_functions.h"
+#include "dsimstructs.h"
 
 struct SimPrintFlags{
 public:
@@ -56,8 +58,10 @@ public:
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
-           MyFunction<dim,dim>&                 groundwater_recharge,
-           std::vector<int>&                    top_boundary_ids);
+           MyFunction<dim,dim>&               groundwater_recharge,
+           std::vector<int>&                    top_boundary_ids,
+           SolverParameters&                    solver_param_in);
+
 
 
     void Simulate(int iter,                                     std::string output_file,
@@ -87,8 +91,11 @@ private:
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
     std::vector<int>                            top_boundary_ids;
+    SolverParameters                            solver_param;
+
     ConditionalOStream                        	pcout;
     TimerOutput                               	computing_timer;
+
     int                                         my_rank;
     int                                         n_proc;
 
@@ -105,15 +112,16 @@ private:
 };
 
 template <int dim>
-GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
-                    DoFHandler<dim>&                     dof_handler_in,
-                    const FE_Q<dim>&                     fe_in,
-                    ConstraintMatrix&                    constraints_in,
-                    TrilinosWrappers::MPI::Vector&       locally_relevant_solution_in,
-                    typename FunctionMap<dim>::type&     dirichlet_boundary_in,
-                    MyTensorFunction<dim>&               HK_function,
-                    MyFunction<dim, dim> &groundwater_recharge,
-                    std::vector<int>&                    top_boundary_ids_in)
+GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
+                    DoFHandler<dim>&                    dof_handler_in,
+                    const FE_Q<dim>&                    fe_in,
+                    ConstraintMatrix&                   constraints_in,
+                    TrilinosWrappers::MPI::Vector&      locally_relevant_solution_in,
+                    typename FunctionMap<dim>::type&    dirichlet_boundary_in,
+                    MyTensorFunction<dim>&              HK_function,
+                    MyFunction<dim, dim>&               groundwater_recharge,
+                    std::vector<int>&                   top_boundary_ids_in,
+                    SolverParameters&                   solver_param_in)
     :
       mpi_communicator(mpi_communicator_in),
       dof_handler(dof_handler_in),
@@ -124,6 +132,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                            mpi_communicator_in,
       HK(HK_function),
       GWRCH(groundwater_recharge),
       top_boundary_ids(top_boundary_ids_in),
+      solver_param(solver_param_in),
       pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0)),
       computing_timer(pcout, TimerOutput::summary, TimerOutput::wall_times)
 {
@@ -204,8 +213,8 @@ void GWFLOW<dim>::assemble(){
 
             HK.value_list(fe_values.get_quadrature_points(),
                           hydraulic_conductivity_values);
-
-            bool print_this_cell = false;
+			
+			bool print_this_cell = false;
             for (unsigned int q_point=0; q_point<n_q_points; ++q_point){
                 for (unsigned int i=0; i<dofs_per_cell; ++i){
                     for (unsigned int j=0; j<dofs_per_cell; ++j){
@@ -213,12 +222,13 @@ void GWFLOW<dim>::assemble(){
                                              hydraulic_conductivity_values[q_point]*
                                              fe_values.shape_grad(j,q_point)*
                                              fe_values.JxW(q_point));
-                        if (std::isnan(fe_values.JxW(q_point)) == 1){
+						if (std::isnan(fe_values.JxW(q_point)) == 1){
                             print_this_cell = true;
                         }
                     }
                 }
             }
+
             if (print_this_cell)
                 print_cell_coords<dim>(cell);
 
@@ -236,11 +246,11 @@ void GWFLOW<dim>::assemble(){
                                                 fe_face_values.shape_value(i,q_point)*
                                                 fe_face_values.JxW(q_point));
                                 if (std::isnan(Q_rch) == 1){
-                                    std::cout << "Rank: " << my_rank << " Rval: " << recharge_values[q_point] << " | w: " << weight
+                                    std::cout  << "Rank: " << my_rank << " Rval: " << recharge_values[q_point] << " | w: " << weight
                                               << " | ShVal: " << fe_face_values.shape_value(i,q_point)
                                               << " | JxW: " << fe_face_values.JxW(q_point) << std::endl;
-                                    //std::cout << "Bc: " << cell->barycenter() << std::endl;
-                                    print_cell_face_matlab<dim>(cell, i_face);
+								    //std::cout << "Bc: " << cell->barycenter() << std::endl;
+								    print_cell_face_matlab<dim>(cell, i_face);
                                 }
 
                                 cell_rhs(i) += Q_rch;
@@ -275,7 +285,7 @@ void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
     pcout << "\t Solving system..." << std::endl << std::flush;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
-    SolverControl solver_control (dof_handler.n_dofs(), 1e-8);
+    SolverControl solver_control (dof_handler.n_dofs(), solver_param.solver_tol);
     solver_control.log_result(true);
     solver_control.log_history(true);
     solver_control.log_frequency(0);
@@ -283,7 +293,8 @@ void GWFLOW<dim>::solve(){
     SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
-    data.output_details = false;
+
+    data.output_details = static_cast<bool>(solver_param.output_details);
     data.n_cycles = 1;
     data.w_cycle = false;
     data.aggregation_threshold = 0.000001;

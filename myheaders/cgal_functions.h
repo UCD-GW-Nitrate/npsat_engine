@@ -181,7 +181,7 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
         // jiggle the point
         int cnt = 0;
         while (true){
-            std::cout << "try # " << cnt + 1 << std::endl;
+			std::cout << "try # " << cnt + 1 << std::endl;
             coords.clear();
             double xr = p[0] + 0.01*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
             double yr = p[1] + 0.01*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
@@ -189,7 +189,7 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
             norm = CGAL::natural_neighbor_coordinates_2(DT, p_try, std::back_inserter(coords)).second;
             if (!std::isnan(norm)){
                 break;
-            }
+			}
             else
                 cnt++;
             if (cnt > 20)
@@ -267,7 +267,8 @@ double scatter_2D_interpolation(const ine_Delaunay_triangulation& DT, // const
         }
     }
     if (std::isnan(result))
-        std::cout << norm << " scatter_2D_interpolation will return NAN for Ndata=" << Ndata << " and p=(" << point[0] << "," << point[1] << "," << point[2] << ")" << std::endl;
+        std::cout << norm << "scatter_2D_interpolation will return NAN for Ndata=" << Ndata << " and p=(" << point[0] << "," << point[1] << "," << point[2] << ")" << std::endl;
+
     return result;
 }
 

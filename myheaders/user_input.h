@@ -409,9 +409,13 @@ void CL_arguments<dim>::declare_parameters(){
                           "b----------------------------------\n"
                           "Tolerance of solver");
 
-        prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,20000),
+        prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,50000),
                           "c----------------------------------\n"
                           "Number of maximum solver iterations");
+
+        prm.declare_entry("d Output details", "0", Patterns::Integer(0,2),
+                          "d----------------------------------\n"
+                          "If 1 displays details about the ML solver");
     }
     prm.leave_subsection();
 
@@ -512,7 +516,6 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("d Distance from well", "50.0", Patterns::Double(1,1000),
                               "d----------------------------------\n"
                               "The distance from well that the particles will be releazed");
-
         }
         prm.leave_subsection();
 
@@ -599,6 +602,8 @@ bool CL_arguments<dim>::read_param_file(){
     std::ifstream f(param_file.c_str());
     if (!f.good())
         return false;
+
+    AQprop.main_param_file = param_file;
 
     prm.parse_input(param_file);
 
@@ -825,6 +830,7 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.solver_param.NonLinearIter = prm.get_integer("a Nonlinear iterations");
         AQprop.solver_param.solver_tol = prm.get_double("b Solver tolerance");
         AQprop.solver_param.Maxiter = prm.get_integer("c Max iterations");
+        AQprop.solver_param.output_details = prm.get_integer("d Output details");
     }
     prm.leave_subsection ();
 

@@ -431,7 +431,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         }
 
         MPI_Barrier(mpi_communicator);
-        std::cout<< "I'm proc" << my_rank << " and have " << new_particles.size() << " particles to send" << std::endl << std::flush;
+        //std::cout<< "I'm proc" << my_rank << " and have " << new_particles.size() << " particles to send" << std::endl << std::flush;
         MPI_Barrier(mpi_communicator);
 
         std::vector<int> new_part_per_proc(n_proc);
@@ -441,7 +441,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         for (unsigned int i = 0; i < n_proc; ++i)
             max_N_part += new_part_per_proc[i];
         MPI_Barrier(mpi_communicator);
-        pcout << "------ Number of active particles: " << max_N_part << " --------" << std::endl << std::flush;
+        pcout << "          Number of active particles: " << max_N_part << " --------" << std::endl << std::flush;
         //std::cout << my_rank << " : " << max_N_part << std::endl;
 
         if (trace_iter>3)
