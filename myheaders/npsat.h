@@ -104,6 +104,7 @@ private:
     void print_mesh();
     void save();
     void load();
+    void read_Particles_from_file(std::vector<Streamline<dim> > &Streamlines);
 };
 
 template <int dim>
@@ -147,10 +148,11 @@ void NPSAT<dim>::make_grid(){
         load();
         mesh_struct.move_vertices(mesh_dof_handler, mesh_vertices);
 
-
-        std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
+        if (AQProps.print_init_mesh >0){
+            std::ofstream out (AQProps.Dirs.output + AQProps.sim_prefix + "_init_mesh_" + Utilities::int_to_string(my_rank,4) + ".vtk");
+            GridOut grid_out;
+            grid_out.write_ucd(triangulation, out);
+        }
 
         return;
     }
@@ -237,9 +239,12 @@ void NPSAT<dim>::make_grid(){
 
     // Prepare dirichlet Boudnary Conditions
     DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
-    //std::ofstream out ("test_tria_" + Utilities::int_to_string(my_rank,4) + ".vtk");
-    //GridOut grid_out;
-    //grid_out.write_ucd(triangulation, out);
+
+    if (AQProps.print_init_mesh >0){
+        std::ofstream out (AQProps.Dirs.output + AQProps.sim_prefix + "_init_mesh_" + Utilities::int_to_string(my_rank,4) + ".vtk");
+        GridOut grid_out;
+        grid_out.write_ucd(triangulation, out);
+    }
 }
 
 template <int dim>
@@ -268,6 +273,9 @@ void NPSAT<dim>::solve_refine(){
 
     MyFunction<dim, dim> GR_funct(AQProps.GroundwaterRecharge);
 
+    SimPrintFlags printing_flags;
+    printing_flags.top_point_cloud = AQProps.print_point_top_cloud;
+
 
     for (int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){
         pcout << "|----------- Iteration : " << iter << " -------------|" << std::endl;
@@ -288,7 +296,7 @@ void NPSAT<dim>::solve_refine(){
 
         gw.Simulate(iter,
                     AQProps.Dirs.output + AQProps.sim_prefix,
-                    triangulation, AQProps.wells, AQProps.streams);
+                    triangulation, AQProps.wells, AQProps.streams, printing_flags);
 
         //gw.Simulate_refine(iter,
         //                AQProps.Dirs.output + AQProps.sim_prefix,
@@ -330,7 +338,8 @@ void NPSAT<dim>::solve_refine(){
         }
     }
 
-    save();
+    if (AQProps.solver_param.save_solution > 0)
+        save();
 }
 
 template <int dim>
@@ -617,6 +626,8 @@ void NPSAT<dim>::particle_tracking(){
                                            AQProps.part_param.Wells_N_per_layer,
                                            AQProps.part_param.Wells_N_Layers,
                                            AQProps.part_param.radius);
+
+        read_Particles_from_file(All_streamlines);
     }
     MPI_Barrier(mpi_communicator);
 
@@ -709,13 +720,13 @@ void NPSAT<dim>::save(){
     parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> msh_trans(mesh_dof_handler);
     msh_trans.prepare_serialization(x_fs_system);
 
-    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_sol.npsat");
+    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + AQProps.solution_suffix + ".npsat");
     triangulation.save(filename.c_str());
 }
 
 template <int dim>
 void NPSAT<dim>::load(){
-    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_sol.npsat");
+    const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + AQProps.solution_suffix + ".npsat");
     std::ifstream  datafile(filename.c_str());
     if (!datafile.good()){
         pcout << "Can't load the snapshot " << filename << std::endl;
@@ -769,6 +780,43 @@ void NPSAT<dim>::load(){
         fs_system[0] = & (distributed_mesh_system);
         msh_trans.deserialize(fs_system);
         mesh_vertices = distributed_mesh_system;
+    }
+}
+
+template <int dim>
+void NPSAT<dim>::read_Particles_from_file(std::vector<Streamline<dim>> &Streamlines){
+    if (AQProps.part_param.Particles_in_file.empty())
+        return;
+    const std::string filename = (AQProps.Dirs.input + AQProps.part_param.Particles_in_file + ".npsat");
+    std::ifstream  datafile(filename.c_str());
+    if (!datafile.good()){
+        pcout << "Can't load the particle file " << filename << std::endl;
+        return;
+    }
+    else{
+        char buffer[512];
+        unsigned int Nparticles, IDE, IDS;
+        double Xcoord, Ycoord, Zcoord;
+        datafile.getline(buffer,512);
+        std::istringstream inp1(buffer);
+        inp1 >> Nparticles;
+
+        for (unsigned int i = 0; i < Nparticles; i++){
+            datafile.getline(buffer,512);
+            std::istringstream inp(buffer);
+            Point<dim> p;
+            inp >> IDE;
+            inp >> IDS;
+            inp >> Xcoord;
+            p[0] = Xcoord;
+            inp >> Ycoord;
+            p[1] = Ycoord;
+            if (dim == 3){
+                inp >> Zcoord;
+                p[2] = Zcoord;
+            }
+            Streamlines.push_back(Streamline<dim>(IDE, IDS, p));
+        }
     }
 }
 

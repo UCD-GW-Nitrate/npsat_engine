@@ -412,10 +412,6 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry("c Max iterations", "1000", Patterns::Integer(100,20000),
                           "c----------------------------------\n"
                           "Number of maximum solver iterations");
-
-        prm.declare_entry("d Load Solution", "0", Patterns::Integer(0,2),
-                          "d----------------------------------\n"
-                          "Load a solution instead of solving");
     }
     prm.leave_subsection();
 
@@ -452,65 +448,90 @@ void CL_arguments<dim>::declare_parameters(){
     //+++++++++++++++++++++++++++++++++++++++++
     prm.enter_subsection("I. Particle tracking ================================");
     {
-        prm.declare_entry("a Print entity frequency", "1", Patterns::Integer(0,1000),
+        prm.declare_entry("a Enable particle tracking","1", Patterns::Integer(0,1),
                           "a----------------------------------\n"
-                          "This will print the streamlines every N Entities (e.g. every 10 wells)");
-
-        prm.declare_entry("b Print streamline frequency", "1", Patterns::Integer(0,1000),
-                          "b----------------------------------\n"
-                          "For each Entity will print every N streamlines");
-
-        prm.declare_entry("c Stuck iterations", "50", Patterns::Integer(0,1000),
-                          "c----------------------------------\n"
-                          "If the streamline has not been expanded after N iterations, stop tracing this particle");
-
-        prm.declare_entry("d Outer iterations", "100", Patterns::Integer(0,1000),
-                          "d----------------------------------\n"
-                          "The number of times that processors are allowed to exchange particles\n"
-                          "This will prevent case where a particle moves back and forth between processors");
-
-        prm.declare_entry("e Streamline iterations", "1000", Patterns::Integer(0,10000),
-                          "e----------------------------------\n"
-                          "The maximum number of steps per streamline");
-
-        prm.declare_entry("f Tracking method", "3", Patterns::Integer(1,3),
-                          "f----------------------------------\n"
-                          "1-> Euler, 2->RK2, 3->RK4");
-
-        prm.declare_entry("g Step size", "6", Patterns::Double(1,100),
-                          "g----------------------------------\n"
-                          "The actual step size for each cell is calculated by dividing\n "
-                          "the diameter of each cell with the given number.\n"
-                          "Essensially this number indicates the average number of steps\n"
-                          "of the algorithm within a cell");
-
-        prm.declare_entry("h Search iterations", "3", Patterns::Integer(1,10),
-                          "h----------------------------------\n"
-                          "How many neighbor to search for the next point if the point has left the current cell");
-
-        prm.declare_entry("i Simplify threshold", "5.5", Patterns::Double(0,100),
-                          "i----------------------------------\n"
-                          "Simplification threshold used for plotting");
-
-        prm.declare_entry("j Do particle tracking","1", Patterns::Integer(0,1),
-                          "j----------------------------------\n"
                           "Set to 0 to deactivate particle tracking. Default is 1");
 
-        prm.declare_entry("k N Particles in parallel", "5000", Patterns::Integer(1,10000),
-                          "k----------------------------------\n"
-                          "The maximum number of particles that is allowed to run in parallel");
+        prm.enter_subsection("A. Configuration =---=---=---=---=---=---=---=---=");
+        {
+            prm.declare_entry("a Tracking method", "3", Patterns::Integer(1,3),
+                              "a----------------------------------\n"
+                              "1-> Euler, 2->RK2, 3->RK4");
 
-        prm.declare_entry("l Layers per well", "25", Patterns::Integer(1,500),
-                          "l----------------------------------\n"
-                          "The number of layers that the particles will be distributed around the well");
+            prm.declare_entry("b Step size", "6", Patterns::Double(1,100),
+                              "b----------------------------------\n"
+                              "The actual step size for each cell is calculated by dividing\n "
+                              "the diameter of each cell with this number.\n"
+                              "Essensially this number indicates the average number of steps\n"
+                              "of the algorithm within a cell");
 
-        prm.declare_entry("m Particles per layer(well)", "4", Patterns::Integer(1,100),
-                          "m----------------------------------\n"
-                          "The number of particles per layers for the wells");
+            prm.declare_entry("c Stuck iterations", "50", Patterns::Integer(0,1000),
+                              "c----------------------------------\n"
+                              "If the streamline has not been expanded for N consecutive\n"
+                              "iterations, then stop tracing this particle");
 
-        prm.declare_entry("n Distance from well", "50.0", Patterns::Double(1,1000),
-                          "n----------------------------------\n"
-                          "The distance from well that the particles will be releazed");
+            prm.declare_entry("d Streamline iterations", "1000", Patterns::Integer(0,10000),
+                              "d----------------------------------\n"
+                              "The maximum number of steps per streamline");
+
+            prm.declare_entry("e Outer iterations", "100", Patterns::Integer(0,1000),
+                              "e----------------------------------\n"
+                              "The number of times that processors are allowed to exchange particles.\n"
+                              "This will prevent cases where a particle moves back and forth between processors");
+
+            prm.declare_entry("f Search iterations", "3", Patterns::Integer(1,10),
+                              "f----------------------------------\n"
+                              "How many neighbor to search for the next point if the point has left the current cell."
+                              "The default is a good choice.");
+
+            prm.declare_entry("g N Particles in parallel", "5000", Patterns::Integer(1,10000),
+                              "g----------------------------------\n"
+                              "The maximum number of particles that is allowed to run in parallel\n"
+                              "Higher values will result more idle processing times\n"
+                              "Lower values generate more output files");
+        }
+        prm.leave_subsection();
+
+
+        prm.enter_subsection("B. Initial particle locations =---=---=---=---=---=");
+        {
+            prm.declare_entry ("a Particles from file", "",Patterns::Anything(),
+                               "a----------------------------------\n"
+                               "Read the initial particle locations from file with the following format. \n"
+                               "Nparticles \n"
+                               "ID X Y Z");
+
+            prm.declare_entry("b Layers per well", "25", Patterns::Integer(1,500),
+                              "b----------------------------------\n"
+                              "The number of layers that the particles will be distributed around the well");
+
+            prm.declare_entry("c Particles per layer(well)", "4", Patterns::Integer(1,100),
+                              "c----------------------------------\n"
+                              "The number of particles per layers for the wells");
+
+            prm.declare_entry("d Distance from well", "50.0", Patterns::Double(1,1000),
+                              "d----------------------------------\n"
+                              "The distance from well that the particles will be releazed");
+
+        }
+        prm.leave_subsection();
+
+
+        prm.enter_subsection("C. Particle Output configuration =---=---=---=---=---=");
+        {
+            prm.declare_entry("a Simplify threshold", "5.5", Patterns::Double(0,100),
+                              "a----------------------------------\n"
+                              "Simplification threshold used for plotting");
+
+            prm.declare_entry("b Print entity frequency", "1", Patterns::Integer(0,1000),
+                              "b----------------------------------\n"
+                              "This will print the streamlines every N Entities (e.g. every 10 wells)");
+
+            prm.declare_entry("c Print streamline frequency", "1", Patterns::Integer(0,1000),
+                              "c----------------------------------\n"
+                              "For each Entity will print every N streamlines");
+        }
+        prm.leave_subsection();
     }
     prm.leave_subsection ();
 
@@ -524,15 +545,50 @@ void CL_arguments<dim>::declare_parameters(){
                           "Prefix is a keyword that is used when printing the various\n"
                           "output files");
 
-        prm.declare_entry("b Domain Scale X", "1000", Patterns::Double(0,10000),
-                          "b----------------------------------\n"
-                          "This should be roughly equal to the maximum dimension\n"
-                          "along the X Y");
+        prm.enter_subsection("A. Load/Save options =---=---=---=---=---=---=");
+        {
+            prm.declare_entry("a Savix", "sol", Patterns::Anything(),
+                              "a----------------------------------\n"
+                              "Savix is a keyword that is appended to Prefix when\n"
+                              "Save or load solution option is enabled.");
 
-        prm.declare_entry("c Domain Scale Z", "500", Patterns::Double(0,10000),
-                          "c----------------------------------\n"
-                          "This should be roughly equal to the maximum dimension\n"
-                          "along the Z");
+            prm.declare_entry("b Save Solution", "0", Patterns::Integer(0,2),
+                              "b----------------------------------\n"
+                              "Saves the flow solution. The filename consists of\n"
+                              "The Prefix and the Savix + _sol.npsat\n"
+                              "This overwrites the load option");
+
+            prm.declare_entry("c Load Solution", "0", Patterns::Integer(0,2),
+                              "c----------------------------------\n"
+                              "Loads an existing flow solution.");
+        }
+        prm.leave_subsection();
+
+
+        prm.enter_subsection("B. Debug options =---=---=---=---=---=---=");
+        {
+            prm.declare_entry("a Print initial mesh", "0", Patterns::Integer(0,2),
+                              "a----------------------------------\n"
+                              "Prints the initial mesh after refinement or after loading.\n"
+                              "The file name is Prefix + _init_mesh.vtk");
+
+            prm.declare_entry("b Print free surface point cloud", "0", Patterns::Integer(0,2),
+                              "b----------------------------------\n"
+                              "Prints the coordinates of the free surface vertices.\n"
+                              "The file name is Prefix + top + iter + proc.xyz");
+
+
+            prm.declare_entry("c Domain Scale X", "1000", Patterns::Double(0,10000),
+                              "c----------------------------------\n"
+                              "This should be roughly equal to the maximum dimension\n"
+                              "along the X Y. (This was used during early development).");
+
+            prm.declare_entry("d Domain Scale Z", "500", Patterns::Double(0,10000),
+                              "d----------------------------------\n"
+                              "This should be roughly equal to the maximum dimension\n"
+                              "along the Z. (This was used during early development)");
+        }
+        prm.leave_subsection();
     }
     prm.leave_subsection();
 }
@@ -769,7 +825,6 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.solver_param.NonLinearIter = prm.get_integer("a Nonlinear iterations");
         AQprop.solver_param.solver_tol = prm.get_double("b Solver tolerance");
         AQprop.solver_param.Maxiter = prm.get_integer("c Max iterations");
-        AQprop.solver_param.load_solution = prm.get_integer("d Load Solution");
     }
     prm.leave_subsection ();
 
@@ -789,20 +844,37 @@ bool CL_arguments<dim>::read_param_file(){
     //+++++++++++++++++++++++++++++++++++++++++
     prm.enter_subsection("I. Particle tracking ================================");
     {
-        AQprop.part_param.Entity_freq = prm.get_integer("a Print entity frequency");
-        AQprop.part_param.Streaml_freq = prm.get_integer("b Print streamline frequency");
-        AQprop.part_param.Stuck_iter = prm.get_integer("c Stuck iterations");
-        AQprop.part_param.Outmost_iter = prm.get_integer("d Outer iterations");
-        AQprop.part_param.streaml_iter = prm.get_integer("e Streamline iterations");
-        AQprop.part_param.method = prm.get_integer("f Tracking method");
-        AQprop.part_param.step_size = prm.get_double("g Step size");
-        AQprop.part_param.search_iter = prm.get_integer("h Search iterations");
-        AQprop.part_param.simplify_thres = prm.get_double("i Simplify threshold");
-        AQprop.part_param.bDoParticleTracking = prm.get_integer("j Do particle tracking");
-        AQprop.part_param.Nparallel_particles = prm.get_integer("k N Particles in parallel");
-        AQprop.part_param.Wells_N_Layers = prm.get_integer("l Layers per well");
-        AQprop.part_param.Wells_N_per_layer = prm.get_integer("m Particles per layer(well)");
-        AQprop.part_param.radius = prm.get_double("n Distance from well");
+        AQprop.part_param.bDoParticleTracking = prm.get_integer("a Enable particle tracking");
+
+        prm.enter_subsection("A. Configuration =---=---=---=---=---=---=---=---=");
+        {
+            AQprop.part_param.method = prm.get_integer("a Tracking method");
+            AQprop.part_param.step_size = prm.get_double("b Step size");
+            AQprop.part_param.Stuck_iter = prm.get_integer("c Stuck iterations");
+            AQprop.part_param.streaml_iter = prm.get_integer("d Streamline iterations");
+            AQprop.part_param.Outmost_iter = prm.get_integer("e Outer iterations");
+            AQprop.part_param.search_iter = prm.get_integer("f Search iterations");
+            AQprop.part_param.Nparallel_particles = prm.get_integer("g N Particles in parallel");
+        }
+        prm.leave_subsection ();
+
+        prm.enter_subsection("B. Initial particle locations =---=---=---=---=---=");
+        {
+            AQprop.part_param.Particles_in_file = prm.get("a Particles from file");
+
+            AQprop.part_param.Wells_N_Layers = prm.get_integer("b Layers per well");
+            AQprop.part_param.Wells_N_per_layer = prm.get_integer("c Particles per layer(well)");
+            AQprop.part_param.radius = prm.get_double("d Distance from well");
+        }
+        prm.leave_subsection ();
+
+        prm.enter_subsection("C. Particle Output configuration =---=---=---=---=---=");
+        {
+            AQprop.part_param.simplify_thres = prm.get_double("a Simplify threshold");
+            AQprop.part_param.Entity_freq = prm.get_integer("b Print entity frequency");
+            AQprop.part_param.Streaml_freq = prm.get_integer("c Print streamline frequency");
+        }
+        prm.leave_subsection ();
     }
     prm.leave_subsection ();
 
@@ -813,8 +885,31 @@ bool CL_arguments<dim>::read_param_file(){
     prm.enter_subsection("J. Output Parameters ================================");
     {
         AQprop.sim_prefix = prm.get("a Prefix");
-        AQprop.dbg_scale_x = prm.get_double("b Domain Scale X");
-        AQprop.dbg_scale_z = prm.get_double("c Domain Scale Z");
+
+        prm.enter_subsection("A. Load/Save options =---=---=---=---=---=---=");
+        {
+            AQprop.solution_suffix = prm.get("a Savix");
+            AQprop.solver_param.save_solution = prm.get_integer("b Save Solution");
+            AQprop.solver_param.load_solution = prm.get_integer("c Load Solution");
+            // The save option overwrites the load option
+            if (AQprop.solver_param.save_solution > 0)
+                AQprop.solver_param.load_solution = 0;
+            if (AQprop.solver_param.save_solution > 0 || AQprop.solver_param.load_solution > 0){
+                if(AQprop.solution_suffix.empty())
+                    AQprop.solution_suffix = "sol";
+            }
+        }
+        prm.leave_subsection ();
+
+        prm.enter_subsection("B. Debug options =---=---=---=---=---=---=");
+        {
+            AQprop.print_init_mesh = prm.get_integer("a Print initial mesh");
+            AQprop.print_point_top_cloud = prm.get_integer("b Print free surface point cloud");
+            AQprop.dbg_scale_x = prm.get_double("c Domain Scale X");
+            AQprop.dbg_scale_z = prm.get_double("d Domain Scale Z");
+        }
+        prm.leave_subsection ();
+
     }
     prm.leave_subsection ();
 

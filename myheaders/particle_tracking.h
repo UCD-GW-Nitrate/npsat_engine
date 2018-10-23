@@ -288,14 +288,14 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
     dbg_my_rank = my_rank;
 
     //This is the name file where all particle trajectories are written
-    const std::string log_file_name = (prefix + "_" +
+    const std::string log_file_name = (prefix +
                                        Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                        "_particles_"	+
                                        Utilities::int_to_string(my_rank, 4) +
                                        ".traj");
 
     //This is the name file where we print info of particles that terminate abnornamly
-    const std::string err_file_name = (prefix + "_" +
+    const std::string err_file_name = (prefix +
                                        Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                        "_particle_errors_"	+
                                        Utilities::int_to_string(my_rank, 4) +

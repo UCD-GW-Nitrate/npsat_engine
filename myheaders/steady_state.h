@@ -29,6 +29,21 @@
 #include "streams.h"
 #include "cgal_functions.h"
 
+struct SimPrintFlags{
+public:
+    SimPrintFlags()
+        :
+        top_point_cloud(0),
+        top_mesh(0),
+        bot_mesh(0),
+        boundary_mesh(0)
+    {}
+    int top_point_cloud;
+    int top_mesh;
+    int bot_mesh;
+    int boundary_mesh;
+};
+
 using namespace dealii;
 
 template<int dim>
@@ -41,14 +56,15 @@ public:
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
-           MyFunction<dim,dim>&               groundwater_recharge,
+           MyFunction<dim,dim>&                 groundwater_recharge,
            std::vector<int>&                    top_boundary_ids);
 
 
     void Simulate(int iter,                                     std::string output_file,
                   parallel::distributed::Triangulation<dim>& 	triangulation,
                   Well_Set<dim>&                                wells,
-                  Streams<dim>&                                 streams);
+                  Streams<dim>&                                 streams,
+                  SimPrintFlags                                 printflags);
 
     //void Simulate_refine(int iter,                                     std::string output_file,
     //                     parallel::distributed::Triangulation<dim>& 	triangulation,
@@ -80,7 +96,8 @@ private:
     void assemble();
     void solve();
     void output(int iter, std::string output_file,
-                parallel::distributed::Triangulation<dim>& 	triangulation);
+                parallel::distributed::Triangulation<dim>& 	triangulation,
+                SimPrintFlags                                 printflags);
     void refine (parallel::distributed::Triangulation<dim>& 	triangulation,
                  double top_fraction, double bot_fraction);
 
@@ -291,7 +308,8 @@ void GWFLOW<dim>::solve(){
 
 template <int dim>
 void GWFLOW<dim>::output(int iter, std::string output_file,
-                         parallel::distributed::Triangulation<dim>& 	triangulation){
+                         parallel::distributed::Triangulation<dim>& 	triangulation,
+                         SimPrintFlags                                 printflags){
     TimerOutput::Scope t(computing_timer, "output");
     pcout << "\t Printing results..." << std::endl << std::flush;
 
@@ -349,14 +367,16 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
     }
 
     // Write a point cloud of the Top surface only
-    output_xyz_top(iter, output_file);
+    if (printflags.top_point_cloud > 0)
+        output_xyz_top(iter, output_file);
 }
 
 template <int dim>
 void GWFLOW<dim>::Simulate(int iter,                                     std::string output_file,
                            parallel::distributed::Triangulation<dim>& 	triangulation,
                            Well_Set<dim> &wells,
-                           Streams<dim> &streams){
+                           Streams<dim> &streams,
+                           SimPrintFlags printflags){
     setup_system();
 
 
@@ -375,7 +395,7 @@ void GWFLOW<dim>::Simulate(int iter,                                     std::st
 
     assemble();
     solve();
-    output(iter, output_file, triangulation);
+    output(iter, output_file, triangulation, printflags);
 }
 
 //template <int dim>
@@ -419,7 +439,7 @@ void GWFLOW<dim>::refine(parallel::distributed::Triangulation<dim>& 	triangulati
 template <int dim>
 void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
 
-    const std::string top_filename = (output_file + "_top_" +
+    const std::string top_filename = (output_file + "top_" +
                                       Utilities::int_to_string(iter,3) + "_" +
                                       Utilities::int_to_string(my_rank,4) +
                                       ".xyz");

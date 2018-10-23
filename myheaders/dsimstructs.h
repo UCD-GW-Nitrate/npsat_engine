@@ -28,6 +28,9 @@ struct SolverParameters{
 
     //! Load a previously computed solution
     int load_solution;
+
+    //! Save the final solution before particle tracking
+    int save_solution;
 };
 
 //! RefinementParameters is a struct with parameters that control the mesh refinements
@@ -109,6 +112,14 @@ struct ParticleParameters{
 
     //! Well radius. The distance from the well that the particles will be realized
     double radius;
+
+    //! Filename that defines particle locations to be traced. The format of the file is:
+    //!
+    //! N
+    //! ID X Y Z
+    //!
+    //! Where N is the number of particles and ID X Y Z are repeated N times. ID is an integer identification for each particle
+    std::string Particles_in_file;
 };
 
 
@@ -174,6 +185,10 @@ public:
     //! should be much smaller as well
     double                          z_thres;
 
+    //! Saves the mesh after the initial refinement or after loading to a vtk file.
+    //! The name of the file is #sim_prefix + _init_mesh.vtk
+    int                             print_init_mesh;
+
     //! The dbg_scale_x scales the x y coordinates. This is used for debuging only when the mesh data are printed for
     //! visualization with software such as Houdini, as very large coordinates are not handled well.
     double dbg_scale_x;
@@ -190,6 +205,13 @@ public:
 
     //! This is a prefix name that is used as prefix for the various output files
     std::string                         sim_prefix;
+
+    //! This is a sufix that is appended a solution is saved or loaded
+    std::string                         solution_suffix;
+
+    //! Prints the vertices of the free surface as point cloud.
+    //! THis can be read easily in houdini for visual inspections
+    int                                 print_point_top_cloud;
 
     //! This is a structure that will store the hydraulic conductivity values
     std::vector<InterpInterface<dim> >	HydraulicConductivity;

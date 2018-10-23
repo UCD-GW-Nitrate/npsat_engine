@@ -2,7 +2,7 @@
 # ---------------------
 subsection A. Workspace directories ============================
   # a----------------------------------
-  # The directory with all input data. (Documents/test_npsat/topo) replace CODES
+  # The directory with all input data.  (Documents/test_npsat/topo) replace CODES
   # All input data must be under the same directory.
   set a Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
 
@@ -155,17 +155,13 @@ subsection G. Solver parameters ================================
   # c----------------------------------
   # Number of maximum solver iterations
   set c Max iterations       = 1000
-  
-  # d----------------------------------
-  # Load a solution instead of solving
-  set d Load Solution        = 1
 end
 
 
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 15
+  set a Max refinements iterations = 12
 
   # b----------------------------------
   # Top refinement fraction
@@ -187,68 +183,85 @@ end
 
 subsection I. Particle tracking ================================
   # a----------------------------------
-  # This will print the streamlines every N Entities (e.g. every 10 wells)
-  set a Print entity frequency     = 1
-
-  # b----------------------------------
-  # For each Entity will print every N streamlines
-  set b Print streamline frequency = 1
-
-  # c----------------------------------
-  # If the streamline has not been expanded after N iterations, stop tracing
-  # this particle
-  set c Stuck iterations           = 50
-
-  # d----------------------------------
-  # The number of times that processors are allowed to exchange particles
-  # This will prevent case where a particle moves back and forth between
-  # processors
-  set d Outer iterations           = 100
-
-  # e----------------------------------
-  # The maximum number of steps per streamline
-  set e Streamline iterations      = 1000
-
-  # f----------------------------------
-  # 1-> Euler, 2->RK2, 3->RK4
-  set f Tracking method            = 3
-
-  # g----------------------------------
-  # The actual step size for each cell is calculated by dividing
-  # the diameter of each cell with the given number.
-  # Essensially this number indicates the average number of steps
-  # of the algorithm within a cell
-  set g Step size                  = 4
-
-  # h----------------------------------
-  # How many neighbor to search for the next point if the point has left the
-  # current cell
-  set h Search iterations          = 3
-
-  # i----------------------------------
-  # Simplification threshold used for plotting
-  set i Simplify threshold         = 5.5
-
-  # j----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set j Do particle tracking       = 1
+  set a Enable particle tracking = 0
 
-  # k----------------------------------
-  # The maximum number of particles that is allowed to run in parallel
-  set k N Particles in parallel    = 5000
 
-  # l----------------------------------
-  # The number of layers that the particles will be distributed around the
-  # well
-  set l Layers per well            = 25
+  subsection A. Configuration =---=---=---=---=---=---=---=---=
+    # a----------------------------------
+    # 1-> Euler, 2->RK2, 3->RK4
+    set a Tracking method         = 3
 
-  # m----------------------------------
-  # The number of particles per layers for the wells
-  set m Particles per layer(well)  = 4
+    # b----------------------------------
+    # The actual step size for each cell is calculated by dividing
+    # the diameter of each cell with this number.
+    # Essensially this number indicates the average number of steps
+    # of the algorithm within a cell
+    set b Step size               = 4
 
-  # n----------------------------------
-  # The distance from well that the particles will be releazed
-  set n Distance from well         = 5.85
+    # c----------------------------------
+    # If the streamline has not been expanded for N consecutive
+    # iterations, then stop tracing this particle
+    set c Stuck iterations        = 50
+
+    # d----------------------------------
+    # The maximum number of steps per streamline
+    set d Streamline iterations   = 1000
+
+    # e----------------------------------
+    # The number of times that processors are allowed to exchange particles.
+    # This will prevent cases where a particle moves back and forth between
+    # processors
+    set e Outer iterations        = 100
+
+    # f----------------------------------
+    # How many neighbor to search for the next point if the point has left the
+    # current cell.The default is a good choice.
+    set f Search iterations       = 3
+
+    # g----------------------------------
+    # The maximum number of particles that is allowed to run in parallel
+    # Higher values will result more idle processing times
+    # Lower values generate more output files
+    set g N Particles in parallel = 5000
+  end
+
+  subsection B. Initial particle locations =---=---=---=---=---=
+    # a----------------------------------
+    # Read the initial particle locations from file with the following format.
+    # 
+    # Nparticles
+    # ID X Y Z
+    set a Particles from file       = 
+
+    # b----------------------------------
+    # The number of layers that the particles will be distributed around the
+    # well
+    set b Layers per well           = 25
+
+    # c----------------------------------
+    # The number of particles per layers for the wells
+    set c Particles per layer(well) = 4
+
+    # d----------------------------------
+    # The distance from well that the particles will be releazed
+    set d Distance from well        = 5.85
+  end
+
+  subsection C. Particle Output configuration =---=---=---=---=---=
+    # a----------------------------------
+    # Simplification threshold used for plotting
+    set a Simplify threshold         = 5.5
+
+    # b----------------------------------
+    # This will print the streamlines every N Entities (e.g. every 10 wells)
+    set b Print entity frequency     = 1
+
+    # c----------------------------------
+    # For each Entity will print every N streamlines
+    set c Print streamline frequency = 1
+  end
+
 end
 
 
@@ -256,15 +269,46 @@ subsection J. Output Parameters ================================
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix         = box2D01_
+  set a Prefix = box2D01_
 
-  # b----------------------------------
-  # This should be roughly equal to the maximum dimension
-  # along the X Y
-  set b Domain Scale X = 1
 
-  # c----------------------------------
-  # This should be roughly equal to the maximum dimension
-  # along the Z
-  set c Domain Scale Z = 1
+  subsection A. Load/Save options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Savix is a keyword that is appended to Prefix when
+    # Save or load solution option is enabled.
+    set a Savix         = sol
+
+    # b----------------------------------
+    # Saves the flow solution. The filename consists of
+    # The Prefix and the Savix + _sol.npsat
+    # This overwrites the load option
+    set b Save Solution = 0
+
+    # c----------------------------------
+    # Loads an existing flow solution.
+    set c Load Solution = 0
+  end
+
+  subsection B. Debug options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Prints the initial mesh after refinement or after loading.
+    # The file name is Prefix + _init_mesh.vtk
+    set a Print initial mesh = 0
+
+    # b----------------------------------
+    # Prints the coordinates of the free surface vertices.
+    # The file name is Prefix + top + iter + proc.xyz
+    set b Print free surface point cloud = 0
+    
+    # c----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the X Y. (This was used during early development).
+    set c Domain Scale X     = 1
+
+    # d----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the Z. (This was used during early development)
+    set d Domain Scale Z     = 1
+  end
+
 end
