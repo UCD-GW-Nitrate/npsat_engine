@@ -10,10 +10,13 @@
 
 /*!
  * \brief The SCI_TYPE enum can take one of the 3 values
- * - FULL in 3D this interpolates in 3D space. However this is possible only if the interpolation
- * has z information therefore it has to be STRATIFIED. In 2D problems this interpolates along the x-y plane.
- * or x-z plane if the y coordinate it is supposed to be the z. In 2D, it can be either SIMPLE or STRATIFIED
- * - HOR interpolation in 3D is a 2d interpolation across x-y. The values along Z fo not change.
+ * - FULL: In 3D this interpolates in 3D space. However this is possible only if the interpolation
+ * has z information therefore it has to be STRATIFIED. The SIMPLE option is not valid for 3D FULL types
+ * In 2D problems this interpolates along the x-y plane. The y coordinate it is supposed to be the z coordinate.
+ * In 2D, it can be either SIMPLE or STRATIFIED. It is simple if the given points form an unstructure grid of points.
+ * If the points form layers then the STRATIFIED option can be used.
+ * - HOR interpolation in 3D is a 2d interpolation across x-y. It can be used to interpolate recharge or top and bottom elevation
+ * In 2D this defines an interpolation along the x axis. In 2D the SIMPLE or STRATIFIED options are not taken into consideration
  * - VERT is defined in 3D problems and it is an interpolation across an a vertical plane which is defined by 2
  * points.
  */
@@ -127,6 +130,7 @@ private:
     bool points_known;
 
     void interp_X1D(double x, int &ind, double &t)const;
+    double interp_V1D(int ind, double t)const;
     double interp_V1D_stratified(double z, double t, int ind)const;
 
 };
@@ -211,7 +215,11 @@ void ScatterInterp<dim>::get_data(std::string filename){
             for (unsigned int i = 0; i < Npnts; ++i){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if ((dim == 2 && Stratified) || (dim == 3 && sci_type == 2)){
+                if ((dim == 2 && sci_type == 1) || // 2D horizontal interpolation
+                    (dim == 2 && Stratified) || // 2D stratified interpolation
+                    (dim == 3 && sci_type == 2) //3D vertical interpolation
+                    )
+                {
                     inp >> x;
                     X_1D.push_back(x);
                     std::vector<double> temp;
@@ -301,7 +309,7 @@ double ScatterInterp<dim>::interpolate(Point<dim> point)const{
             double t;
             int ind;
             interp_X1D(point[0], ind, t);
-            return interp_V1D_stratified(point[1], t, ind);
+            return interp_V1D(ind, t);
         }
         else if (sci_type == 2){
             std::cerr << "Vertical interpolation in 2D is not yet implemented" << std::endl;
@@ -328,6 +336,11 @@ void ScatterInterp<dim>::interp_X1D(double x, int &ind, double &t)const{
             }
         }
     }
+}
+
+template <int dim>
+double ScatterInterp<dim>::interp_V1D(int ind, double t)const{
+    return V_1D[ind][0]*(1-t) + V_1D[ind+1][0]*t;
 }
 
 template <int dim>
