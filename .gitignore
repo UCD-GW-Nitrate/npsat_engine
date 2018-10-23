@@ -60,6 +60,7 @@
 /examples/box2D/*
 #unignore the *.npsat files
 !/examples/box2D/*.npsat
+!/examples/box2D/*.png
 # unignore the box3D example ----------box3D-----------
 !/examples/box3D
 #ignore all the content of the folder
