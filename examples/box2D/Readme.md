@@ -24,9 +24,11 @@ Initialy the domain was discretized into 10 columns and 4 layers.
 For this example we assume that the aquifer is isotropic with K =  10 m/day.
 
 #### Solution
-This is a trivial problem that can be solved rapidly even using one processor. and it is used as the firsth debugging test. The discretization and the sloution after 14 iterations is shown below
+This is a trivial problem that can be solved rapidly even using one processor. and it is used as the firsth debugging test. The discretization and the sloution after 14 iterations is shown below:
 <img src="box2d_01_ref_14.png" alt="After 14 refinements" width="700"/>
+
 ---
+
 ## 2nd Example (BOX2D_02)
 ### Domain
 The domain of the second example is also a vertical cross section. The length of the aquifer is 9 km. The depth of the aquifer is variable. The bottom of the aquifer is defined as shown in the figure below. However what is shown as top is just an initial estimation of the free surface.
@@ -47,6 +49,8 @@ The hydraulic condactivity is uniform and isotrpoic equal to 13 m/day.
 The following figures show the free surface and the discretization after 2 and 7 iterations
 <img src="box2d_02_ref_02.png" alt="After 14 refinements" width="700"/>
 <img src="box2d_02_ref_07.png" alt="After 14 refinements" width="700"/>
+
+---
 
 ## 3rd Example (BOX2D_03)
 ### Domain
