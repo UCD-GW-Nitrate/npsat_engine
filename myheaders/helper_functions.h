@@ -143,7 +143,13 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
     double ppy = l1y + dot*e1y/len2;
     double dst = distance_2_points(ppx, ppy, l1x, l1y);
     //double dst = sqrt((ppx-l1x)*(ppx-l1x)+(ppy-l1y)*(ppy-l1y));
-    double t = (ppx - l1x)/(l2x-l1x);
+    double t;
+    if (std::abs(e1x) >= std::abs(e1y)){
+        t = (ppx - l1x)/(l2x-l1x);
+    }
+    else{
+        t = (ppy - l1y)/(l2y-l1y);
+    }
     if (t<0)
         return -dst;
     else

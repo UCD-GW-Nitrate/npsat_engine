@@ -38,6 +38,7 @@ public:
     void copy_from(InterpInterface<dim> interp_in);
 
     bool is_face_part_of_BND(Point<dim> A, Point<dim> B);
+    unsigned int get_type();
 
 private:
     //! The type of interpolation
@@ -150,6 +151,11 @@ bool InterpInterface<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
     }
     else
         return false;
+}
+
+template <int dim>
+unsigned int InterpInterface<dim>::get_type(){
+    return TYPE;
 }
 
 #endif // INTERPINTERFACE_H

@@ -74,6 +74,6 @@ There are 30 wells in the aquifer with total pumping equal to 225 m^3/day.
 In this example the aquifer is considered isotropic along x and y. Both horizontal and vertical hydraulic conductivity are defined as a stratified  interpolation functions. Over the hydraulic conductivities on the left side of the domain are higher compared to the values of the right side.
 
 #### Solution 
-The following figures show the free surface and the discretization after 2 and 8 refinement iterations. Due to the variability in the recharge alnog the the relatively low hydraulic conductivities in the right side the free surface creates many dips arounf the wells. Note jowever that these figures are exaggerated 30 times in the vertical direction
+The following figures show the free surface and the discretization after 2 and 8 refinement iterations. Due to the variability in the recharge alnog the the relatively low hydraulic conductivities in the right side the free surface creates many dips arounf the wells. Note however that these figures are exaggerated 30 times in the vertical direction
 <img src="box2d_03_ref_02.png" alt="After 14 refinements" width="700"/>
 <img src="box2d_03_ref_08.png" alt="After 14 refinements" width="700"/>

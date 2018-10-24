@@ -296,14 +296,16 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                         Nbnd++;
                         interp_funct[i].get_data(boundary_parts[i].value);
 
-                        Point<dim> a,b;
-                        a[0] = boundary_parts[i].Xcoords[0];
-                        a[1] = boundary_parts[i].Ycoords[0];
-                        a[2] = 0;
-                        b[0] = boundary_parts[i].Xcoords[1];
-                        b[1] = boundary_parts[i].Ycoords[1];
-                        b[2] = 0;
-                        interp_funct[i].set_SCI_EDGE_points(a,b);
+                        if (interp_funct[i].get_type() == 1){
+                            Point<dim> a,b;
+                            a[0] = boundary_parts[i].Xcoords[0];
+                            a[1] = boundary_parts[i].Ycoords[0];
+                            a[2] = 0;
+                            b[0] = boundary_parts[i].Xcoords[1];
+                            b[1] = boundary_parts[i].Ycoords[1];
+                            b[2] = 0;
+                            interp_funct[i].set_SCI_EDGE_points(a,b);
+                        }
                         //MyFunction<dim,dim> tempfnc(interp_funct[i]);
                         DirFunctions[i].set_interpolant(interp_funct[i]);
                         //DirFunctions.push_back(MyFunction<dim,dim>(interp_funct[i]));

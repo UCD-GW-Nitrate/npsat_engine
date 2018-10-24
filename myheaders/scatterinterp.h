@@ -144,7 +144,7 @@ ScatterInterp<dim>::ScatterInterp(){
 
 template <int dim>
 void ScatterInterp<dim>::set_edge_points(Point<dim> a, Point<dim> b){
-    if (sci_type == 2 && Stratified){
+    if (sci_type == 2){
         P1 = a;
         P2 = b;
         points_known = true;
@@ -269,22 +269,21 @@ double ScatterInterp<dim>::interpolate(Point<dim> point)const{
             return scatter_2D_interpolation(T, function_values, pp);
         }
         else if (sci_type == 2){// VERTICAL INTERPOLATION
-            if (!Stratified){
-                std::cerr << "Not implemented yet, but its easy to do so" << std::endl;
-                return 0;
+            if (!points_known){
+                std::cerr << "You attempt to use VERT interpolation but the two points are not known" << std::endl;
+                return -9999.9;
             }
             else{
-                if (!points_known){
-                    std::cerr << "You attempt to use VERT interpolation but the two points are not known" << std::endl;
-                    return -9999.9;
-                }
-                else{
                 // find the distance from the first point
                 double xx = distance_on_2D_line(P1[0], P1[1], P2[0], P2[1], point[0], point[1]);
                 double t;
                 int ind;
                 interp_X1D(xx, ind, t);
-                return interp_V1D_stratified(point[2], t, ind);
+                if (!Stratified){
+                    return interp_V1D(ind, t);
+                }
+                else{
+                    return interp_V1D_stratified(point[2], t, ind);
                 }
             }
         }

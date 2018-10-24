@@ -42,8 +42,18 @@ make
 
 
 ## Run
+
+Although the simulation of non point source pollution is a 3D problem the code is designed to run 2D problems, where only a cross section of the domain is considered. 
+The NPSAT code can be compiled to run either 2D or 3D problem. 
+Inside the headers folder there is a header file *my_macros.h* which includes the definition of the dimension. Change this to 2 or 3 according to the problem being solved
+
+```
+ #define _DIM 2
+```
+
+
 #### Calculate flow & particle tracking
-To run NPSAT you need to prepare a main parameter file. then you can do
+To run NPSAT you need to prepare a main parameter file. Then you can do:
 ```
 mpirun -n nproc path/to/executable/npsat -p parameter_file.npsat
 ```
@@ -69,6 +79,55 @@ For using the URFs see [Mantis](https://github.com/giorgk/Mantis)
 
 
 Happy pollution predicting!
+
+## Run NPSAT in cluster
+Both dependencies of NPSAT can be compiled and installed locally. Therefore to compile the code in a cluster should be similar to a desktop. If the cluster uses [SLURM](https://slurm.schedmd.com/) for managing the workload then you can submit jobs to the cluster using the following guide:
+
+* Create a file for example *run_job.sbatch* with content similar to the following:
+```
+#!/bin/bash
+#
+# job name:
+#SBATCH --job-name='CVHM'
+#
+# Number of tasks (cores):
+#
+#SBATCH --ntasks=64
+#
+#SBATCH --output=out%j.log
+#SBATCH --error=out%j.err
+#
+#####SBATCH --dependency=singleton
+#
+# Load your modules
+module purge
+module load system-gcc/openmpi-2.1.5
+#
+# Set up your environment 
+cd /path/to/the/parameter/file
+#
+# Start your MPI job
+mpirun /path/to/executable/npsat -p parameter_file.npsat
+
+```
+ 
+* Most of the options are quite self explainatory. 
+    * **job-name** is just a text name to identify the job when for example use the `squeue -u username` to see the progress of the jobs. 
+    * **ntasks** is similar to `nproc`. defines the number o processors that are requested to run the job.
+    *  **output** is the file where the output of the programm will be printed. Note that the format out%j.log will write the output of the program to the file out####.log where #### is a unique id for the submitted job
+    * **error** Possible errors during the run will be reported here.
+    * There are many more options one can define. These is just a minimum list of options.
+    
+* Next we define the required modules. Note that the options here depended highly on the cluster.
+
+* Setting up the environment simply amounts to navigating to the folder where the files are 
+
+* Finally we start the parallel process using a command similar to the one was used in the desktop. However we omit the `-n` option.
+
+    
+    
+    
+    
 
 
 

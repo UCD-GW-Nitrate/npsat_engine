@@ -1,0 +1,7 @@
+2
+EDGE 2 box3d_leftv1.npsat
+0 -10
+0 5250
+EDGETOP 2 box3d_rightv1.npsat
+5000 -10
+5000 5250
