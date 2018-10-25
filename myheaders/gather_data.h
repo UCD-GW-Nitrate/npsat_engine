@@ -173,7 +173,7 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
         //std::cout << "chunk " << i_chnk << " out of " << n_chunks << std::endl;
         //std::cout << "\t";
         for (int i_proc = 0; i_proc < n_proc; ++i_proc){
-            const std::string filename = (basename + "_" +
+            const std::string filename = (basename +
                                           Utilities::int_to_string(i_chnk, 4) +
                                           "_particles_"	+
                                           Utilities::int_to_string(i_proc, 4) +
