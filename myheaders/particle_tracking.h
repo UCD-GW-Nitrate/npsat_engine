@@ -28,7 +28,6 @@ public:
     int dof;
     Point<dim> av_vel;
     bool is_averaged;
-
 };
 
 template <int dim>
@@ -1741,7 +1740,6 @@ bool Particle_Tracking<dim>::average_velocity_field(){
     // Calculate velocities
 
     IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
-
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -1751,19 +1749,22 @@ bool Particle_Tracking<dim>::average_velocity_field(){
             cell->get_dof_indices (local_dof_indices);
             for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
                 Point<dim> vel;
-                calc_vel_on_point(cell, cell->vertex(ii), vel);
-                vel_it = VelocityMap.find(local_dof_indices[ii]);
-                if (vel_it != VelocityMap.end()){
-                    vel_it->second.Addvelocity(vel);
-                }
-                else{
-                    std::vector<types::global_dof_index> temp_cnstr;
-                    temp_cnstr.push_back(local_dof_indices[ii]);
-                    Headconstraints.resolve_indices(temp_cnstr);
+                bool tf = calc_vel_on_point(cell, cell->vertex(ii), vel);
+                //vField_file << cell->vertex(ii)[0] << " " << cell->vertex(ii)[1] << " " << cell->vertex(ii)[2] << " " << static_cast<int>(cell->is_locally_owned()) << std::endl;
+                if (tf){
+                    vel_it = VelocityMap.find(local_dof_indices[ii]);
+                    if (vel_it != VelocityMap.end()){
+                        vel_it->second.Addvelocity(vel);
+                    }
+                    else{
+                        std::vector<types::global_dof_index> temp_cnstr;
+                        temp_cnstr.push_back(local_dof_indices[ii]);
+                        Headconstraints.resolve_indices(temp_cnstr);
 
-                    VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(local_dof_indices[ii],
-                                       AverageVel<dim>(locally_owned_indices.is_element(local_dof_indices[ii]),
-                                                       local_dof_indices[ii], vel, temp_cnstr)));
+                        VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(local_dof_indices[ii],
+                                           AverageVel<dim>(locally_owned_indices.is_element(local_dof_indices[ii]),
+                                                           local_dof_indices[ii], vel, temp_cnstr)));
+                    }
                 }
             }
         }
