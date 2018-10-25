@@ -67,6 +67,9 @@
 /examples/box3D/*
 #unignore the *.npsat files
 !/examples/box3D/*.npsat
+!/examples/box3D/*.md
+!/examples/box3D/*.m
+!/examples/box3D/*.png
 # unignore the file01 example ----------file01-----------
 !/examples/file01
 #ignore all the content of the folder
@@ -77,10 +80,12 @@
 !/examples/BoxNPSAT
 #ignore all the content of the folder
 /examples/BoxNPSAT/*
-#unignore the *.npsat files
+#unignore the *. useful files
 !/examples/BoxNPSAT/*.npsat
-#unignore the *.py files
 !/examples/BoxNPSAT/*.py
+!/examples/BoxNPSAT/*.m
+!/examples/BoxNPSAT/*.md
+!/examples/BoxNPSAT/*.png
 # unignore the Tule example ----------Tule-----------
 !/examples/Tule
 #ignore all the content of the folder

@@ -46,7 +46,7 @@ public:
      * The format of the file is
      * N_seg = the number of river segments
      *
-     * Repeat N_seg lines the following:
+     * Repeat N_seg times the following:
      *
      * N_points Q_rate [Width]
      *

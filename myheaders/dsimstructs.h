@@ -105,6 +105,9 @@ struct ParticleParameters{
     //! We can turn off particle tracking by setting this parameter to 0. Any other integer value will run particle tracking
     int bDoParticleTracking;
 
+    //! We can turn on or off the particle tracking from wells. We miay want to trace particles defined in a file
+    int trace_wells;
+
     //! Number of particles that we execute in parallel
     int Nparallel_particles;
 

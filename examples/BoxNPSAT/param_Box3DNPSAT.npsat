@@ -1,6 +1,6 @@
 # Listing of Parameters
 # ---------------------
-subsection A. Workspace directories
+subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
@@ -8,57 +8,63 @@ subsection A. Workspace directories
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/BoxNPSAT/
+  set b Output directory = /home/giorgk/CODES/NPSAT/examples/BoxNPSAT/output
 end
 
 
-subsection B. Geometry
+subsection B. Geometry  ========================================
   # a----------------------------------
   # Geometry Type. Valid entries are BOX and FILE
-  set a Geometry Type             = BOX
+  set a Geometry Type = BOX
 
-  # b----------------------------------
-  # case FILE:
-  # If the geometry type is FILE specify the file name
-  # that contains the initial mesh.
-  # If the type is box this is ignored.
-  set b Input mesh file           = 
 
-  # c----------------------------------
-  # case BOX:
-  # The length of the aquifer along the X Y Z directions.
-  # In case of 2D the 3rd element is ignored but it should be present.
-  # This is valid for BOX geometry type
-  set c XYZ dimensions            = 5000,5000,400
+  subsection A. Case BOX =---=---=---=---=---=---=---=---=---=
+    # a----------------------------------
+    # The length of the aquifer along the X Y Z directions.
+    # In case of 2D the 3rd element is ignored but it should be present.
+    # This is valid for BOX geometry type
+    set a XYZ dimensions   = 5000,5000,300
 
-  # d----------------------------------
-  # case BOX:
-  # The coordinates of the left lower point of the domain.
-  # In case of 2D the 3rd element is ignored but it should be present.
-  # This is valid for BOX geometry type
-  set d Left lower point          = 0,0,0
+    # b----------------------------------
+    # case BOX:
+    # The coordinates of the left lower point of the domain.
+    # In case of 2D the 3rd element is ignored but it should be present.
+    # This is valid for BOX geometry type
+    set b Left lower point = 0,0,0
+  end
 
-  # e----------------------------------
-  # Top elevation function must be either a single value
-  # or the name of a file
-  set e Top elevation function    = 50
+  subsection B. Case FILE =---=---=---=---=---=---=---=---=---
+    # a----------------------------------
+    # If the geometry type is FILE specify the file name
+    # that contains the initial mesh.
+    # If the type is box this is ignored.
+    set a Input mesh file = 
+  end
 
-  # f----------------------------------
-  # Bottom elevation function must be either a single value
-  # or the name of a file
-  set f Bottom elevation function = -450
+  subsection C. Common parameters =---=---=---=---=---=---=---
+    # a----------------------------------
+    # Top elevation function must be either a single value
+    # or the name of a file
+    set a Top elevation function    = 30
 
-  # g----------------------------------
-  # Threshold value along the horizontal plane
-  set g x-y threshold             = 0.1
+    # b----------------------------------
+    # Bottom elevation function must be either a single value
+    # or the name of a file
+    set b Bottom elevation function = -270
 
-  # h----------------------------------
-  # Threshold value the vertical plane
-  set h z threshold               = 0.01
+    # c----------------------------------
+    # Threshold value along the horizontal plane
+    set c x-y threshold             = 0.1
+
+    # d----------------------------------
+    # Threshold value the vertical plane
+    set d z threshold               = 0.01
+  end
+
 end
 
 
-subsection C. Discretization
+subsection C. Discretization ===================================
   # a----------------------------------
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be present.
@@ -77,23 +83,23 @@ subsection C. Discretization
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 5
+  set d Well Refinement         = 0
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 5
+  set e Stream Refinement       = 0
 end
 
 
-subsection D. Boundary Conditions
+subsection D. Boundary Conditions ==============================
   # a----------------------------------
   # The name file of multiple files separated by ;
   # with the constant head boundary conditions
-  set a Dirichlet file name = ConstHead.npsat
+  set a Dirichlet file name = box01_bc.npsat
 end
 
 
-subsection E Aquifer Properties
+subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
@@ -118,7 +124,7 @@ subsection E Aquifer Properties
 end
 
 
-subsection F. Sources & Sinks
+subsection F. Sources & Sinks ==================================
   # a----------------------------------
   # Groundwater recharche function
   # must be either a single value or the name of a file
@@ -136,11 +142,11 @@ subsection F. Sources & Sinks
 end
 
 
-subsection G. Solver parameters
+subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 1
+  set a Nonlinear iterations = 7
 
   # b----------------------------------
   # Tolerance of solver
@@ -149,10 +155,14 @@ subsection G. Solver parameters
   # c----------------------------------
   # Number of maximum solver iterations
   set c Max iterations       = 1000
+
+  # d----------------------------------
+  # If 1 displays details about the ML solver
+  set d Output details       = 0
 end
 
 
-subsection H. Refinement Parameters
+subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
   set a Max refinements iterations = 10
@@ -175,86 +185,140 @@ subsection H. Refinement Parameters
 end
 
 
-subsection I. Particle tracking
+subsection I. Particle tracking ================================
   # a----------------------------------
-  # This will print the streamlines every N Entities (e.g. every 10 wells)
-  set a Print entity frequency     = 1
-
-  # b----------------------------------
-  # For each Entity will print every N streamlines
-  set b Print streamline frequency = 1
-
-  # c----------------------------------
-  # If the streamline has not been expanded after N iterations, stop tracing
-  # this particle
-  set c Stuck iterations           = 50
-
-  # d----------------------------------
-  # The number of times that processors are allowed to exchange particles
-  # This will prevent case where a particle moves back and forth between
-  # processors
-  set d Outer iterations           = 100
-
-  # e----------------------------------
-  # The maximum number of steps per streamline
-  set e Streamline iterations      = 1000
-
-  # f----------------------------------
-  # 1-> Euler, 2->RK2, 3->RK4
-  set f Tracking method            = 3
-
-  # g----------------------------------
-  # The actual step size for each cell is calculated by dividing
-  # the diameter of each cell with the given number.
-  # Essensially this number indicates the average number of steps
-  # of the algorithm within a cell
-  set g Step size                  = 6
-
-  # h----------------------------------
-  # How many neighbor to search for the next point if the point has left the
-  # current cell
-  set h Search iterations          = 3
-
-  # i----------------------------------
-  # Simplification threshold used for plotting
-  set i Simplify threshold         = 5.5
-
-  # j----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set j Do particle tracking       = 0
+  set a Enable particle tracking = 0
 
-  # k----------------------------------
-  # The maximum number of particles that is allowed to run in parallel
-  set k N Particles in parallel    = 5000
 
-  # l----------------------------------
-  # The number of layers that the particles will be distributed around the
-  # well
-  set l Layers per well            = 25
+  subsection A. Configuration =---=---=---=---=---=---=---=---=
+    # a----------------------------------
+    # 1-> Euler, 2->RK2, 3->RK4
+    set a Tracking method         = 3
 
-  # m----------------------------------
-  # The number of particles per layers for the wells
-  set m Particles per layer(well)  = 4
+    # b----------------------------------
+    # The actual step size for each cell is calculated by dividing
+    # the diameter of each cell with this number.
+    # Essensially this number indicates the average number of steps
+    # of the algorithm within a cell
+    set b Step size               = 6
 
-  # n----------------------------------
-  # The distance from well that the particles will be releazed
-  set n Distance from well         = 18.7862
+    # c----------------------------------
+    # If the streamline has not been expanded for N consecutive
+    # iterations, then stop tracing this particle
+    set c Stuck iterations        = 50
+
+    # d----------------------------------
+    # The maximum number of steps per streamline
+    set d Streamline iterations   = 1000
+
+    # e----------------------------------
+    # The number of times that processors are allowed to exchange particles.
+    # This will prevent cases where a particle moves back and forth between
+    # processors
+    set e Outer iterations        = 100
+
+    # f----------------------------------
+    # How many neighbor to search for the next point if the point has left the
+    # current cell.The default is a good choice.
+    set f Search iterations       = 3
+
+    # g----------------------------------
+    # The maximum number of particles that is allowed to run in parallel
+    # Higher values will result more idle processing times
+    # Lower values generate more output files
+    set g N Particles in parallel = 5000
+  end
+
+  subsection B. Initial particle locations =---=---=---=---=---=
+    # a----------------------------------
+    # Read the initial particle locations from file with the following format.
+    # 
+    # Nparticles
+    # ID X Y Z
+    set a Particles from file       = 
+    
+    # b----------------------------------
+    # This option will generate initial paricles around the wells
+    # using the options below, and trace them.
+    # Set 0 to deactivate well tracing
+    set b Trace wells               = 1
+
+    # c----------------------------------
+    # The number of layers that the particles will be distributed around the
+    # well
+    set c Layers per well           = 25
+
+    # d----------------------------------
+    # The number of particles per layers for the wells
+    set d Particles per layer(well) = 4
+
+    # e----------------------------------
+    # The distance from well that the particles will be releazed
+    set e Distance from well        = 2.5
+  end
+
+  subsection C. Particle Output configuration =---=---=---=---=---=
+    # a----------------------------------
+    # Simplification threshold used for plotting
+    set a Simplify threshold         = 5.5
+
+    # b----------------------------------
+    # This will print the streamlines every N Entities (e.g. every 10 wells)
+    set b Print entity frequency     = 1
+
+    # c----------------------------------
+    # For each Entity will print every N streamlines
+    set c Print streamline frequency = 1
+  end
+
 end
 
 
-subsection J. Output Parameters
+subsection J. Output Parameters ================================
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix         = test
+  set a Prefix = box_nps_
 
-  # b----------------------------------
-  # This should be roughly equal to the maximum dimension
-  # along the X Y
-  set b Domain Scale X = 1000
 
-  # c----------------------------------
-  # This should be roughly equal to the maximum dimension
-  # along the Z
-  set c Domain Scale Z = 500
+  subsection A. Load/Save options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Savix is a keyword that is appended to Prefix when
+    # Save or load solution option is enabled.
+    set a Savix         = sol
+
+    # b----------------------------------
+    # Saves the flow solution. The filename consists of
+    # The Prefix and the Savix + _sol.npsat
+    # This overwrites the load option
+    set b Save Solution = 0
+
+    # c----------------------------------
+    # Loads an existing flow solution.
+    set c Load Solution = 0
+  end
+
+  subsection B. Debug options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Prints the initial mesh after refinement or after loading.
+    # The file name is Prefix + _init_mesh.vtk
+    set a Print initial mesh             = 0
+
+    # b----------------------------------
+    # Prints the coordinates of the free surface vertices.
+    # The file name is Prefix + top + iter + proc.xyz
+    set b Print free surface point cloud = 0
+
+    # c----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the X Y. (This was used during early development).
+    set c Domain Scale X                 = 1000
+
+    # d----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the Z. (This was used during early development)
+    set d Domain Scale Z                 = 500
+  end
+
 end

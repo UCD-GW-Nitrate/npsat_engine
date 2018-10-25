@@ -627,10 +627,11 @@ void NPSAT<dim>::particle_tracking(){
 
     MPI_Barrier(mpi_communicator);
     if (my_rank == 0){
-        AQProps.wells.distribute_particles(All_streamlines,
-                                           AQProps.part_param.Wells_N_per_layer,
-                                           AQProps.part_param.Wells_N_Layers,
-                                           AQProps.part_param.radius);
+        if (AQProps.part_param.trace_wells > 0)
+            AQProps.wells.distribute_particles(All_streamlines,
+                                               AQProps.part_param.Wells_N_per_layer,
+                                               AQProps.part_param.Wells_N_Layers,
+                                               AQProps.part_param.radius);
 
         read_Particles_from_file(All_streamlines);
     }

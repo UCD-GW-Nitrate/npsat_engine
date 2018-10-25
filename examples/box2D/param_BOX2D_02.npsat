@@ -237,19 +237,25 @@ subsection I. Particle tracking ================================
     # Nparticles
     # ID X Y Z
     set a Particles from file       = 
-
+    
     # b----------------------------------
-    # The number of layers that the particles will be distributed around the
-    # well
-    set b Layers per well           = 25
+    # This option will generate initial paricles around the wells
+    # using the options below, and trace them.
+    # Set 0 to deactivate well tracing
+    set b Trace wells               = 1
 
     # c----------------------------------
-    # The number of particles per layers for the wells
-    set c Particles per layer(well) = 4
+    # The number of layers that the particles will be distributed around the
+    # well
+    set c Layers per well           = 25
 
     # d----------------------------------
+    # The number of particles per layers for the wells
+    set d Particles per layer(well) = 4
+
+    # e----------------------------------
     # The distance from well that the particles will be releazed
-    set d Distance from well        = 5.85
+    set e Distance from well        = 5.85
   end
 
   subsection C. Particle Output configuration =---=---=---=---=---=

@@ -171,8 +171,12 @@ double distance_point_line(double px, double py, // Point coordinates
     double dot = e1x*e2x + e1y*e2y;
     double ppx = l1x + dot*e1x/len2;
     double ppy = l1y + dot*e1y/len2;
+    double t;
+    if (std::abs(e1x) > std::abs(e1y))
+        t = (ppx - l1x)/(l2x-l1x);
+    else
+        t = (ppy - l1y)/(l2y-l1y);
 
-    double t = (ppx - l1x)/(l2x-l1x);
     double dst;
     if (t <0 || t > 1){
         dst = std::min(distance_2_points(px,py,l1x,l1y), distance_2_points(px,py,l1x,l1y));
@@ -496,6 +500,11 @@ std::string print_current_time(){
     //std::cout << (now->tm_year + 1900) << "/" << (now->tm_mon+1) << "/" << now->tm_mday << std::endl;
     return buffer.str();;
 
+}
+void append_slash(std::string &s){
+    char lc = s.back();
+    if (lc != '/' )
+        s = s+ "/";
 }
 
 

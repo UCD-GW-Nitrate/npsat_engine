@@ -505,16 +505,22 @@ void CL_arguments<dim>::declare_parameters(){
                                "Nparticles \n"
                                "ID X Y Z");
 
-            prm.declare_entry("b Layers per well", "25", Patterns::Integer(1,500),
+            prm.declare_entry("b Trace wells","1", Patterns::Integer(0,1),
                               "b----------------------------------\n"
+                              "This option will generate initial paricles around the wells\n"
+                              "using the options below, and trace them.\n"
+                              "Set 0 to deactivate well tracing");
+
+            prm.declare_entry("c Layers per well", "25", Patterns::Integer(1,500),
+                              "c----------------------------------\n"
                               "The number of layers that the particles will be distributed around the well");
 
-            prm.declare_entry("c Particles per layer(well)", "4", Patterns::Integer(1,100),
-                              "c----------------------------------\n"
+            prm.declare_entry("d Particles per layer(well)", "4", Patterns::Integer(1,100),
+                              "d----------------------------------\n"
                               "The number of particles per layers for the wells");
 
-            prm.declare_entry("d Distance from well", "50.0", Patterns::Double(1,1000),
-                              "d----------------------------------\n"
+            prm.declare_entry("e Distance from well", "50.0", Patterns::Double(1,1000),
+                              "e----------------------------------\n"
                               "The distance from well that the particles will be releazed");
         }
         prm.leave_subsection();
@@ -616,6 +622,8 @@ bool CL_arguments<dim>::read_param_file(){
         input_dir = prm.get("a Input directory");
         output_dir = prm.get("b Output directory");
 
+        append_slash(input_dir);
+        append_slash(output_dir);
         AQprop.Dirs.input = input_dir;
         AQprop.Dirs.output = output_dir;
     }
@@ -868,9 +876,10 @@ bool CL_arguments<dim>::read_param_file(){
         {
             AQprop.part_param.Particles_in_file = prm.get("a Particles from file");
 
-            AQprop.part_param.Wells_N_Layers = prm.get_integer("b Layers per well");
-            AQprop.part_param.Wells_N_per_layer = prm.get_integer("c Particles per layer(well)");
-            AQprop.part_param.radius = prm.get_double("d Distance from well");
+            AQprop.part_param.trace_wells = prm.get_integer("b Trace wells");
+            AQprop.part_param.Wells_N_Layers = prm.get_integer("c Layers per well");
+            AQprop.part_param.Wells_N_per_layer = prm.get_integer("d Particles per layer(well)");
+            AQprop.part_param.radius = prm.get_double("e Distance from well");
         }
         prm.leave_subsection ();
 
