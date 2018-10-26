@@ -416,8 +416,7 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
     int file_id = 0;
     int count_strmln = 0;
 
-    std::string filename = (basename + "_" +
-                                  Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
+    std::string filename = (basename + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
