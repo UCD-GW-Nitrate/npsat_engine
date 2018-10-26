@@ -92,7 +92,7 @@ public:
     void print_stats();
     void calculate_age(bool backward, double unit_convertor);
     void simplify_XYZ_streamlines(double thres);
-    void print_streamlines4URF(std::string basename);
+    void print_streamlines4URF(std::string basename, ParticleParameters param);
 private:
     MPI_Comm    mpi_communicator;
     std::map<int, std::map<int,  Gather_Data::Streamline<dim> > > Entities;
@@ -411,9 +411,13 @@ void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
 }
 
 template <int dim>
-void gather_particles<dim>::print_streamlines4URF(std::string basename){
-    const std::string filename = (basename + "_" +
-                                  Utilities::int_to_string(g_my_rank, 4) +"_streamlines.urfs");
+void gather_particles<dim>::print_streamlines4URF(std::string basename, ParticleParameters param){
+
+    int file_id = 0;
+    int count_strmln = 0;
+
+    std::string filename = (basename + "_" +
+                                  Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
@@ -432,9 +436,19 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename){
                            << part_it->second.P[2] << " "
                            << part_it->second.V.norm() << std::endl;
             }
+            count_strmln++;
+        }
+
+        if (count_strmln > param.Nparallel_particles){
+            count_strmln = 0;
+            file_strml.close();
+            file_id++;
+            filename = (basename + "_" + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
+            file_strml.open(filename.c_str());
         }
     }
     file_strml.close();
+
 }
 
 template<int dim>

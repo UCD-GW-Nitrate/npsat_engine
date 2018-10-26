@@ -227,7 +227,7 @@ subsection I. Particle tracking ================================
     # The maximum number of particles that is allowed to run in parallel
     # Higher values will result more idle processing times
     # Lower values generate more output files
-    set g N Particles in parallel = 5000
+    set g N Particles in parallel = 1000
   end
 
   subsection B. Initial particle locations =---=---=---=---=---=
