@@ -106,7 +106,7 @@ The following matlab loop reads the two files:
 ```
 	WellURF = [];
 	for ii = 0:1
-		temp = readURFs(['box_nps__' num2str(ii,'%04d') '_streamlines.urfs']);
+		temp = readURFs(['box_nps_' num2str(ii,'%04d') '_streamlines.urfs']);
 		WellURF = [WellURF;temp];
 	end
 	
