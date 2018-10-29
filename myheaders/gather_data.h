@@ -88,7 +88,7 @@ public:
     void print_vtk(std::string filename, ParticleParameters param);
     void print_osg(std::string filename, ParticleParameters param);
     void print_streamline_length_age(std::string filename);
-    void gather_streamlines(std::string basename, int n_proc, int n_chunks, int Nwells);
+    void gather_streamlines(std::string basename, int n_proc, int n_chunks);
     void print_stats();
     void calculate_age(bool backward, double unit_convertor);
     void simplify_XYZ_streamlines(double thres);
@@ -115,10 +115,10 @@ gather_particles<dim>::gather_particles()
 
 template<int dim>
 void gather_particles<dim>::add_new_particle(int E_id, int S_id, int p_id, Point<dim> p, Point<dim> v, int proc, int out){
-    typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it;
+    typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator entity_it;
     typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it;
-    well_it = Entities.find(E_id);
-    if (well_it == Entities.end()){
+    entity_it = Entities.find(E_id);
+    if (entity_it == Entities.end()){
         Gather_Data::particle<dim> new_particle(p, v, proc);
         Gather_Data::Streamline<dim> new_streamline(p_id, new_particle, out);
         std::map<int,  Gather_Data::Streamline<dim> > temp_map;
@@ -127,11 +127,11 @@ void gather_particles<dim>::add_new_particle(int E_id, int S_id, int p_id, Point
         Npos++;
     }
     else{
-        strm_it = well_it->second.find(S_id);
-        if (strm_it == well_it->second.end()){
+        strm_it = entity_it->second.find(S_id);
+        if (strm_it == entity_it->second.end()){
             Gather_Data::particle<dim> new_particle(p, v, proc);
             Gather_Data::Streamline<dim> new_streamline(p_id, new_particle, out);
-            well_it->second[S_id] = new_streamline;
+            entity_it->second[S_id] = new_streamline;
             Npos++;
         }
         else{
@@ -164,13 +164,13 @@ std::map<int,int> gather_particles<dim>::get_wells_id_for_my_rank(int Nwells){
 }
 
 template<int dim>
-void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks, int Nwells){
+void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks){
 
-    std::map<int,int> wells2add = get_wells_id_for_my_rank(Nwells);
-    std::map<int,int>::iterator w_it;
+    //std::map<int,int> wells2add = get_wells_id_for_my_rank(Nwells);
+    //std::map<int,int>::iterator w_it;
 
     for (int i_chnk = 0; i_chnk < n_chunks; ++i_chnk){
-        //std::cout << "chunk " << i_chnk << " out of " << n_chunks << std::endl;
+        std::cout << "chunk " << i_chnk+1 << " out of " << n_chunks << std::endl;
         //std::cout << "\t";
         for (int i_proc = 0; i_proc < n_proc; ++i_proc){
             const std::string filename = (basename +
@@ -186,8 +186,8 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
             else{
                 //std::cout << i_proc << " " << std::flush;
                 //std::cout << "Reading particles from processor " << i_proc << std::endl;
-                typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it;
-                typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it;
+                //typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it;
+                //typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it;
                 char buffer[512];
                 while (datafile.good()){
                     datafile.getline(buffer,512);
@@ -208,9 +208,9 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                         v[idim] = val;
                     }
 
-                    w_it = wells2add.find(E_id);
-                    if (w_it != wells2add.end())
-                        add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
+                    //w_it = wells2add.find(E_id);
+                    //if (w_it != wells2add.end())
+                    add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
 
                     if( datafile.eof() )
                         break;
@@ -223,6 +223,7 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
 
 template <int dim>
 void gather_particles<dim>::calculate_age(bool backward, double unit_convertor){
+    std::cout << "Calculating particles Age..." << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it = Entities.begin();
     for (; well_it != Entities.end(); ++well_it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = well_it->second.begin();
@@ -289,12 +290,12 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
     std::vector<int> proc;
     int n_cell_id = 0;
 
-    typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it = Entities.begin();
-    int cnt_wells = 0; int cnt_strm = 0;
-    for (; well_it != Entities.end(); ++well_it){
-        if (cnt_wells == param.Entity_freq - 1){
-            typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = well_it->second.begin();
-            for (; strm_it != well_it->second.end(); ++strm_it){
+    typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator Entity_it = Entities.begin();
+    int cnt_entities = 0; int cnt_strm = 0;
+    for (; Entity_it != Entities.end(); ++Entity_it){
+        if (cnt_entities == param.Entity_freq - 1){
+            typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = Entity_it->second.begin();
+            for (; strm_it != Entity_it->second.end(); ++strm_it){
                 if (cnt_strm == param.Streaml_freq - 1){
                     typename std::map<int, Gather_Data::particle<dim> >::iterator part_it = strm_it->second.particles.begin();
                     for (; part_it != strm_it->second.particles.end(); ++part_it){
@@ -317,10 +318,10 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
                 else
                     cnt_strm++;
             }
-            cnt_wells = 0;
+            cnt_entities = 0;
         }
         else
-            cnt_wells++;
+            cnt_entities++;
     }
 
     // write headers
@@ -368,10 +369,13 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
         file_strml << proc[i] << std::endl;
     }
     file_strml.close();
+
+    std::cout << "Vtk data written in: " << filename << std::endl;
 }
 
 template <int dim>
 void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
+    std::cout << "Simplifying streamlines... " << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator it = Entities.begin();
     for (; it != Entities.end(); ++it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator itt = it->second.begin();
@@ -417,6 +421,7 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
     int count_strmln = 0;
 
     std::string filename = (basename + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
+    std::cout << "Printing streamline file: " << filename << std::endl;
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
@@ -442,7 +447,8 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
             count_strmln = 0;
             file_strml.close();
             file_id++;
-            filename = (basename + "_" + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
+            filename = (basename + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
+            std::cout << "Printing streamline file: " << filename << std::endl;
             file_strml.open(filename.c_str());
         }
     }

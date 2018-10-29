@@ -123,6 +123,28 @@ mpirun /path/to/executable/npsat -p parameter_file.npsat
 * Setting up the environment simply amounts to navigating to the folder where the files are 
 
 * Finally we start the parallel process using a command similar to the one was used in the desktop. However we omit the `-n` option.
+* Run the job:
+```
+sbatch run_job.sbatch
+```
+
+
+---
+### Usefull commands
+* **Slurm common commands**
+When a job is running on the cluster use `squeue -u username` to see the status of the job. 
+If for any reason you need to kill the job, find the job id by running the squeue and then ```scancel jobid```
+
+
+* **Transfer results from cluster**
+To transfer the result from the cluster to local machine the admins suggest the rsync over scp. For example to tranfer the *urfs files on the current folder do:
+```
+rsync -azvhe ssh name@aqua.lawr.ucdavis.edu:/path/of/the/results/*.urfs .
+# or for the farm cluster
+
+rsync -e "ssh -p 2022" --archive name@farm.cse.ucdavis.edu:/path/of/the/results/*.urfs .
+```
+
 
     
     

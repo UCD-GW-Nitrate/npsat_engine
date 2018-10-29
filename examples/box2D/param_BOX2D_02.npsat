@@ -260,16 +260,22 @@ subsection I. Particle tracking ================================
 
   subsection C. Particle Output configuration =---=---=---=---=---=
     # a----------------------------------
-    # Simplification threshold used for plotting
-    set a Simplify threshold         = 5.5
+    # Particles Prefix is a keyword that is used when printing the various
+    # particle related output files. If this is empty it will use the default
+    # prefix, which may overwrite existing files with the same name
+    set a Particles Prefix           = 
 
     # b----------------------------------
-    # This will print the streamlines every N Entities (e.g. every 10 wells)
-    set b Print entity frequency     = 1
+    # Simplification threshold used for plotting
+    set b Simplify threshold         = 5.5
 
     # c----------------------------------
+    # This will print the streamlines every N Entities (e.g. every 10 wells)
+    set c Print entity frequency     = 1
+
+    # d----------------------------------
     # For each Entity will print every N streamlines
-    set c Print streamline frequency = 1
+    set d Print streamline frequency = 1
   end
 
 end

@@ -73,7 +73,7 @@ public:
                       ParticleParameters& param_in);
 
 
-    void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix);
+    void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter);
     void print_all_cell_velocity();
     //void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
     //                            FESystem<dim>& velocity_fe);
@@ -281,20 +281,20 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
 }
 
 template <int dim>
-void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& streamlines, int iter, std::string prefix){
+void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& streamlines, int iter){
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
     dbg_my_rank = my_rank;
 
     //This is the name file where all particle trajectories are written
-    const std::string log_file_name = (prefix +
+    const std::string log_file_name = (param.particle_prefix +
                                        Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                        "_particles_"	+
                                        Utilities::int_to_string(my_rank, 4) +
                                        ".traj");
 
     //This is the name file where we print info of particles that terminate abnornamly
-    const std::string err_file_name = (prefix +
+    const std::string err_file_name = (param.particle_prefix +
                                        Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                        "_particle_errors_"	+
                                        Utilities::int_to_string(my_rank, 4) +
@@ -302,7 +302,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
 
     if (bprint_DBG){
         // This is the name file where the particles in matlab code format will be saved
-        const std::string dbg_file_name = (prefix + "_" +
+        const std::string dbg_file_name = (param.particle_prefix + "_" +
                                            Utilities::int_to_string(static_cast<unsigned int>(iter), 4) +
                                            "_particles_dbg_" +
                                            Utilities::int_to_string(my_rank, 4) +

@@ -103,5 +103,31 @@ for ii = 1:length(r2_seg_len)
     fprintf(fid, '%.2f %.2f\n', r2(ii+1,:));
 end
 fclose(fid);
+%% Write initial particle locations
+xx = 100:100:4900;
+yy = 100:100:4900;
+zz = -250:50:0;
+[Xpart, Ypart, Zpart] = meshgrid (xx, yy, zz);
+Nx = length(100:100:4900);
+Ny = length(100:100:4900);
+Nz = length(-250:50:0);
+Xpart = reshape(Xpart,Nx*Ny*Nz,1);
+Ypart = reshape(Ypart,Nx*Ny*Nz,1);
+Zpart = reshape(Zpart,Nx*Ny*Nz,1);
+Eid = nan(length(Xpart),1);
+Sid = nan(length(Xpart),1);
+% assign different eintity id for each level
+for ii = 1:Nz
+   idz = find(Zpart == zz(ii));
+   Eid(idz) = ii;
+   Sid(idz) = [1:length(idz)]';
+end
+%% write particle locations
+fid = fopen('layer_part.npsat','w');
+fprintf(fid, '%d\n', length(Eid));
+fprintf(fid, '%d %d %.1f %.1f %.1f\n', [Eid Sid Xpart Ypart Zpart]');
+fclose(fid);
+
+    
 
 

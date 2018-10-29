@@ -670,7 +670,7 @@ void NPSAT<dim>::particle_tracking(){
         //std::cout << "I'm proc " << my_rank << " and have " << part_of_streamlines[my_rank].size() << " to trace" << std::endl;
         MPI_Barrier(mpi_communicator);
 
-        pt.trace_particles(part_of_streamlines[my_rank], particle_iter++, AQProps.Dirs.output + AQProps.sim_prefix);
+        pt.trace_particles(part_of_streamlines[my_rank], particle_iter++);
 
         // Processor 0 which is responsible to send out the streamlines will
         // broadcast if there are more streamlines to trace
@@ -799,7 +799,7 @@ template <int dim>
 void NPSAT<dim>::read_Particles_from_file(std::vector<Streamline<dim>> &Streamlines){
     if (AQProps.part_param.Particles_in_file.empty())
         return;
-    const std::string filename = (AQProps.Dirs.input + AQProps.part_param.Particles_in_file + ".npsat");
+    const std::string filename = (AQProps.Dirs.input + AQProps.part_param.Particles_in_file);
     std::ifstream  datafile(filename.c_str());
     if (!datafile.good()){
         pcout << "Can't load the particle file " << filename << std::endl;

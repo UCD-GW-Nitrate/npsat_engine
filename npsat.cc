@@ -73,11 +73,16 @@ int main (int argc, char **argv){
         bool read_param = CLI.read_param_file();
         if (read_param){
             if (CLI.do_gather){
+                if (CLI.AQprop.part_param.particle_prefix.empty()){
+                    std::cerr << "You havent specify a particle prefix name to gather data from" << std::endl;
+                    return 0;
+                }
                 Gather_Data::gather_particles<_DIM> G;
-                G.gather_streamlines(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.get_np(), CLI.get_nSc(), CLI.AQprop.wells.Nwells);
-                G.print_streamlines4URF(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.AQprop.part_param);
+                G.gather_streamlines(CLI.AQprop.part_param.particle_prefix, CLI.get_np(), CLI.get_nSc());
+                G.print_streamlines4URF(CLI.AQprop.part_param.particle_prefix, CLI.AQprop.part_param);
                 G.calculate_age(true, 365);
-                G.print_vtk(CLI.AQprop.Dirs.output + CLI.AQprop.sim_prefix, CLI.AQprop.part_param);
+                G.simplify_XYZ_streamlines(CLI.AQprop.part_param.simplify_thres);
+                G.print_vtk(CLI.AQprop.part_param.particle_prefix, CLI.AQprop.part_param);
             }
             else{
                 //CLI.Debug_Prop();
@@ -88,6 +93,8 @@ int main (int argc, char **argv){
                     npsat.particle_tracking();
             }
         }
+        else
+            std::cerr << "Error while reading the parameter file" << std::endl;
     }
 	return 0;
 }

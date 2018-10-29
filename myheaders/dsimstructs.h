@@ -58,7 +58,7 @@ struct RefinementParameters{
  */
 struct ParticleParameters{
     //! This is a prefix for the output files generated from the particle tracking process.
-    std::string base_name;
+    std::string particle_prefix;
 
     //! Entity_freq controls for which wells or streams the particle tracking will be triggered. The particle tracking will
     //! run every Entity_freq wells or streams. Use 1 to trigger particle tracking for all wells

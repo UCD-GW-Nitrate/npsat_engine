@@ -528,16 +528,22 @@ void CL_arguments<dim>::declare_parameters(){
 
         prm.enter_subsection("C. Particle Output configuration =---=---=---=---=---=");
         {
-            prm.declare_entry("a Simplify threshold", "5.5", Patterns::Double(0,100),
+            prm.declare_entry("a Particles Prefix", "", Patterns::Anything(),
                               "a----------------------------------\n"
+                              "Particles Prefix is a keyword that is used when printing the various\n"
+                              "particle related output files. If this is empty it will use the default\n"
+                              "prefix, which may overwrite existing files with the same name");
+
+            prm.declare_entry("b Simplify threshold", "5.5", Patterns::Double(0,100),
+                              "b----------------------------------\n"
                               "Simplification threshold used for plotting");
 
-            prm.declare_entry("b Print entity frequency", "1", Patterns::Integer(0,1000),
-                              "b----------------------------------\n"
+            prm.declare_entry("c Print entity frequency", "1", Patterns::Integer(0,1000),
+                              "c----------------------------------\n"
                               "This will print the streamlines every N Entities (e.g. every 10 wells)");
 
-            prm.declare_entry("c Print streamline frequency", "1", Patterns::Integer(0,1000),
-                              "c----------------------------------\n"
+            prm.declare_entry("d Print streamline frequency", "1", Patterns::Integer(0,1000),
+                              "d----------------------------------\n"
                               "For each Entity will print every N streamlines");
         }
         prm.leave_subsection();
@@ -885,9 +891,15 @@ bool CL_arguments<dim>::read_param_file(){
 
         prm.enter_subsection("C. Particle Output configuration =---=---=---=---=---=");
         {
-            AQprop.part_param.simplify_thres = prm.get_double("a Simplify threshold");
-            AQprop.part_param.Entity_freq = prm.get_integer("b Print entity frequency");
-            AQprop.part_param.Streaml_freq = prm.get_integer("c Print streamline frequency");
+            AQprop.part_param.particle_prefix = AQprop.Dirs.output + prm.get("a Particles Prefix");
+            if (AQprop.part_param.bDoParticleTracking == 1 && AQprop.part_param.particle_prefix.empty()){
+                pcout << "I. Particle tracking->C. Particle Output configuration->a Particles Prefix: Is empty" << std::endl;
+                return false;
+            }
+
+            AQprop.part_param.simplify_thres = prm.get_double("b Simplify threshold");
+            AQprop.part_param.Entity_freq = prm.get_integer("c Print entity frequency");
+            AQprop.part_param.Streaml_freq = prm.get_integer("d Print streamline frequency");
         }
         prm.leave_subsection ();
     }
@@ -900,6 +912,11 @@ bool CL_arguments<dim>::read_param_file(){
     prm.enter_subsection("J. Output Parameters ================================");
     {
         AQprop.sim_prefix = prm.get("a Prefix");
+        if (AQprop.sim_prefix.empty()){
+            pcout << "J. Output Parameters->a Prefix: Is empty" << std::endl;
+            return false;
+        }
+
 
         prm.enter_subsection("A. Load/Save options =---=---=---=---=---=---=");
         {
