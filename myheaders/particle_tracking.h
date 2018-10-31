@@ -2315,7 +2315,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             }
         }
     }
-
+    std::cout << "Max vel: " << max_vel << ", Min vel: " << min_vel << std::endl;
     return true;
 }
 
