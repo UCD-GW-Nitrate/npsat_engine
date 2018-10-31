@@ -132,3 +132,12 @@ plotURFs( WellURF, [15 17]);
  
  <img src="wellurf15_17.png" alt="URFs for wells 15,17" width="500"/>
  
+## Particle tracking using file input
+The NPSAT toolbox allows to define initial particle locations using a file.
+The format of the file is very simple.
+```
+particles
+Eid Sid x y z
+```
+In this example we will track particles released from various elevations within the aquifer.
+

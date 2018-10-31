@@ -78,6 +78,7 @@ public:
     //void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
     //                            FESystem<dim>& velocity_fe);
     bool average_velocity_field();
+    bool average_velocity_field1();
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -1845,7 +1846,7 @@ bool Particle_Tracking<dim>::average_velocity_field(){
                                         sum[idim] += rec_it->second[idim];
                                 }
                                 else{
-                                    not_known_id[my_rank].push_back(vel_it->second.dof);
+                                    not_known_id[my_rank].push_back(vel_it->second.cnstr[ii]);
                                     can_average = false;
                                     break;
                                 }
@@ -1942,6 +1943,355 @@ bool Particle_Tracking<dim>::average_velocity_field(){
             return false;
         }
     }
+    return true;
+}
+
+template <int dim>
+bool Particle_Tracking<dim>::average_velocity_field1(){
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    MPI_Barrier(mpi_communicator);
+    pcout << "Calculating Velocities..." << std::endl << std::flush;
+
+    typename std::map<unsigned int, AverageVel<dim>>::iterator vel_it, vel_it2;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    std::map<int,int> dof_on_ghost;
+    std::map<int,int> dof_on_shared;
+    std::map<int,int>::iterator itint;
+
+    IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned()){
+            cell->get_dof_indices (local_dof_indices);
+            std::map <int, int> ids_that_touch_ghost_cells;
+            // find if there are any ghost cells that are touching this one
+            for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
+                if (!cell->at_boundary(iface)){ // if the iface is not a boundary
+                    if (cell->neighbor(iface)->active()){
+                        // if the neighbor is active check if its ghost
+                        if (cell->neighbor(iface)->is_ghost()){
+                            for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
+                                unsigned int id = GeometryInfo<dim>::face_to_cell_vertices(iface,ivert);
+                                ids_that_touch_ghost_cells.insert(std::pair<int,int>(id, id));
+                            }
+
+                        }
+                    }
+                    else{
+                        // if the neighbor is not active check if any of the children are ghost
+                        for (unsigned int ichild = 0; ichild < cell->neighbor(iface)->n_children(); ++ichild){
+                            if (cell->neighbor(iface)->child(ichild)->is_ghost()){
+                                for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
+                                    unsigned int id = GeometryInfo<dim>::face_to_cell_vertices(iface,ivert);
+                                    ids_that_touch_ghost_cells.insert(std::pair<int,int>(id, id));
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
+                Point<dim> vel;
+                bool tf = calc_vel_on_point(cell, cell->vertex(ii), vel);
+                if (tf){
+                    vel_it = VelocityMap.find(local_dof_indices[ii]);
+                    if (vel_it != VelocityMap.end()){
+                        vel_it->second.Addvelocity(vel);
+                    }
+                    else{
+                        std::vector<types::global_dof_index> temp_cnstr;
+                        temp_cnstr.push_back(local_dof_indices[ii]);
+                        Headconstraints.resolve_indices(temp_cnstr);
+                        VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(local_dof_indices[ii],
+                                           AverageVel<dim>(locally_owned_indices.is_element(local_dof_indices[ii]),
+                                                           local_dof_indices[ii], vel, temp_cnstr)));
+                    }
+                    itint = ids_that_touch_ghost_cells.find(ii);
+                    if (itint != ids_that_touch_ghost_cells.end()){
+                        dof_on_shared.insert(std::pair<int,int>(local_dof_indices[ii],local_dof_indices[ii]));
+                    }
+
+                }
+                else
+                    std::cerr << "There was a point that failed to calculate velocity even in local cell" << std::endl;
+            }
+        }
+        else if (cell->is_ghost()){
+            cell->get_dof_indices (local_dof_indices);
+            for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii)
+                dof_on_ghost.insert(std::pair<int,int>(local_dof_indices[ii],local_dof_indices[ii]));
+        }
+    }
+
+    // copy the dofs on ghost from map to vector
+    std::vector<std::vector<int>> dof_on_shared_vec(n_proc);
+    std::vector<std::vector<int>> nvel(n_proc);
+    std::vector<std::vector<double>> velshared(n_proc);
+    for (itint = dof_on_shared.begin(); itint !=dof_on_shared.end(); ++itint){
+        vel_it = VelocityMap.find(itint->first);
+        if (vel_it != VelocityMap.end()){
+            dof_on_shared_vec[my_rank].push_back(itint->first);
+            nvel[my_rank].push_back(vel_it->second.V.size());
+            for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii)
+                for (unsigned int idim = 0; idim < dim; ++idim)
+                    velshared[my_rank].push_back(vel_it->second.V[ii][idim]);
+        }
+    }
+
+    // in the velocity map each processor has put the velocity contributions from its locally own elements.
+    // Before averaging we have to transfer contributions from the other processors local elements for the vertices that touch
+    // ghost elements. These dofs have been stored to dof_on_shared map
+    // Each processor will notify the which dofs in locally own cells have ghost neighbors
+
+    std::vector<int> sent_dof_on_share_size, sent_vel_on_share_size;
+    Send_receive_size(static_cast<unsigned int>(dof_on_shared_vec[my_rank].size()), n_proc, sent_dof_on_share_size, mpi_communicator);
+    Sent_receive_data<int>(dof_on_shared_vec, sent_dof_on_share_size, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<int>(nvel, sent_dof_on_share_size, my_rank, mpi_communicator, MPI_INT);
+    Send_receive_size(static_cast<unsigned int>(velshared[my_rank].size()), n_proc, sent_vel_on_share_size, mpi_communicator);
+    Sent_receive_data<double>(velshared, sent_vel_on_share_size, my_rank, mpi_communicator, MPI_INT);
+
+    // each processor loops through the sent data that touch ghost cells and picks the ones that has in its map and coming form the other processors
+    for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+        if (my_rank == i_proc)
+            continue;
+        int vel_cnt = 0;
+        for (unsigned int ii = 0; ii < dof_on_shared_vec[i_proc].size(); ++ii){
+            vel_it = VelocityMap.find(dof_on_shared_vec[i_proc][ii]);
+            int nv = nvel[i_proc][ii];
+            if (vel_it != VelocityMap.end()){
+                // if I have a dof in my velocity map that another processor has sent its local information then I have to add this in my map
+                for (int jj = 0; ii < nv; ++jj){
+                    Point<dim> vv;
+                    for (unsigned int idim = 0; idim < dim; ++idim){
+                        vv[idim] = velshared[i_proc][vel_cnt];
+                        vel_cnt++;
+                    }
+                    vel_it->second.Addvelocity(vv);
+                }
+            }
+            else{
+                vel_cnt = vel_cnt + nv*dim;
+            }
+        }
+    }
+
+    // Now all processors should have all the values they need to average their velocities
+    int count_av_vel_iter = 0;
+    std::vector<std::vector<int>> not_known_id(n_proc);
+    std::vector<std::vector<int>> known_ids(n_proc);
+    std::vector<std::vector<double>> velX(n_proc);
+    std::vector<std::vector<double>> velY(n_proc);
+    std::vector<std::vector<double>> velZ(n_proc);
+
+    std::map<int, Point<dim>> received_vel;
+    typename std::map<int, Point<dim>>::iterator rec_it;
+    while (true){
+        for (unsigned int iproc = 0; iproc < n_proc; ++iproc){
+            not_known_id[iproc].clear();
+            known_ids[iproc].clear();
+            velX[iproc].clear();
+            velY[iproc].clear();
+            velZ[iproc].clear();
+        }
+        int count_non_average = 0;
+        vel_it = VelocityMap.begin();
+        for (; vel_it != VelocityMap.end(); ++vel_it){
+            if (!vel_it->second.is_averaged){
+                if (vel_it->second.is_local){
+                    if (vel_it->second.cnstr.size() == 0){
+                        Point<dim> sum;
+                        for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii){
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                sum[idim] += vel_it->second.V[ii][idim];
+                        }
+                        for (unsigned int idim = 0; idim < dim; ++idim)
+                            vel_it->second.av_vel[idim] = sum[idim]/vel_it->second.V.size();
+                        vel_it->second.is_averaged = true;
+                    }
+                    else{
+                        Point<dim> sum;
+                        bool can_average = true;
+                        for (unsigned int ii = 0; ii < vel_it->second.cnstr.size(); ++ii){
+                            vel_it2 = VelocityMap.find(vel_it->second.cnstr[ii]);
+                            if (vel_it2 != VelocityMap.end()){
+                                if (vel_it2->second.is_averaged){
+                                    for (unsigned int idim = 0; idim < dim; ++idim)
+                                        sum[idim] += vel_it2->second.av_vel[idim];
+                                }
+                                else{
+                                    can_average = false;
+                                    break;
+                                }
+                            }
+                            else{
+                                rec_it = received_vel.find(vel_it->second.cnstr[ii]);
+                                if (rec_it != received_vel.end()){
+                                    for (unsigned int idim = 0; idim < dim; ++idim)
+                                        sum[idim] += rec_it->second[idim];
+                                }
+                                else{
+                                    not_known_id[my_rank].push_back(vel_it->second.cnstr[ii]);
+                                    can_average = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (can_average){
+                            for (unsigned int idim = 0; idim < dim; ++idim)
+                                vel_it->second.av_vel[idim] = sum[idim] / vel_it->second.cnstr.size();
+                            vel_it->second.is_averaged = true;
+                        }
+                        else{
+                            count_non_average++;
+                        }
+                    }
+
+                }
+                else{
+                    // if the velocity is not local but the velocity Map containts the dof then most likely this will be needed during
+                    // particle tracking.
+                    // check if we have asked for this in a previous iteration
+                    rec_it = received_vel.find(vel_it->second.dof);
+                    if (rec_it != received_vel.end()){
+                        // the received velocities are always averaged, otherwise the owner processor wont sent them
+                        for (unsigned int idim = 0; idim < dim; ++idim)
+                            vel_it->second.av_vel[idim] = rec_it->second[idim];
+                        vel_it->second.is_averaged = true;
+                    }
+                    else{
+                        not_known_id[my_rank].push_back(vel_it->second.dof);
+                        count_non_average++;
+                    }
+                }
+            }
+        }
+
+        // Check if all points have been set
+        sum_scalar<int>(count_non_average, n_proc, mpi_communicator, MPI_INT);
+        pcout << "There are: " << count_non_average << " point velocities to be averaged" << std::endl;
+        if (count_non_average == 0)
+            break;
+
+        std::vector<int> sent_size;
+        Send_receive_size(static_cast<unsigned int>(not_known_id[my_rank].size()), n_proc, sent_size, mpi_communicator);
+        Sent_receive_data<int>(not_known_id, sent_size, my_rank, mpi_communicator, MPI_INT);
+
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (my_rank == i_proc)
+                continue;
+            for (unsigned int ii = 0; ii < not_known_id[i_proc].size(); ++ii){
+                vel_it = VelocityMap.find(not_known_id[i_proc][ii]);
+                if (vel_it != VelocityMap.end()){
+                    if (vel_it->second.is_local && vel_it->second.is_averaged){
+                        known_ids[my_rank].push_back(vel_it->second.dof);
+                        velX[my_rank].push_back(vel_it->second.av_vel[0]);
+                        velY[my_rank].push_back(vel_it->second.av_vel[1]);
+                        if (dim == 3)
+                            velZ[my_rank].push_back(vel_it->second.av_vel[2]);
+                    }
+                }
+            }
+        }
+
+        Send_receive_size(static_cast<unsigned int>(known_ids[my_rank].size()), n_proc, sent_size, mpi_communicator);
+        Sent_receive_data<int>(known_ids, sent_size, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(velX, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(velY, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(velZ, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // loop through the replies and get the ones you need
+        // but first put them in a map for faster querying
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++ i_proc){
+            if (my_rank == i_proc)
+                continue;
+            for (unsigned int ii = 0; ii < known_ids[i_proc].size(); ++ii){
+                Point<dim> tempV;
+                tempV[0] = velX[i_proc][ii];
+                tempV[1] = velY[i_proc][ii];
+                if (dim == 3)
+                    tempV[2] = velZ[i_proc][ii];
+                received_vel.insert(std::pair<int,Point<dim>>(known_ids[i_proc][ii], tempV));
+            }
+        }
+
+
+        count_av_vel_iter++;
+        if (count_av_vel_iter > 30){
+            pcout << "The velocities havenot fully averaged" << std::endl;
+            return false;
+        }
+    }
+
+    //now loop through the dofs that exist in ghost cells
+    for (unsigned int iproc = 0; iproc < n_proc; ++iproc){
+        not_known_id[iproc].clear();
+        known_ids[iproc].clear();
+        velX[iproc].clear();
+        velY[iproc].clear();
+        velZ[iproc].clear();
+    }
+
+    for (itint = dof_on_ghost.begin(); itint != dof_on_ghost.end(); ++itint){
+        vel_it = VelocityMap.find(itint->first);
+        if (vel_it == VelocityMap.end()){
+            // this dof doesnt even exist on the velocity map therefore we have to get it from another processor
+            not_known_id[my_rank].push_back(itint->first);
+        }
+    }
+    std::vector<int> sent_size;
+    Send_receive_size(static_cast<unsigned int>(not_known_id[my_rank].size()), n_proc, sent_size, mpi_communicator);
+    Sent_receive_data<int>(not_known_id, sent_size, my_rank, mpi_communicator, MPI_INT);
+
+    for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+        if (my_rank == i_proc)
+            continue;
+        for (unsigned int ii = 0; ii < not_known_id[i_proc].size(); ++ii){
+            vel_it = VelocityMap.find(not_known_id[i_proc][ii]);
+            if (vel_it != VelocityMap.end()){
+                if (vel_it->second.is_local && vel_it->second.is_averaged){
+                    known_ids[my_rank].push_back(vel_it->second.dof);
+                    velX[my_rank].push_back(vel_it->second.av_vel[0]);
+                    velY[my_rank].push_back(vel_it->second.av_vel[1]);
+                    if (dim == 3)
+                        velZ[my_rank].push_back(vel_it->second.av_vel[2]);
+                }
+            }
+        }
+    }
+    Send_receive_size(static_cast<unsigned int>(known_ids[my_rank].size()), n_proc, sent_size, mpi_communicator);
+    Sent_receive_data<int>(known_ids, sent_size, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<double>(velX, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+    Sent_receive_data<double>(velY, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+    if (dim == 3)
+        Sent_receive_data<double>(velZ, sent_size, my_rank, mpi_communicator, MPI_DOUBLE);
+
+    for (unsigned int i_proc = 0; i_proc < n_proc; ++ i_proc){
+        if (my_rank == i_proc)
+            continue;
+        for (unsigned int ii = 0; ii < known_ids[i_proc].size(); ++ii){
+            itint = dof_on_ghost.find(known_ids[i_proc][ii]);
+            vel_it = VelocityMap.find(known_ids[i_proc][ii]);
+            if (itint != dof_on_ghost.end() && vel_it == VelocityMap.end()){
+                Point<dim> tempV;
+                tempV[0] = velX[i_proc][ii];
+                tempV[1] = velY[i_proc][ii];
+                if (dim == 3)
+                    tempV[2] = velZ[i_proc][ii];
+                VelocityMap.insert(std::pair<unsigned int, AverageVel<dim>>(itint->first, AverageVel<dim>(itint->first, tempV)));
+            }
+        }
+    }
+
     return true;
 }
 
