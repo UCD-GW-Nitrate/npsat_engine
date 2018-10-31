@@ -1972,8 +1972,8 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     std::map<int,int> dof_on_shared;
     std::map<int,int>::iterator itint;
 
-    double premax_v = -99999999999;
-    double premin_v =  99999999999;
+    //double premax_v = -99999999999;
+    //double premin_v =  99999999999;
 
     IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
     typename DoFHandler<dim>::active_cell_iterator
@@ -2015,12 +2015,12 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
                 Point<dim> vel;
                 bool tf = calc_vel_on_point(cell, cell->vertex(ii), vel);
-                for (unsigned int idim = 0; idim < dim; ++idim){
-                    if (vel[idim] > premax_v)
-                        premax_v = vel[idim];
-                    if (vel[idim] < premin_v)
-                        premin_v = vel[idim];
-                }
+                //for (unsigned int idim = 0; idim < dim; ++idim){
+                //    if (vel[idim] > premax_v)
+                //        premax_v = vel[idim];
+                //    if (vel[idim] < premin_v)
+                //        premin_v = vel[idim];
+                //}
 
                 if (tf){
                     vel_it = VelocityMap.find(local_dof_indices[ii]);
@@ -2052,10 +2052,10 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
         }
     }
 
-    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
+    //std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
-    premax_v = -99999999999;
-    premin_v =  99999999999;
+    //premax_v = -99999999999;
+    //premin_v =  99999999999;
 
     // copy the dofs on ghost from map to vector
     std::vector<std::vector<int>> dof_on_shared_vec(n_proc);
@@ -2069,15 +2069,15 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii)
                 for (unsigned int idim = 0; idim < dim; ++idim){
                     velshared[my_rank].push_back(vel_it->second.V[ii][idim]);
-                    if (vel_it->second.V[ii][idim] > premax_v)
-                        premax_v = vel_it->second.V[ii][idim];
-                    if (vel_it->second.V[ii][idim] < premin_v)
-                        premin_v = vel_it->second.V[ii][idim];
+                    //if (vel_it->second.V[ii][idim] > premax_v)
+                    //    premax_v = vel_it->second.V[ii][idim];
+                    //if (vel_it->second.V[ii][idim] < premin_v)
+                    //    premin_v = vel_it->second.V[ii][idim];
                 }
         }
     }
 
-    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
+    //std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     // in the velocity map each processor has put the velocity contributions from its locally own elements.
     // Before averaging we have to transfer contributions from the other processors local elements for the vertices that touch
@@ -2091,8 +2091,8 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     Send_receive_size(static_cast<unsigned int>(velshared[my_rank].size()), n_proc, sent_vel_on_share_size, mpi_communicator);
     Sent_receive_data<double>(velshared, sent_vel_on_share_size, my_rank, mpi_communicator, MPI_DOUBLE);
 
-    premax_v = -99999999999;
-    premin_v =  99999999999;
+    //premax_v = -99999999999;
+    //premin_v =  99999999999;
 
     // each processor loops through the sent data that touch ghost cells and picks the ones that has in its map and coming form the other processors
     for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
@@ -2110,10 +2110,10 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                         vv[idim] = velshared[i_proc][vel_cnt];
                         vel_cnt++;
 
-                        if (vv[idim] > premax_v)
-                            premax_v = vv[idim];
-                        if (vv[idim] < premin_v)
-                            premin_v = vv[idim];
+                        //if (vv[idim] > premax_v)
+                        //    premax_v = vv[idim];
+                        //if (vv[idim] < premin_v)
+                        //    premin_v = vv[idim];
                     }
                     vel_it->second.Addvelocity(vv);
                 }
@@ -2124,7 +2124,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
         }
     }
 
-    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
+    //std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     // Now all processors should have all the values they need to average their velocities
     int count_av_vel_iter = 0;
