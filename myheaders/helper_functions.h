@@ -83,7 +83,7 @@ bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& punit,
                 p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
             ++count_try;
             if (count_try > 20){
-                std::cerr << "Transformation Failed for DofHandler cell" << std::endl;
+                std::cerr << "Transformation Failed for DofHandler cell " << cell->is_locally_owned() << std::endl;
                 print_cell_coords<dim>(cell);
                 std::cout << p << std::endl;
                 break;
