@@ -665,7 +665,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     const MappingQ1<dim> mapping;
     bool success = try_mapping(p, p_unit, cell, mapping);
     if (!success){
-        std::cerr << "P fail:" << p << std::endl;
+        std::cerr << "P fail v1:" << p << std::endl;
         outcome = -88;
         return outcome;
     }
@@ -795,6 +795,9 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                 cell_found = false;
         }
     }
+    else{
+        std::cerr << "P fail v2:" << p << std::endl;
+    }
 
     //First we have to make sure that the point is in the cell
     if (!cell_found){
@@ -883,7 +886,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     success = try_mapping(p, p_unit, cell, mapping);
 
     if(!success){
-        std::cerr << "P fail:" << p << std::endl;
+        std::cerr << "P fail v3:" << p << std::endl;
         outcome = -88;
         return outcome;
     }
@@ -1517,8 +1520,10 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
     Point<dim> p_unit;
     const MappingQ1<dim> mapping;
     bool success = try_mapping(p, p_unit, cell, mapping);
-    if (!success)
+    if (!success){
+        std::cerr << "P fail v4:" << p << std::endl;
         return false;
+    }
 
     //The velocity is equal vx = - Kx*dHx/n
     // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
