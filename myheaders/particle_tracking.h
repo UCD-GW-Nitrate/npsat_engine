@@ -2091,6 +2091,9 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     Send_receive_size(static_cast<unsigned int>(velshared[my_rank].size()), n_proc, sent_vel_on_share_size, mpi_communicator);
     Sent_receive_data<double>(velshared, sent_vel_on_share_size, my_rank, mpi_communicator, MPI_INT);
 
+    premax_v = -99999999999;
+    premin_v =  99999999999;
+
     // each processor loops through the sent data that touch ghost cells and picks the ones that has in its map and coming form the other processors
     for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
         if (my_rank == i_proc)
@@ -2106,6 +2109,11 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                     for (unsigned int idim = 0; idim < dim; ++idim){
                         vv[idim] = velshared[i_proc][vel_cnt];
                         vel_cnt++;
+
+                        if (vv[idim] > premax_v)
+                            premax_v = vv[idim];
+                        if (vv[idim] < premin_v)
+                            premin_v = vv[idim];
                     }
                     vel_it->second.Addvelocity(vv);
                 }
@@ -2115,6 +2123,8 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             }
         }
     }
+
+    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     // Now all processors should have all the values they need to average their velocities
     int count_av_vel_iter = 0;
