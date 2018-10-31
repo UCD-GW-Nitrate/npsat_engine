@@ -2052,8 +2052,10 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
         }
     }
 
-    std::cout << "Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
+    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
+    premax_v = -99999999999;
+    premin_v =  99999999999;
 
     // copy the dofs on ghost from map to vector
     std::vector<std::vector<int>> dof_on_shared_vec(n_proc);
@@ -2065,10 +2067,17 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             dof_on_shared_vec[my_rank].push_back(itint->first);
             nvel[my_rank].push_back(vel_it->second.V.size());
             for (unsigned int ii = 0; ii < vel_it->second.V.size(); ++ii)
-                for (unsigned int idim = 0; idim < dim; ++idim)
+                for (unsigned int idim = 0; idim < dim; ++idim){
                     velshared[my_rank].push_back(vel_it->second.V[ii][idim]);
+                    if (vel_it->second.V[ii][idim] > premax_v)
+                        premax_v = vel_it->second.V[ii][idim];
+                    if (vel_it->second.V[ii][idim] < premin_v)
+                        premin_v = vel_it->second.V[ii][idim];
+                }
         }
     }
+
+    std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     // in the velocity map each processor has put the velocity contributions from its locally own elements.
     // Before averaging we have to transfer contributions from the other processors local elements for the vertices that touch
