@@ -2069,7 +2069,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             int nv = nvel[i_proc][ii];
             if (vel_it != VelocityMap.end()){
                 // if I have a dof in my velocity map that another processor has sent its local information then I have to add this in my map
-                for (int jj = 0; ii < nv; ++jj){
+                for (int jj = 0; jj < nv; ++jj){
                     Point<dim> vv;
                     for (unsigned int idim = 0; idim < dim; ++idim){
                         vv[idim] = velshared[i_proc][vel_cnt];
