@@ -145,7 +145,7 @@ private:
      * The last case indicates that something wrong happens. For example the step maybe too large so it skips the ghost cell.
      * That's why when this returns negative values we tell the algorithm to take one very small euler step instead of a larger RK4 step
      */
-    int check_cell_point(typename DoFHandler<dim>::active_cell_iterator &cell, Point<dim>& p);
+    int check_cell_point(typename DoFHandler<dim>::active_cell_iterator &cell, Point<dim> p);
 
     /**
      * @brief compute_point_velocity Computes the velocity of the point p that is found within the cell. This version takes into account the
@@ -518,7 +518,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
 }
 
 template <int dim>
-int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p){
+int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim> p){
     //Point<dim> testp(327.79903158960485,
     //                 859.7581620110702,
     //                 10.91061720969245);
@@ -1215,6 +1215,9 @@ int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cel
 
     for (int i = 0; i < dim; ++i){
         P_next[i] = P_prev[i] + V_prev[i] * step_time;
+        if (std::isnan(P_next[i])){
+            std::cout << "Next point is nan = " << P_prev[i] << " + " << V_prev[i] << "*" << step_time << std::endl;
+        }
     }
     //plot_point(P_next);
 
