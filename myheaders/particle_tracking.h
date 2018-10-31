@@ -164,7 +164,7 @@ private:
      *      - -101 If something else obviously wrong has happened
      *
      */
-    int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status);
+    int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller);
 
     double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
 
@@ -484,7 +484,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
             int check_id = check_cell_point(cell, streamline.P[streamline.P.size()-1]);
             Point<dim> v;
             if (check_id == 1){
-                reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell, check_id);
+                reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell, check_id, 0);
             }
             else{
                 reason_to_exit = -88;
@@ -649,7 +649,7 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
 }
 
 template <int dim>
-int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status){
+int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller){
     int outcome = -101;
     if (check_point_status < 0 || cell->is_artificial()){
         std::cerr << "Proc " << dbg_my_rank << " attempts compute_point_velocity for point ("
@@ -665,7 +665,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     const MappingQ1<dim> mapping;
     bool success = try_mapping(p, p_unit, cell, mapping);
     if (!success){
-        std::cerr << "P fail v1:" << p << std::endl;
+        std::cerr << "P fail v1:" << p << " caller: " << caller << std::endl;
         outcome = -88;
         return outcome;
     }
@@ -1208,6 +1208,8 @@ int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cel
                                             double step_weight, double step_length,
                                             Point<dim> P_prev, Point<dim> V_prev,
                                             Point<dim>& P_next, Point<dim>& V_next, int& count_nest){
+    if (std::abs(V_prev.norm()) < 0.00000001)
+        std::cout << "velocity is almost zero" << std::endl;
     double step_time = step_weight * step_length / V_prev.norm();
     int outcome;
 
@@ -1224,7 +1226,7 @@ int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cel
         outcome = take_euler_step(cell, step_weight, step_length, P_prev, V_prev, P_next, V_next, count_nest);
     }
     else{
-        outcome = compute_point_velocity(P_next, V_next, cell, check_pnt);
+        outcome = compute_point_velocity(P_next, V_next, cell, check_pnt, 1);
     }
 
     if (count_nest == 0)
