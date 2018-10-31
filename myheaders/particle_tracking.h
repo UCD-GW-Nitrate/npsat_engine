@@ -2103,6 +2103,9 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     std::vector<std::vector<double>> velZ(n_proc);
 
     std::map<int, Point<dim>> received_vel;
+
+    double min_vel = 99999999999;
+    double max_vel = -99999999999;
     typename std::map<int, Point<dim>>::iterator rec_it;
     while (true){
         for (unsigned int iproc = 0; iproc < n_proc; ++iproc){
@@ -2123,8 +2126,13 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                             for (unsigned int idim = 0; idim < dim; ++idim)
                                 sum[idim] += vel_it->second.V[ii][idim];
                         }
-                        for (unsigned int idim = 0; idim < dim; ++idim)
+                        for (unsigned int idim = 0; idim < dim; ++idim){
                             vel_it->second.av_vel[idim] = sum[idim]/vel_it->second.V.size();
+                            if (vel_it->second.av_vel[idim] > max_vel)
+                                max_vel = vel_it->second.av_vel[idim];
+                            if (vel_it->second.av_vel[idim] < min_vel)
+                                min_vel = vel_it->second.av_vel[idim];
+                        }
                         vel_it->second.is_averaged = true;
                     }
                     else{
@@ -2156,8 +2164,14 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                             }
                         }
                         if (can_average){
-                            for (unsigned int idim = 0; idim < dim; ++idim)
+                            for (unsigned int idim = 0; idim < dim; ++idim){
                                 vel_it->second.av_vel[idim] = sum[idim] / vel_it->second.cnstr.size();
+                                if (vel_it->second.av_vel[idim] > max_vel)
+                                    max_vel = vel_it->second.av_vel[idim];
+                                if (vel_it->second.av_vel[idim] < min_vel)
+                                    min_vel = vel_it->second.av_vel[idim];
+                            }
+
                             vel_it->second.is_averaged = true;
                         }
                         else{
