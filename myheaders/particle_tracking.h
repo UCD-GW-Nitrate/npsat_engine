@@ -2089,7 +2089,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     Sent_receive_data<int>(dof_on_shared_vec, sent_dof_on_share_size, my_rank, mpi_communicator, MPI_INT);
     Sent_receive_data<int>(nvel, sent_dof_on_share_size, my_rank, mpi_communicator, MPI_INT);
     Send_receive_size(static_cast<unsigned int>(velshared[my_rank].size()), n_proc, sent_vel_on_share_size, mpi_communicator);
-    Sent_receive_data<double>(velshared, sent_vel_on_share_size, my_rank, mpi_communicator, MPI_INT);
+    Sent_receive_data<double>(velshared, sent_vel_on_share_size, my_rank, mpi_communicator, MPI_DOUBLE);
 
     premax_v = -99999999999;
     premin_v =  99999999999;
@@ -2140,6 +2140,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     double max_vel = -99999999999;
     typename std::map<int, Point<dim>>::iterator rec_it;
     while (true){
+        MPI_Barrier(mpi_communicator);
         for (unsigned int iproc = 0; iproc < n_proc; ++iproc){
             not_known_id[iproc].clear();
             known_ids[iproc].clear();
