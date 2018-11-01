@@ -71,6 +71,9 @@ public:
 
     bool do_gather;
 
+    //! This is a vector that holds the entity ids to gather via the gather process
+    std::vector<int> EntityIDs;
+
 private:
     //! This is the typical MPI communicator
     MPI_Comm                                  mpi_communicator;
@@ -98,6 +101,17 @@ private:
      * tracking during the construction phase of the NPSAT
      */
     int nStreamlineChunks;
+
+    //! This is the user input argument for the -e option
+    std::string entity_arg;
+
+    //! Reads the Entities that will be gathered in the gather process
+    //! THe format is the following:
+    //! Nentities
+    //! id1
+    //! id2
+    //! ... repeat Nentities times
+    bool get_entity_ids_from_file(std::string filename);
 
     //! This is the typical deal parameter handler
     ParameterHandler                    prm;
@@ -160,6 +174,7 @@ bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
                               << "# of processors used during the simulation."
                               << "and the number of chunks."
                               << std::endl;
+                    out = false;
                 }
                 else{
                     bool tf = is_input_a_scalar(args.front());
@@ -169,6 +184,7 @@ bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
                     else{
                         do_gather = false;
                         std::cerr << " -g option expects two integers" << std::endl;
+                        out = false;
                     }
                     args.pop_front();
                     tf = is_input_a_scalar(args.front());
@@ -178,9 +194,24 @@ bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
                     else{
                         do_gather = false;
                         std::cerr << " -g option expects two integers" << std::endl;
+                        out = false;
                     }
                     args.pop_front();
                 }
+            }
+            else if (args.front() == "-e"){
+                args.pop_front();
+                if (args.size() == 0){
+                    std::cerr << "Error: flag '-e' must be followed by the "
+                              << "number of entities or a file with the entity ids."
+                              << std::endl;
+                    out = false;
+                }
+                else{
+                    entity_arg = args.front();
+                    args.pop_front();
+                }
+
             }
             else if (args.front() == "-h"){
                 args.pop_front();
@@ -635,6 +666,24 @@ bool CL_arguments<dim>::read_param_file(){
     }
     prm.leave_subsection ();
 
+    if (do_gather){
+        // Now that we know the input path read the gather entities if npsat runs in gather mode
+        bool tf = is_input_a_scalar(entity_arg);
+        if (tf){
+            int NEntities = dealii::Utilities::string_to_int(entity_arg);
+            EntityIDs.clear();
+            EntityIDs.resize(NEntities);
+            for (int ii = 0; ii < NEntities; ++ii)
+                EntityIDs[ii] = ii;
+        }
+        else{
+            if(!get_entity_ids_from_file(input_dir+entity_arg)){
+                return false;
+            }
+
+        }
+    }
+
 
     //+++++++++++++++++++++++++++++++++++++++++
     // GEOMETRY
@@ -962,6 +1011,32 @@ template <int dim>
 void CL_arguments<dim>::Debug_Prop(){
     pcout << AQprop.geomtype << std::endl;
 
+}
+
+template <int dim>
+bool CL_arguments<dim>::get_entity_ids_from_file(std::string filename){
+    std::ifstream  datafile(filename.c_str());
+    if (!datafile.good()){
+        std::cout << "Can't open the file" << filename << std::endl;
+        return false;
+    }
+    else
+    {
+        char buffer[512];
+        int Nentities;
+        int id;
+        datafile.getline(buffer,512);
+        std::istringstream inp1(buffer);
+        inp1 >> Nentities;
+        EntityIDs.resize(Nentities);
+        for (int i = 0; i < Nentities; ++i){
+            datafile.getline(buffer,512);
+            std::istringstream inp(buffer);
+            inp >> id;
+            EntityIDs[i] = id;
+        }
+    }
+    return true;
 }
 
 #endif // USER_INPUT_H

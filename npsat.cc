@@ -78,7 +78,7 @@ int main (int argc, char **argv){
                     return 0;
                 }
                 Gather_Data::gather_particles<_DIM> G;
-                G.gather_streamlines(CLI.AQprop.part_param.particle_prefix, CLI.get_np(), CLI.get_nSc());
+                G.gather_streamlines(CLI.AQprop.part_param.particle_prefix, CLI.get_np(), CLI.get_nSc(), CLI.EntityIDs);
                 G.print_streamlines4URF(CLI.AQprop.part_param.particle_prefix, CLI.AQprop.part_param);
                 G.calculate_age(true, 365);
                 G.simplify_XYZ_streamlines(CLI.AQprop.part_param.simplify_thres);

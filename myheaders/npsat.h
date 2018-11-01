@@ -681,7 +681,7 @@ void NPSAT<dim>::particle_tracking(){
     pcout << "Particle tracking ended at \n" << print_current_time() << std::endl;
     pcout << "To gather the streamlines use the following command: \n"
           << "npsat -p " << AQProps.main_param_file
-          << " -g " << n_proc << " " << particle_iter << std::endl;
+          << " -g " << n_proc << " " << particle_iter << " # of expected entities" << std::endl;
 
 }
 

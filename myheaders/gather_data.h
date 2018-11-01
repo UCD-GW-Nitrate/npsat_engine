@@ -88,7 +88,7 @@ public:
     void print_vtk(std::string filename, ParticleParameters param);
     void print_osg(std::string filename, ParticleParameters param);
     void print_streamline_length_age(std::string filename);
-    void gather_streamlines(std::string basename, int n_proc, int n_chunks);
+    void gather_streamlines(std::string basename, int n_proc, int n_chunks, std::vector<int> entity_ids);
     void print_stats();
     void calculate_age(bool backward, double unit_convertor);
     void simplify_XYZ_streamlines(double thres);
@@ -98,7 +98,7 @@ private:
     std::map<int, std::map<int,  Gather_Data::Streamline<dim> > > Entities;
     int Npos; // number of particle positions in the map
     void add_new_particle(int E_id, int S_id, int p_id, Point<dim> p, Point<dim> v, int proc, int out);
-    std::map<int,int> get_wells_id_for_my_rank(int Nwells);
+    std::map<int,int> get_Enitity_ids_for_my_rank(std::vector<int> entity_ids);
     unsigned int g_n_proc;
     unsigned int g_my_rank;
 };
@@ -143,34 +143,38 @@ void gather_particles<dim>::add_new_particle(int E_id, int S_id, int p_id, Point
 }
 
 template <int dim>
-std::map<int,int> gather_particles<dim>::get_wells_id_for_my_rank(int Nwells){
-    int Nwells_per_proc = Nwells / g_n_proc;
+std::map<int,int> gather_particles<dim>::get_Enitity_ids_for_my_rank(std::vector<int> entity_ids){
+    int NEntities_per_proc = entity_ids.size() / g_n_proc;
     int start_Eid = 0;
-    int end_Eid = Nwells_per_proc;
-    std::map<int,int> wellids;
+    int end_Eid = NEntities_per_proc;
+    std::map<int,int> Entity_Map_ids;
     for (unsigned int i_proc = 0; i_proc < g_n_proc; ++i_proc){
         if ( i_proc == g_my_rank){
+            std::cout << "I'm processor " << g_my_rank << " and I'll gather from " << start_Eid << " to " << end_Eid << std::endl;
             for (int i = start_Eid; i < end_Eid; ++i){
-                wellids.insert(std::pair<int,int>(i,i));
+                Entity_Map_ids.insert(std::pair<int,int>(entity_ids[i], entity_ids[i]));
             }
             break;
         }
         start_Eid = end_Eid;
-        end_Eid += Nwells_per_proc;
+        end_Eid += NEntities_per_proc;
+        if (i_proc == g_n_proc - 1){
+            end_Eid = entity_ids.size();
+        }
     }
 
-    return wellids;
-
+    return Entity_Map_ids;
 }
 
 template<int dim>
-void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks){
+void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc, int n_chunks, std::vector<int> entity_ids){
 
-    //std::map<int,int> wells2add = get_wells_id_for_my_rank(Nwells);
-    //std::map<int,int>::iterator w_it;
+    std::map<int,int> Entity_map_id = get_Enitity_ids_for_my_rank(entity_ids);
+    std::map<int,int>::iterator Eit;
 
     for (int i_chnk = 0; i_chnk < n_chunks; ++i_chnk){
-        std::cout << "chunk " << i_chnk+1 << " out of " << n_chunks << std::endl;
+        if (g_my_rank == 0)
+            std::cout << "chunk " << i_chnk+1 << " out of " << n_chunks << std::endl;
         //std::cout << "\t";
         for (int i_proc = 0; i_proc < n_proc; ++i_proc){
             const std::string filename = (basename +
@@ -196,21 +200,21 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                     double val;
                     Point<dim> p, v;
                     inp >> E_id;
-                    inp >> S_id;
-                    inp >> out;
-                    inp >> p_id;
-                    for (unsigned int idim = 0; idim < dim; ++idim){
-                        inp >> val;
-                        p[idim] = val;
+                    Eit = Entity_map_id.find(E_id);
+                    if (Eit != Entity_map_id.end()){
+                        inp >> S_id;
+                        inp >> out;
+                        inp >> p_id;
+                        for (unsigned int idim = 0; idim < dim; ++idim){
+                            inp >> val;
+                            p[idim] = val;
+                        }
+                        for (unsigned int idim = 0; idim < dim; ++idim){
+                            inp >> val;
+                            v[idim] = val;
+                        }
+                        add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
                     }
-                    for (unsigned int idim = 0; idim < dim; ++idim){
-                        inp >> val;
-                        v[idim] = val;
-                    }
-
-                    //w_it = wells2add.find(E_id);
-                    //if (w_it != wells2add.end())
-                    add_new_particle(E_id, S_id, p_id, p, v, i_proc, out);
 
                     if( datafile.eof() )
                         break;
@@ -223,7 +227,8 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
 
 template <int dim>
 void gather_particles<dim>::calculate_age(bool backward, double unit_convertor){
-    std::cout << "Calculating particles Age..." << std::endl;
+    if (g_my_rank == 0)
+        std::cout << "Calculating particles Age..." << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it = Entities.begin();
     for (; well_it != Entities.end(); ++well_it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = well_it->second.begin();
@@ -277,8 +282,10 @@ void gather_particles<dim>::calculate_age(bool backward, double unit_convertor){
 
 template<int dim>
 void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters param){
-    std::cout << "Number of particle positions: " << Npos << std::endl;
-    const std::string filename = (basename + "_Streamlines.vtk");
+
+    std::cout << "Proc " << g_my_rank << " has " << Npos << "  particle positions" << std::endl;
+    const std::string filename = (basename +
+                                  Utilities::int_to_string(g_my_rank, 4) + "_Streamlines.vtk");
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
@@ -375,7 +382,8 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
 
 template <int dim>
 void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
-    std::cout << "Simplifying streamlines... " << std::endl;
+    if (g_my_rank == 0)
+        std::cout << "Simplifying streamlines... " << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator it = Entities.begin();
     for (; it != Entities.end(); ++it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator itt = it->second.begin();
@@ -420,8 +428,12 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
     int file_id = 0;
     int count_strmln = 0;
 
-    std::string filename = (basename + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
-    std::cout << "Printing streamline file: " << filename << std::endl;
+    std::string filename = (basename +
+                            Utilities::int_to_string(file_id, 4) + "_" +
+                            Utilities::int_to_string(g_my_rank, 4) + "_" +
+                            "streamlines.urfs");
+    if (g_my_rank == 0)
+        std::cout << "Printing streamline file: " << filename << std::endl;
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
@@ -447,8 +459,12 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
             count_strmln = 0;
             file_strml.close();
             file_id++;
-            filename = (basename + Utilities::int_to_string(file_id, 4) +"_streamlines.urfs");
-            std::cout << "Printing streamline file: " << filename << std::endl;
+            filename = (basename +
+                        Utilities::int_to_string(file_id, 4) + "_" +
+                        Utilities::int_to_string(g_my_rank, 4) + "_" +
+                        "streamlines.urfs");
+            if (g_my_rank == 0)
+                std::cout << "Printing streamline file: " << filename << std::endl;
             file_strml.open(filename.c_str());
         }
     }
