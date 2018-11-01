@@ -150,6 +150,9 @@ std::map<int,int> gather_particles<dim>::get_Enitity_ids_for_my_rank(std::vector
     std::map<int,int> Entity_Map_ids;
     for (unsigned int i_proc = 0; i_proc < g_n_proc; ++i_proc){
         if ( i_proc == g_my_rank){
+            if (i_proc == g_n_proc - 1){
+                end_Eid = entity_ids.size();
+            }
             std::cout << "I'm processor " << g_my_rank << " and I'll gather from " << start_Eid << " to " << end_Eid << std::endl;
             for (int i = start_Eid; i < end_Eid; ++i){
                 Entity_Map_ids.insert(std::pair<int,int>(entity_ids[i], entity_ids[i]));
@@ -158,9 +161,6 @@ std::map<int,int> gather_particles<dim>::get_Enitity_ids_for_my_rank(std::vector
         }
         start_Eid = end_Eid;
         end_Eid += NEntities_per_proc;
-        if (i_proc == g_n_proc - 1){
-            end_Eid = entity_ids.size();
-        }
     }
 
     return Entity_Map_ids;
