@@ -127,6 +127,15 @@ fid = fopen('layer_part.npsat','w');
 fprintf(fid, '%d\n', length(Eid));
 fprintf(fid, '%d %d %.1f %.1f %.1f\n', [Eid Sid Xpart Ypart Zpart]');
 fclose(fid);
+%% Read urf files
+WellURFs = [];
+for ii = 0:1
+    for jj = 0:5
+        temp = readURFs(['wells_' num2str(ii,'%04d') '_' num2str(jj,'%04d') '_streamlines.urfs']);
+        WellURFs = [WellURFs;temp];
+    end
+end
+
 
     
 

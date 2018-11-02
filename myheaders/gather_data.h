@@ -173,8 +173,7 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
     std::map<int,int>::iterator Eit;
 
     for (int i_chnk = 0; i_chnk < n_chunks; ++i_chnk){
-        if (g_my_rank == 0)
-            std::cout << "chunk " << i_chnk+1 << " out of " << n_chunks << std::endl;
+        std::cout << "Proc: " << g_my_rank << " reads chunk " << i_chnk+1 << " out of " << n_chunks << std::endl;
         //std::cout << "\t";
         for (int i_proc = 0; i_proc < n_proc; ++i_proc){
             const std::string filename = (basename +
@@ -227,8 +226,8 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
 
 template <int dim>
 void gather_particles<dim>::calculate_age(bool backward, double unit_convertor){
-    if (g_my_rank == 0)
-        std::cout << "Calculating particles Age..." << std::endl;
+
+    std::cout << "Proc: " << g_my_rank << " calculating particles Age..." << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it = Entities.begin();
     for (; well_it != Entities.end(); ++well_it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator strm_it = well_it->second.begin();
@@ -382,8 +381,8 @@ void gather_particles<dim>::print_vtk(std::string basename, ParticleParameters p
 
 template <int dim>
 void gather_particles<dim>::simplify_XYZ_streamlines(double thres){
-    if (g_my_rank == 0)
-        std::cout << "Simplifying streamlines... " << std::endl;
+
+    std::cout << "Proc: " << g_my_rank << " simplifying streamlines... " << std::endl;
     typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator it = Entities.begin();
     for (; it != Entities.end(); ++it){
         typename std::map<int,  Gather_Data::Streamline<dim> >::iterator itt = it->second.begin();
@@ -432,8 +431,8 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
                             Utilities::int_to_string(file_id, 4) + "_" +
                             Utilities::int_to_string(g_my_rank, 4) + "_" +
                             "streamlines.urfs");
-    if (g_my_rank == 0)
-        std::cout << "Printing streamline file: " << filename << std::endl;
+
+    std::cout << "Proc: " << g_my_rank <<  " printing streamline file: " << filename << std::endl;
     std::ofstream file_strml;
     file_strml.open(filename.c_str());
 
@@ -469,7 +468,6 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
         }
     }
     file_strml.close();
-
 }
 
 template<int dim>
