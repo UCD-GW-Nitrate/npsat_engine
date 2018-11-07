@@ -5,6 +5,10 @@ function WellURF = readURFs(filename)
     topt.Ttime = 200; % [years]
 
     fid = fopen(filename,'r');
+    if fid < 0
+        WellURF = [];
+        return;
+    end
     cnter = 1;
 
     %clf
