@@ -146,7 +146,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 9
+  set a Nonlinear iterations = 3
 
   # b----------------------------------
   # Tolerance of solver
@@ -188,7 +188,7 @@ end
 subsection I. Particle tracking ================================
   # a----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set a Enable particle tracking = 0
+  set a Enable particle tracking = 1
 
 
   subsection A. Configuration =---=---=---=---=---=---=---=---=
@@ -242,7 +242,7 @@ subsection I. Particle tracking ================================
     # This option will generate initial paricles around the wells
     # using the options below, and trace them.
     # Set 0 to deactivate well tracing
-    set b Trace wells               = 1
+    set b Trace wells               = 0
 
     # c----------------------------------
     # The number of layers that the particles will be distributed around the

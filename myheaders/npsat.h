@@ -620,6 +620,8 @@ void NPSAT<dim>::particle_tracking(){
                          AQProps.part_param);
 
     //pt.average_velocity_field(velocity_dof_handler,velocity_fe);
+    pt.calculate_RT0_velocity_field();
+    return;
     pt.average_velocity_field1();
 
     std::vector<Streamline<dim>> All_streamlines;

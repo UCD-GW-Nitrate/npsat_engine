@@ -409,6 +409,14 @@ std::vector<int> get_connected_indices(int ii){
 }
 
 template <int dim>
+dealii::Point<dim> midPoint(dealii::Point<dim> A, dealii::Point<dim> B){
+    dealii::Point<dim> AB;
+    for (unsigned int i = 0; i < dim; i++)
+        AB[i] = (A[i] + B[i])/2.0;
+    return AB;
+}
+
+template <int dim>
 void initTria(dealii::Triangulation<dim-1> &tria){
     std::vector< dealii::Point<dim-1> > vertices(dealii::GeometryInfo<dim-1>::vertices_per_cell);
     std::vector< dealii::CellData<dim-1> > cells(1);

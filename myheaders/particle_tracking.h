@@ -12,6 +12,7 @@
 #include "streamlines.h"
 #include "cgal_functions.h"
 #include "mpi_help.h"
+#include "velocity_rt0.h"
 
 
 using namespace dealii;
@@ -79,6 +80,7 @@ public:
     //                            FESystem<dim>& velocity_fe);
     bool average_velocity_field();
     bool average_velocity_field1();
+    bool calculate_RT0_velocity_field();
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -249,6 +251,12 @@ private:
     bool calc_vel_on_point(typename DoFHandler<dim>::active_cell_iterator& cell,
                            Point<dim> p,
                            Point<dim>& vel);
+
+    bool calc_vel_on_point_n_info(typename DoFHandler<dim>::active_cell_iterator& cell,
+                                  Point<dim> p,
+                                  Point<dim>& vel,
+                                  Point<dim>& dH,
+                                  double& H);
 
 
 
@@ -1562,6 +1570,7 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
             dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
         }
     }
+    //Tensor<2,dim> KK = HK_function.value(p);
 
     // divide dHead with the porosity
     double por = porosity.value(p);
@@ -1569,6 +1578,90 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
     for (int i_dim = 0; i_dim < dim; ++i_dim){
         vel[i_dim] = KdH[i_dim] / por;
     }
+    return true;
+}
+
+template <int dim>
+bool Particle_Tracking<dim>::calc_vel_on_point_n_info(typename DoFHandler<dim>::active_cell_iterator& cell,
+                                                      Point<dim> p,
+                                                      Point<dim>& vel,
+                                                      Point<dim> &dH,
+                                                      double& H){
+
+    Point<dim> p_unit;
+    const MappingQ1<dim> mapping;
+    bool success = try_mapping(p, p_unit, cell, mapping);
+    if (!success){
+        std::cerr << "P fail v4:" << p << std::endl;
+        return false;
+    }
+
+    //The velocity is equal vx = - Kx*dHx/n
+    // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
+    // For the current cell we will extract the hydraulic head solution
+
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    // The trapezoid formula evaluate the solution at the corner of the cell
+    QTrapez<dim> trapez_formula;
+    FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+    fe_values_trapez.reinit(cell);
+    std::vector<double> current_cell_head(dofs_per_cell);
+    fe_values_trapez.get_function_values(locally_relevant_solution, current_cell_head);
+
+    // To compute the head derivatives at the current unit position
+    // we set a quadrature rule at the current point
+    Quadrature<dim> temp_quadrature(p_unit);
+    FEValues<dim> fe_values_temp(fe, temp_quadrature, update_values | update_gradients | update_jacobians |
+                                                       update_quadrature_points | update_inverse_jacobians | update_JxW_values);
+    fe_values_temp.reinit(cell);
+
+    // dHead is the head gradient and is initialized to zero
+    Tensor<1,dim> dHead, dHead1;
+
+    std::cout << fe_values_temp.JxW(0) << std::endl;
+    H = 0;
+    for (unsigned int i = 0; i < dofs_per_cell; ++i){
+        Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+        std::cout << dN[0] << ", " << dN[1] << " | " << fe_values_temp.shape_value(i,0) <<  std::endl;
+        H += fe_values_temp.shape_value(i,0)*current_cell_head[i];
+    }
+
+
+    for (unsigned int irow = 0; irow < dim; ++irow){
+        for (unsigned int i = 0; i < dofs_per_cell; ++i){
+            Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+            double JN = 0;
+            for (unsigned int icol = 0; icol < dim; ++icol){
+                double inv = fe_values_temp.inverse_jacobian(0)[icol][irow];
+                double Jac = fe_values_temp.jacobian(0)[icol][irow];
+                std::cout << Jac << " | " << inv << std::endl;
+                //double dn = dN[icol];
+                JN += fe_values_temp.inverse_jacobian(0)[icol][irow]*dN[icol];
+            }
+            dHead1[irow] += JN*current_cell_head[i];
+        }
+    }
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i){
+        Tensor<1,dim> dN = fe_values_temp.shape_grad(i,0);
+        for (int i_dim = 0; i_dim < dim; ++i_dim){
+            dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
+        }
+    }
+
+
+
+
+    // divide dHead with the porosity
+    double por = porosity.value(p);
+    Tensor<1,dim> KdH = HK_function.value(p)*dHead;
+    for (int i_dim = 0; i_dim < dim; ++i_dim){
+        vel[i_dim] = KdH[i_dim] / por;
+    }
+
+    for (unsigned int idim = 0; idim < dim; ++idim)
+        dH[idim] = dHead[idim];
+
     return true;
 }
 
@@ -1975,6 +2068,14 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     //double premax_v = -99999999999;
     //double premin_v =  99999999999;
 
+    // Printing to file information. This should be removed -----------
+    unsigned int cell_id = 0;
+    const std::string info_vel_name = (param.particle_prefix + "vel_field.dat");
+    std::ofstream info_vel_file;
+    info_vel_file.open(info_vel_name.c_str());
+    //-------------------------------------------------------------------
+
+
     IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
@@ -1999,12 +2100,15 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                     else{
                         // if the neighbor is not active check if any of the children are ghost
                         for (unsigned int ichild = 0; ichild < cell->neighbor(iface)->n_children(); ++ichild){
-                            if (cell->neighbor(iface)->child(ichild)->is_ghost()){
-                                for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
-                                    unsigned int id = GeometryInfo<dim>::face_to_cell_vertices(iface,ivert);
-                                    ids_that_touch_ghost_cells.insert(std::pair<int,int>(id, id));
+                            // If the child of a neighbor has children then is devided once more and therefore does not touch me
+                            if (cell->neighbor(iface)->child(ichild)->active()){
+                                if (cell->neighbor(iface)->child(ichild)->is_ghost()){
+                                    for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
+                                        unsigned int id = GeometryInfo<dim>::face_to_cell_vertices(iface,ivert);
+                                        ids_that_touch_ghost_cells.insert(std::pair<int,int>(id, id));
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
@@ -2021,6 +2125,38 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                 //    if (vel[idim] < premin_v)
                 //        premin_v = vel[idim];
                 //}
+
+                // Printing to file information. This should be removed -----------
+                Point<dim> vtmp, dhtmp;
+                double Htmp;
+                bool tf1 = calc_vel_on_point_n_info(cell, cell->vertex(ii), vtmp, dhtmp, Htmp);
+                if (tf1){
+                    info_vel_file << std::setprecision(8)
+                                  << std::fixed
+                                  << std::setw(5) << cell_id << ", "
+                                  << std::setw(15) << cell->vertex(ii)[0] << ", "
+                                  << std::setw(15) << cell->vertex(ii)[1] << ", "
+                                  << std::setw(15) << 0 << ", "
+                                  << std::setw(15) << vtmp[0] << ", "
+                                  << std::setw(15) << vtmp[1] << ", "
+                                  << std::setw(15) << dhtmp[0] << ", "
+                                  << std::setw(15) << dhtmp[1] << ", "
+                                  << std::setw(15) << Htmp
+                                  << std::endl;
+                }
+                else{
+                    info_vel_file << std::setprecision(3)
+                                  << std::fixed
+                                  << std::setw(5) << cell_id << ", "
+                                  << std::setw(15) << cell->vertex(ii)[0] << ", "
+                                  << std::setw(15) << cell->vertex(ii)[1] << ", "
+                                  << std::setw(15) << -9999 << ", "
+                                  << std::setw(15) << -9999 << ", "
+                                  << std::setw(15) << -9999 << ", "
+                                  << std::setw(15) << -9999
+                                  << std::endl;
+                }
+                //-------------------------------------------------------------------
 
                 if (tf){
                     vel_it = VelocityMap.find(local_dof_indices[ii]);
@@ -2050,8 +2186,9 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii)
                 dof_on_ghost.insert(std::pair<int,int>(local_dof_indices[ii],local_dof_indices[ii]));
         }
+        cell_id++;
     }
-
+    info_vel_file.close();
     //std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     //premax_v = -99999999999;
@@ -2352,4 +2489,50 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     return true;
 }
 
+template <int dim>
+bool Particle_Tracking<dim>::calculate_RT0_velocity_field(){
+
+    //std::map<int,ControlVolume<dim>> dofCVmap;
+    //typename std::map<int,ControlVolume<dim>>::iterator itdofCVmap;
+    //const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    //std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    // This is a map between triangulation cellID and ids generated by this routine
+    // I dont know if I'm going to need this yet.
+    std::map<CellId,unsigned int> CellidMap;
+    std::map<CellId,unsigned int>::iterator itcellid;
+    std::map<unsigned int, CellInfoRT0<dim>> RT0infoMap;
+    typename std::map<unsigned int, CellInfoRT0<dim>>::iterator itRTmap;
+    unsigned int myid = 0;
+    std::vector<CellId> ghostedCells;
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    bool add_newcell = false;
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned() || cell->is_ghost()){
+            itcellid = CellidMap.find(cell->id());
+            if (itcellid == CellidMap.end()){
+                CellidMap.insert(std::pair<CellId, unsigned int>(cell->id(), myid));
+                add_newcell = true;
+            }
+            else
+                add_newcell = false;
+
+
+            if (cell->is_locally_owned()){
+                CellInfoRT0<dim> cellRTinfo;
+                cellRTinfo.calculateSubcellFlows(cell,fe,locally_relevant_solution,HK_function);
+                RT0infoMap.insert(std::pair<unsigned int, CellInfoRT0<dim>>(myid, cellRTinfo));
+            }
+            if (cell->is_ghost()){
+                ghostedCells.push_back(cell->id());
+            }
+            if (add_newcell)
+                myid++;
+        }
+    }
+    return true;
+}
 #endif // PARTICLE_TRACKING_H
