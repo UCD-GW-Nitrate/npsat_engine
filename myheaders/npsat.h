@@ -72,6 +72,7 @@ private:
     ConstraintMatrix                          	Headconstraints;
 
     TrilinosWrappers::MPI::Vector               locally_relevant_solution;
+    TrilinosWrappers::MPI::Vector               system_rhs;
 
     // Moving mesh data
     DoFHandler<dim>                             mesh_dof_handler;
@@ -290,6 +291,7 @@ void NPSAT<dim>::solve_refine(){
                        fe,
                        Headconstraints,
                        locally_relevant_solution,
+                       system_rhs,
                        dirichlet_boundary,
                        HK_function[0],
                        GR_funct,
@@ -615,6 +617,7 @@ void NPSAT<dim>::particle_tracking(){
                          dof_handler, fe,
                          Headconstraints,
                          locally_relevant_solution,
+                         system_rhs,
                          AQProps.HK_function[0],
                          porosity_fnc,
                          AQProps.part_param);

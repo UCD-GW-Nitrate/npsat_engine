@@ -13,8 +13,12 @@ function WellURF = readURFs(filename)
 
     %clf
     %hold on
-
-    WellURF = allocate_space([]);
+    
+    if false
+        WellURF = allocate_space([]);
+    else
+        WellURF = [];
+    end
     while 1
         temp = fgetl(fid);
         if temp == -1
@@ -29,19 +33,29 @@ function WellURF = readURFs(filename)
         temp = fgetl(fid);
         C = reshape(C,4,Np)';
         %plot3(C(:,1),C(:,2),C(:,3),'.')
-        urf = ComputeURF(C(:,1:3), C(:,4), topt);
-
-        WellURF(cnter,1).Eid = E_id;
-        WellURF(cnter,1).Sid = S_id;
-        WellURF(cnter,1).p_cds = C(1,1:3);
-        WellURF(cnter,1).v_cds = C(1,4);
-        WellURF(cnter,1).p_lnd = C(end,1:3);
-        WellURF(cnter,1).v_lnd = C(end,4);
-        WellURF(cnter,1).URF = urf;
-        cnter = cnter + 1;
-        if cnter > size(WellURF,1)
-            WellURF = allocate_space(WellURF);
+        if false
+            urf = ComputeURF(C(:,1:3), C(:,4), topt);
+            WellURF(cnter,1).Eid = E_id;
+            WellURF(cnter,1).Sid = S_id;
+            WellURF(cnter,1).p_cds = C(1,1:3);
+            WellURF(cnter,1).v_cds = C(1,4);
+            WellURF(cnter,1).p_lnd = C(end,1:3);
+            WellURF(cnter,1).v_lnd = C(end,4);
+            WellURF(cnter,1).URF = urf;
+            
+            cnter = cnter + 1;
+            if cnter > size(WellURF,1)
+                WellURF = allocate_space(WellURF);
+            end
+        else
+            dst = sqrt(sum((C(1:end-1,1:3)-C(2:end,1:3)).^2, 2));
+            v = sum(C(1:end-1,4)+C(2:end,4),2)/2;
+            WellURF(cnter,:) = [C(end,1:3) sum(dst./v)];
+            cnter = cnter + 1;
         end
+
+        
+        
     end
     fclose(fid);
     WellURF(cnter:end,:) = [];

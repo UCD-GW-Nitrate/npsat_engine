@@ -1,12 +1,15 @@
 function writeScatteredData(filename, info, DATA)
+%% writeScatteredData(filename, info, DATA)
+%
 % Writes scattered data into the appropriate format
-% filename is the name of the file to be written
-% info is a struct variable that requires 3 fields
-%   PDIM: is the number of columns that correspond to coordinates
-%           This is 1 for 1D points of 2 for 2D points.
-%   TYPE: Valid options for type are FULL, HOR or VERT
-%   MODE: Valid options for mode are SIMPLE or STRATIFIED
-% DATA the data to be printed. Data should have as many columns as needed.
+% filename: is the name of the file to be written
+% info: is a struct variable that requires 3 fields
+% PDIM: is the number of columns that correspond to coordinates
+%          This is 1 for 1D points of 2 for 2D points.
+% TYPE: Valid options for type are FULL, HOR or VERT
+% MODE: Valid options for mode are SIMPLE or STRATIFIED
+%
+% DATA: the data to be printed. Data should have as many columns as needed.
 %       For example it can be :
 %       [x v]
 %       [x v1 z1 v2 z2 ... vn-1 zn-1 vn]
@@ -15,6 +18,9 @@ function writeScatteredData(filename, info, DATA)
 %       .
 %       .
 %       .
+% Examples
+% For 2D interpolation such as top, bottom elevation or recharge
+% writeScatteredData(filename, struct('PDIM', 2, 'TYPE', 'HOR', 'MODE', 'SIMPLE'), DATA)
 
 fid = fopen(filename,'w');
 % Write flags

@@ -409,6 +409,115 @@ std::vector<int> get_connected_indices(int ii){
 }
 
 template <int dim>
+std::vector<int> facesIdonVertex(int ivertex){
+    std::vector<int> out;
+    if (dim == 2){
+        if (ivertex == 0){
+            out.push_back(0);
+            out.push_back(2);
+        }
+        else if (ivertex == 1){
+            out.push_back(1);
+            out.push_back(2);
+        }
+        else if (ivertex == 2){
+            out.push_back(0);
+            out.push_back(3);
+        }
+        else if (ivertex == 3){
+            out.push_back(1);
+            out.push_back(3);
+        }
+    }
+    else if (dim == 3){
+        if (ivertex == 0){
+            out.push_back(0);
+            out.push_back(2);
+            out.push_back(4);
+        }
+        else if (ivertex == 1){
+            out.push_back(1);
+            out.push_back(2);
+            out.push_back(4);
+        }
+        else if (ivertex == 2){
+            out.push_back(0);
+            out.push_back(3);
+            out.push_back(4);
+        }
+        else if (ivertex == 3){
+            out.push_back(1);
+            out.push_back(3);
+            out.push_back(4);
+        }
+        else if (ivertex == 4){
+            out.push_back(0);
+            out.push_back(2);
+            out.push_back(5);
+        }
+        else if (ivertex == 5){
+            out.push_back(1);
+            out.push_back(2);
+            out.push_back(5);
+        }
+        else if (ivertex == 6){
+            out.push_back(0);
+            out.push_back(3);
+            out.push_back(5);
+        }
+        else if (ivertex == 7){
+            out.push_back(1);
+            out.push_back(3);
+            out.push_back(5);
+        }
+    }
+    return out;
+}
+
+//! Returns the edge index of a cell that has a neibor of higher level whose ivertex is constraint and the iface touch the cell.
+template <int dim>
+int edge_index_of_level_1_cell(int ivertex, int iface){
+    if (dim == 2){
+        if (ivertex == 0){
+            if (iface == 0)
+                return 1;
+            else if (iface == 2)
+                return 3;
+        }
+        else if (ivertex == 0){
+            if (iface == 1)
+                return 0;
+            else if (iface == 2)
+                return 3;
+        }
+        else if (ivertex == 2){
+            if (iface == 3)
+                return 2;
+            else if (iface == 0)
+                return 1;
+        }
+        else if (ivertex == 3){
+            if (iface == 3)
+                return 2;
+            else if (iface == 1)
+                return 0;
+        }
+    }
+    else if (dim == 3){
+        if (ivertex == 0){
+            if (iface == 4)
+                return -9;
+            else if (iface == 1)
+                return 0;
+            else if (iface == 0)
+                return 0;
+        }
+    }
+
+}
+
+
+template <int dim>
 dealii::Point<dim> midPoint(dealii::Point<dim> A, dealii::Point<dim> B){
     dealii::Point<dim> AB;
     for (unsigned int i = 0; i < dim; i++)
@@ -515,6 +624,397 @@ void append_slash(std::string &s){
         s = s+ "/";
 }
 
+//! If there is a finer cell that its vertexth vertex touches the faceth face of a coarser cell at the subfaceth subface
+//! then this method returns the face or edge id of the coarser cell that the vertexth vertex touches the coarser.
+//! If the verteth vertex is also a vertex of this cell then this method returns nothing.
+//! REQUIRES HEAVY DEBUGING
+template <int dim>
+int is_the_vertex_on_faceEdge(int vertex,int face, int subface, bool& onface){
+    int out = -9;
+    if (dim == 2){
+        if (vertex == 0){
+            if (face == 1 && subface == 1)
+                out = 1;
+            if (face == 3 && subface == 1)
+                out = 3;
+        }
+       else if (vertex == 1){
+            if (face == 0 && subface == 1)
+                out = 0;
+            if (face == 3 && subface == 0)
+                out = 3;
+        }
+        else if (vertex == 2){
+             if (face == 1 && subface == 0)
+                 out = 1;
+             if (face == 2 && subface == 1)
+                 out = 2;
+         }
+        else if (vertex == 3){
+             if (face == 0 && subface == 0)
+                 out = 0;
+             if (face == 2 && subface == 0)
+                 out = 2;
+         }
+        if (out >=0)
+            onface = true;
+    }
+    else if (dim == 3){
+        if (vertex == 0){
+            if(face == 1){
+                if (subface == 3){
+                    out = 1;
+                    onface = true;
+                }
+                else if (subface == 1){
+                    out = 1;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 9;
+                    onface = false;
+                }
+            }
+            else if (face == 3){
+                if (subface == 1){
+                       out = 3;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 10;
+                    onface = false;
+                }
+                else if (subface == 3){
+                    out = 3;
+                    onface = true;
+                }
+            }
+            else if (face == 5){
+                if (subface == 1){
+                       out = 6;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 4;
+                    onface = false;
+                }
+                else if (subface == 3){
+                    out = 5;
+                    onface = true;
+                }
+            }
+        }
+        else if (vertex == 1){
+            if(face == 0){
+                if (subface == 1){
+                    out = 0;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 8;
+                    onface = false;
+                }
+                else if (subface == 3){
+                    out = 0;
+                    onface = true;
+                }
+            }
+            else if (face == 3){
+                if (subface == 0){
+                       out = 3;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 3;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 11;
+                    onface = false;
+                }
+            }
+            else if (face == 5){
+                if (subface == 0){
+                       out = 6;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 5;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 5;
+                    onface = false;
+                }
+            }
+        }
+        else if (vertex == 2){
+            if(face == 1){
+                if (subface == 0){
+                    out = 1;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 1;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 11;
+                    onface = false;
+                }
+            }
+            else if (face == 2){
+                if (subface == 1){
+                       out = 2;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 8;
+                    onface = false;
+                }
+                else if (subface == 3){
+                    out = 2;
+                    onface = true;
+                }
+            }
+            else if (face == 5){
+                if (subface == 0){
+                       out = 4;
+                       onface = false;
+                }
+                else if (subface == 1){
+                    out = 5;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 7;
+                    onface = false;
+                }
+            }
+        }
+        else if (vertex == 3){
+            if(face == 0){
+                if (subface == 0){
+                    out = 0;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 0;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 10;
+                    onface = false;
+                }
+            }
+            else if (face == 2){
+                if (subface == 0){
+                       out = 2;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 2;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 9;
+                    onface = false;
+                }
+            }
+            else if (face == 5){
+                if (subface == 0){
+                       out = 3;
+                       onface = true;
+                }
+                else if (subface == 1){
+                    out = 5;
+                    onface = true;
+                }
+                else if (subface == 2){
+                    out = 7;
+                    onface = false;
+                }
+            }
+        }
+        else if (vertex == 4){
+            if(face == 1){
+                if (subface == 0){
+                    out = 9;
+                    onface = false;
+                }
+                else if (subface == 1){
+                    out = 1;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 5;
+                    onface = false;
+                }
+            }
+            else if (face == 3){
+                if (subface == 0){
+                       out = 10;
+                       onface = false;
+                }
+                else if (subface == 1){
+                    out = 3;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 7;
+                    onface = false;
+                }
+            }
+            else if (face == 4){
+                if (subface == 1){
+                       out = 2;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 0;
+                    onface = false;
+                }
+                else if (subface == 3){
+                    out = 4;
+                    onface = true;
+                }
+            }
+        }
+        else if (vertex == 5){
+            if(face == 0){
+                if (subface == 0){
+                    out = 8;
+                    onface = false;
+                }
+                else if (subface == 1){
+                    out = 0;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 4;
+                    onface = false;
+                }
+            }
+            else if (face == 3){
+                if (subface == 0){
+                       out = 3;
+                       onface = true;
+                }
+                else if (subface == 1){
+                    out = 11;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 7;
+                    onface = false;
+                }
+            }
+            else if (face == 4){
+                if (subface == 0){
+                       out = 2;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 4;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 1;
+                    onface = false;
+                }
+            }
+        }
+        else if (vertex == 6){
+            if(face == 1){
+                if (subface == 0){
+                    out = 1;
+                    onface = true;
+                }
+                else if (subface == 1){
+                    out = 11;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 5;
+                    onface = false;
+                }
+            }
+            else if (face == 2){
+                if (subface == 0){
+                       out = 8;
+                       onface = false;
+                }
+                else if (subface == 1){
+                    out = 2;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 6;
+                    onface = false;
+                }
+            }
+            else if (face == 4){
+                if (subface == 0){
+                       out = 0;
+                       onface = false;
+                }
+                else if (subface == 2){
+                    out = 4;
+                    onface = true;
+                }
+                else if (subface == 3){
+                    out = 3;
+                    onface = false;
+                }
+            }
+        }
+        else if (vertex == 7){
+            if(face == 0){
+                if (subface == 0){
+                    out = 0;
+                    onface = true;
+                }
+                else if (subface == 1){
+                    out = 10;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 4;
+                    onface = false;
+                }
+            }
+            else if (face == 2){
+                if (subface == 0){
+                       out = 2;
+                       onface = true;
+                }
+                else if (subface == 1){
+                    out = 9;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 6;
+                    onface = false;
+                }
+            }
+            else if (face == 4){
+                if (subface == 0){
+                       out = 4;
+                       onface = true;
+                }
+                else if (subface == 1){
+                    out = 1;
+                    onface = false;
+                }
+                else if (subface == 2){
+                    out = 3;
+                    onface = false;
+                }
+            }
+        }
+    }
+    return out;
+}
 
 /*
 template <int dim>

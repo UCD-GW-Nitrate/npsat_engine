@@ -56,6 +56,7 @@ public:
            const FE_Q<dim>&                     fe,
            ConstraintMatrix&                    constraints,
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
+           TrilinosWrappers::MPI::Vector&       system_rhs,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
            MyFunction<dim,dim>&               groundwater_recharge,
@@ -86,7 +87,7 @@ private:
     IndexSet                                  	locally_relevant_dofs;
     TrilinosWrappers::MPI::Vector& 				locally_relevant_solution;
     TrilinosWrappers::SparseMatrix 			  	system_matrix;
-    TrilinosWrappers::MPI::Vector       	  	system_rhs;
+    TrilinosWrappers::MPI::Vector&       	  	system_rhs;
     typename FunctionMap<dim>::type				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
@@ -117,6 +118,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
                     const FE_Q<dim>&                    fe_in,
                     ConstraintMatrix&                   constraints_in,
                     TrilinosWrappers::MPI::Vector&      locally_relevant_solution_in,
+                    TrilinosWrappers::MPI::Vector&      system_rhs_in,
                     typename FunctionMap<dim>::type&    dirichlet_boundary_in,
                     MyTensorFunction<dim>&              HK_function,
                     MyFunction<dim, dim>&               groundwater_recharge,
@@ -128,6 +130,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
       fe(fe_in),
       constraints(constraints_in),
       locally_relevant_solution(locally_relevant_solution_in),
+      system_rhs(system_rhs_in),
       dirichlet_boundary(dirichlet_boundary_in),
       HK(HK_function),
       GWRCH(groundwater_recharge),

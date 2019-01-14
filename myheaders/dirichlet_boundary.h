@@ -346,12 +346,14 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                 if (cell->face(iface)->at_boundary()){
                     // Here we reset the boundary indicators
                     cell->face(iface)->set_all_boundary_ids(iface);
+                    cell->face(iface)->set_user_index(0);
                     for (unsigned int i = 0; i < boundary_parts.size(); ++i){
                         if (dim == 2){
                             if (boundary_parts[i].TYPE == "EDGE" && (cell->face(iface)->boundary_id() == 0 || cell->face(iface)->boundary_id() == 1) ){
                                 Point<dim> x1 = cell->face(iface)->vertex(0);
                                 if (abs(x1[0] - boundary_parts[i].Xcoords[0]) < 0.01){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    cell->face(iface)->set_user_index(1);
                                     break;
                                 }
                             }
@@ -373,6 +375,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
 
                                 if (assign_this){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    cell->face(iface)->set_user_index(1);
                                     add_id(top_boundary_ids, JJ+i);
                                     break;
                                 }
@@ -395,6 +398,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
 
                                 if (assign_this){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    cell->face(iface)->set_user_index(1);
                                     add_id(bottom_boundary_ids, JJ+i);
                                     break;
                                 }
@@ -419,6 +423,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                 bool do_intersect = polyXpoly(boundary_parts[i].Xcoords, boundary_parts[i].Ycoords, xface, yface);
                                 if (do_intersect){
                                     cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                    cell->face(iface)->set_user_index(1);
                                     if (boundary_parts[i].TYPE == "TOP")
                                         add_id(top_boundary_ids, JJ+i);
                                     else if (boundary_parts[i].TYPE == "BOT")
@@ -496,6 +501,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                             CGAL::Segment_2< exa_Kernel > segm(exa_Point2(lx1,ly1),exa_Point2(lx2,ly2));
                                             if (segm.collinear_has_on(exa_Point2(cx3,cy3)) || segm.collinear_has_on(exa_Point2(cx4,cy4))){
                                                 cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                                cell->face(iface)->set_user_index(1);
                                                 //print_cell_face_matlab<dim>(cell,iface);
                                                 break;
                                             }
@@ -510,6 +516,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     B[0] = cx4; B[1] = cy4;
                                     if (interp_funct[i].is_face_part_of_BND(A,B)){
                                         cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                        cell->face(iface)->set_user_index(1);
                                         break;
                                     }
                                 }
