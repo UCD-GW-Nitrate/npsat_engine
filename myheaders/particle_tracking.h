@@ -12,22 +12,59 @@
 #include "streamlines.h"
 #include "cgal_functions.h"
 #include "mpi_help.h"
-#include "velocity_rt0.h"
+//#include "velocity_rt0.h"
 
 
 using namespace dealii;
 
+
+
+/*!
+ * \brief The AverageVel class is a container to hold the averaged values of a vector type (Velocity head gradient)
+ */
 template <int dim>
 class AverageVel{
 public:
+    /*!
+     * \brief AverageVel One if the constructors of this class
+     * \param local If the dof is local this should be true otherwise false
+     * \param dof_in THe degree of freedom of this velocity
+     * \param v The vector values associated with the input dof
+     * \param c A list of dofs that this dof is constraint to. If the list is empty or containts only the #dof_in then this dof is not constraint.
+     */
     AverageVel(bool local, int dof_in, Point<dim> v, std::vector<types::global_dof_index> c);
+
+    /*!
+     * \brief AverageVel constructor is used when we already know the average vector values for this dof.
+     * This is possible when the dof is not local and comes averaged from another processor
+     * \param dof_in
+     * \param av_vel_in
+     */
     AverageVel(int dof_in, Point<dim> av_vel_in);
+
+    /*!
+     * \brief Addvelocity adds a vector value to the dof.
+     * \param v the vector value which can be velocity or head gradient
+     */
     void Addvelocity(Point<dim> v);
+
+    //! A vector with the dofs that the #dof is constraint to
     std::vector<types::global_dof_index> cnstr;
+
+    //! A vector with the velocities to be averaged. The size of this vector is equal to the cells that have this dof as vertex
     std::vector<Point<dim>> V;
+
+    //! A flag indicating whether this dof is local to the current processor
     bool is_local;
+
+    //! The dof
     int dof;
+
+    //! The avereged velocity
     Point<dim> av_vel;
+
+    //! A flag indicating whether this dof has been averaged or not. #av_vel should be used only if
+    //! #is_averaged is true.
     bool is_averaged;
 };
 
@@ -77,11 +114,9 @@ public:
 
     void trace_particles(std::vector<Streamline<dim>>& streamlines, int iter);
     void print_all_cell_velocity();
-    //void average_velocity_field(DoFHandler<dim>& velocity_dof_handler,
-    //                            FESystem<dim>& velocity_fe);
+
     bool average_velocity_field();
     bool average_velocity_field1();
-    bool calculate_RT0_velocity_field();
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -724,6 +759,9 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     if (check_point_status > 0){
         bool new_way = true;
         if (new_way){
+            double por = porosity.value(p);
+            Tensor<2,dim> HK = HK_function.value(p);
+
             for (unsigned int idim = 0; idim < dim; ++idim)
                 v[idim] = 0;
             typename std::map<unsigned int, AverageVel<dim>>::iterator vel_it;
@@ -740,11 +778,13 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                 if (vel_it != VelocityMap.end()){
                     for (unsigned int idim = 0; idim < dim; ++idim)
                         v[idim] += N * vel_it->second.av_vel[idim];
-
                 }
                 else {
                     return -98;
                 }
+            }
+            for (unsigned int idim = 0; idim < dim; ++idim){
+                v[idim] = (HK[idim][idim]*v[idim])/por;
             }
             return 0;
         }
@@ -1575,13 +1615,22 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
         }
     }
     //Tensor<2,dim> KK = HK_function.value(p);
-
-    // divide dHead with the porosity
-    double por = porosity.value(p);
-    Tensor<1,dim> KdH = HK_function.value(p)*dHead;
-    for (int i_dim = 0; i_dim < dim; ++i_dim){
-        vel[i_dim] = KdH[i_dim] / por;
+    bool returnHeadGrad = true;
+    if (!returnHeadGrad){
+        // divide dHead with the porosity
+        double por = porosity.value(p);
+        Tensor<1,dim> KdH = HK_function.value(p)*dHead;
+        for (int i_dim = 0; i_dim < dim; ++i_dim){
+            vel[i_dim] = KdH[i_dim] / por;
+        }
     }
+    else{
+        for (int i_dim = 0; i_dim < dim; ++i_dim){
+            vel[i_dim] = dHead[i_dim];
+        }
+    }
+
+    //------------------------------
     return true;
 }
 
@@ -2059,7 +2108,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
     MPI_Barrier(mpi_communicator);
-    pcout << "Calculating Velocities..." << std::endl << std::flush;
+    pcout << "Calculating Head gradients..." << std::endl << std::flush;
 
     typename std::map<unsigned int, AverageVel<dim>>::iterator vel_it, vel_it2;
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
@@ -2073,12 +2122,17 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     //double premin_v =  99999999999;
 
     // Printing to file information. This should be removed -----------
-    unsigned int cell_id = 0;
-    const std::string info_vel_name = (param.particle_prefix + "vel_field.dat");
-    std::ofstream info_vel_file;
-    info_vel_file.open(info_vel_name.c_str());
+    //unsigned int cell_id = 0;
+    //const std::string info_vel_name = (param.particle_prefix + "vel_field.dat");
+    //std::ofstream info_vel_file;
+    //info_vel_file.open(info_vel_name.c_str());
     //-------------------------------------------------------------------
 
+    // Logic of the following loop
+    // We loop through the localy owned cells of the triangulation
+    // Then loop through the faces of each cell and check if any active neighbors are ghost
+    // if Yes then make a list (ids_that_touch_ghost_cells) of those dofs that are shared with the ghost cell.
+    // Next loop through the dofs of the cell and calculate the velocity for each dof.
 
     IndexSet locally_owned_indices = locally_relevant_solution.locally_owned_elements();
     typename DoFHandler<dim>::active_cell_iterator
@@ -2104,7 +2158,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                     else{
                         // if the neighbor is not active check if any of the children are ghost
                         for (unsigned int ichild = 0; ichild < cell->neighbor(iface)->n_children(); ++ichild){
-                            // If the child of a neighbor has children then is devided once more and therefore does not touch me
+                            // If the child of a neighbor has children then its divided once more and therefore does not touch the current cell
                             if (cell->neighbor(iface)->child(ichild)->active()){
                                 if (cell->neighbor(iface)->child(ichild)->is_ghost()){
                                     for (unsigned int ivert = 0; ivert < GeometryInfo<dim>::vertices_per_face; ++ivert){
@@ -2131,7 +2185,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                 //}
 
                 // Printing to file information. This should be removed -----------
-                Point<dim> vtmp, dhtmp;
+                /*Point<dim> vtmp, dhtmp;
                 double Htmp;
                 bool tf1 = calc_vel_on_point_n_info(cell, cell->vertex(ii), vtmp, dhtmp, Htmp);
                 if (tf1){
@@ -2159,7 +2213,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
                                   << std::setw(15) << -9999 << ", "
                                   << std::setw(15) << -9999
                                   << std::endl;
-                }
+                }*/
                 //-------------------------------------------------------------------
 
                 if (tf){
@@ -2190,9 +2244,9 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
             for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii)
                 dof_on_ghost.insert(std::pair<int,int>(local_dof_indices[ii],local_dof_indices[ii]));
         }
-        cell_id++;
+        //cell_id++;
     }
-    info_vel_file.close();
+    //info_vel_file.close();
     //std::cout << my_rank << " Pre Max vel: " << premax_v << ", Pre Min vel: " << premin_v << std::endl;
 
     //premax_v = -99999999999;
@@ -2223,7 +2277,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     // in the velocity map each processor has put the velocity contributions from its locally own elements.
     // Before averaging we have to transfer contributions from the other processors local elements for the vertices that touch
     // ghost elements. These dofs have been stored to dof_on_shared map
-    // Each processor will notify the which dofs in locally own cells have ghost neighbors
+    // Each processor will notify which dofs in locally own cells have ghost neighbors
 
     std::vector<int> sent_dof_on_share_size, sent_vel_on_share_size;
     Send_receive_size(static_cast<unsigned int>(dof_on_shared_vec[my_rank].size()), n_proc, sent_dof_on_share_size, mpi_communicator);
@@ -2493,139 +2547,4 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
     return true;
 }
 
-template <int dim>
-bool Particle_Tracking<dim>::calculate_RT0_velocity_field(){
-
-    //std::map<int,ControlVolume<dim>> dofCVmap;
-    //typename std::map<int,ControlVolume<dim>>::iterator itdofCVmap;
-    //const unsigned int dofs_per_cell = fe.dofs_per_cell;
-    //std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-
-    // This is a map between triangulation cellID and ids generated by this routine
-    // I dont know if I'm going to need this yet.
-    std::map<CellId,unsigned int> CellidMap;
-    std::map<CellId,unsigned int>::iterator itcellid;
-
-    // This is a map between cell id and the velocities in that cell.
-    std::map<CellId, CellInfoRT0<dim>> RT0infoMap;
-    typename std::map<CellId, CellInfoRT0<dim>>::iterator itRTmap;
-    unsigned int myid = 0;
-    std::vector<CellId> ghostedCells;
-
-    //This is a map between the dof and the cells that are attached to the dof
-    std::map<unsigned int, ControlVolume<dim>> dofCVmap;
-    typename std::map<unsigned int, ControlVolume<dim>>::iterator itDofCV;
-
-    const unsigned int dofs_per_cell = fe.dofs_per_cell;
-    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-    std::vector<types::global_dof_index> neighbor_dof_indices (dofs_per_cell);
-
-    typename DoFHandler<dim>::active_cell_iterator
-    cell = dof_handler.begin_active(),
-    endc = dof_handler.end();
-    bool add_newcell = false;
-    for (; cell != endc; ++cell){
-        if (cell->is_locally_owned() || cell->is_ghost()){
-
-            // Make a map between Deal CellID and my id
-            itcellid = CellidMap.find(cell->id());
-            if (itcellid == CellidMap.end()){
-                CellidMap.insert(std::pair<CellId, unsigned int>(cell->id(), myid));
-                add_newcell = true;
-            }
-            else
-                add_newcell = false;
-
-            // For the locally owned cells calculate the subcell flows within each mesh cell
-            // For the ghost cells make a list of them to ask the flows from the processor that has it after this loop
-            if (cell->is_locally_owned()){
-                CellInfoRT0<dim> cellRTinfo;
-                cellRTinfo.calculateSubcellFlows(cell,fe,locally_relevant_solution,HK_function);
-                RT0infoMap.insert(std::pair<CellId, CellInfoRT0<dim>>(cell->id(), cellRTinfo));
-            }
-            if (cell->is_ghost()){
-                ghostedCells.push_back(cell->id());
-            }
-
-
-            // Increase the my id counter by one
-            if (add_newcell)
-                myid++;
-
-            // For each dof of the cell add the cells that have this dof as vertex
-            cell->get_dof_indices (local_dof_indices);
-            for (unsigned int idof = 0; idof < local_dof_indices.size(); ++idof){
-                itDofCV = dofCVmap.find(local_dof_indices[idof]);
-                if (itDofCV == dofCVmap.end()){// if the dof doesnt exist add it to the map
-                    ControlVolume<dim> controlvolume(local_dof_indices[idof]);
-                    controlvolume.setQsource(system_rhs[local_dof_indices[idof]]);
-                    controlvolume.addCell_vertex(cell->id(), idof, cell->level());
-                    dofCVmap.insert(std::pair<unsigned int, ControlVolume<dim>>(local_dof_indices[idof],controlvolume));
-                    //std::cout << cell->vertex(idof) << " " <<  system_rhs[local_dof_indices[idof]] << std::endl;
-                }
-                else{
-                    itDofCV->second.addCell_vertex(cell->id(), idof, cell->level());
-                }
-
-                if (Headconstraints.is_constrained(local_dof_indices[idof])){
-                    std::vector<types::global_dof_index> temp_cnstr;
-                    temp_cnstr.push_back(local_dof_indices[idof]);
-                    Headconstraints.resolve_indices(temp_cnstr);
-                    // It appears that Headconstraints returns as constraints the vertices of the constant head boundary
-                    // However their resolve indicies are just them selfs
-                    if (temp_cnstr.size() <= 1)
-                        continue;
-
-                    //std::cout << idof << " : " << local_dof_indices[idof] << std::endl;
-                    // If the dof is constrained then there are cells that contribute to the control volume
-                    // of this dof but do not have it as vertex. These cells will have this dof on their midfaces
-                    // on 2D or 3D  of over midedges in 3D.
-
-                    //First get an iterator of the dof
-                    itDofCV = dofCVmap.find(local_dof_indices[idof]);
-                    // Get the list of faces that are connected with this dof on the current cell
-                    std::vector<int> faces = facesIdonVertex<dim>(idof);
-                    for (unsigned int iface = 0; iface < faces.size(); ++iface){
-                        // For each face get an iterator of the neighbor
-                        typename DoFHandler<dim>::active_cell_iterator neighbor = cell->neighbor(faces[iface]);
-                        neighbor->get_dof_indices(neighbor_dof_indices);
-                        for (unsigned int ii = 0; ii < neighbor_dof_indices.size(); ++ii){
-                            if (neighbor_dof_indices[ii] == local_dof_indices[idof])
-                                continue;
-                        }
-
-                        //If the level of the neighbor is lower
-                        // Then this neighbor contributes to the Control volume of this dof
-                        if (neighbor->level() < cell->level()){
-                            //std::cout <<"Vertex " << idof << std::endl;
-                            //std::cout << "Cell level: " << cell->level() << ", Neighbor level: " <<  neighbor->level() << std::endl;
-                            //print_cell_coords<dim>(cell);
-                            //print_cell_coords<dim>(neighbor);
-                            std::pair<unsigned int, unsigned int> indices = cell->neighbor_of_coarser_neighbor(faces[iface]);
-                            //std::cout << "Face " << indices.first << " Subface " << indices.second << std::endl;
-                            bool onface = false;
-                            int ifc = is_the_vertex_on_faceEdge<dim>(idof, indices.first, indices.second, onface);
-                            if (ifc >= 0){
-                                if (onface)
-                                    itDofCV->second.addCell_face(neighbor->id(), ifc, neighbor->level());
-                                else
-                                    itDofCV->second.addCell_edge(neighbor->id(), ifc, neighbor->level());
-                            }
-                            //itDofCV->second.addCell(cell->id(), -9, -9);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Now loop through the dof and compute the flows between the cells
-    unsigned int Ncells = 4;
-    if (dim == 3) Ncells = 8;
-    for (itDofCV = dofCVmap.begin(); itDofCV != dofCVmap.end(); ++itDofCV){
-        CreateSolveUnknownFlows<dim>(itDofCV->first, dofCVmap, RT0infoMap);
-    }
-
-    return true;
-}
 #endif // PARTICLE_TRACKING_H
