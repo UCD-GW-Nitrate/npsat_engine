@@ -21,7 +21,7 @@ fprintf(fid, '%d\n', length(Streams));
 for ii = 1:length(Streams)
     nVerts = size(Streams(ii,1).poly,1);
     fprintf(fid, '%d', nVerts);
-    fprintf(fid, '  %s', num2str(Streams(ii,1).Q));
+    fprintf(fid, ' %s', num2str(Streams(ii,1).Q));
     if nVerts == 2
         fprintf(fid, ' %d\n', Streams(ii,1).w);
     else
