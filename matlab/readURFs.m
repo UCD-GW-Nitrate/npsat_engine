@@ -1,8 +1,17 @@
-function WellURF = readURFs(filename)
+function WellURF = readURFs(filename, opt)
+% WellURF = readURFs(filename, opt)
+% This function reads the *.urfs files which is the result of the gather 
+% process of the NPSAT 
+% For each streamline this function solves the Advection Dispersion Equation
+% using the options defined in opt. 
+% For the time being the only options one can pass here are the 
+% alpha and beta parameters that control the longitudinal dispersivity
 
     topt.dx = 20; % [m]
     topt.dt = 1; % [years]
     topt.Ttime = 200; % [years]
+    topt.aL.alpha = opt.alpha;
+    topt.aL.beta = opt.beta;
 
     fid = fopen(filename,'r');
     if fid < 0
@@ -14,7 +23,7 @@ function WellURF = readURFs(filename)
     %clf
     %hold on
     
-    if false
+    if true
         WellURF = allocate_space([]);
     else
         WellURF = [];
@@ -33,7 +42,7 @@ function WellURF = readURFs(filename)
         temp = fgetl(fid);
         C = reshape(C,4,Np)';
         %plot3(C(:,1),C(:,2),C(:,3),'.')
-        if false
+        if true
             urf = ComputeURF(C(:,1:3), C(:,4), topt);
             WellURF(cnter,1).Eid = E_id;
             WellURF(cnter,1).Sid = S_id;
