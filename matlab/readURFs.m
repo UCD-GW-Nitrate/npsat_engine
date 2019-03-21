@@ -4,14 +4,25 @@ function WellURF = readURFs(filename, opt)
 % process of the NPSAT 
 % For each streamline this function solves the Advection Dispersion Equation
 % using the options defined in opt. 
-% For the time being the only options one can pass here are the 
-% alpha and beta parameters that control the longitudinal dispersivity
+% Using the options structure one can pass parameters to the ComputeURF 
+% function that is called to simulate the 1D ADE 
+% The paramteres that can pass are: 
+%   alpha and beta parameters that control the longitudinal dispersivity
+%   Lmin The streamline length that if a streamline has greater length than 
+%   Lmin then the numerical solution is used. Otherwise the analytical 
+%   solution is used to avoid numerical dispersion.
 
     topt.dx = 20; % [m]
     topt.dt = 1; % [years]
     topt.Ttime = 200; % [years]
-    topt.aL.alpha = opt.alpha;
-    topt.aL.beta = opt.beta;
+    topt.Lmin = 500; %[m]
+    if ~isempty(opt)
+        topt.aL.alpha = opt.alpha;
+        topt.aL.beta = opt.beta;
+        if isfield(opt, 'Lmin')
+            topt.Lmin = opt.Lmin;
+        end
+    end
 
     fid = fopen(filename,'r');
     if fid < 0

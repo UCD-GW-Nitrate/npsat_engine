@@ -140,11 +140,21 @@ If for any reason you need to kill the job, find the job id by running the squeu
 To transfer the result from the cluster to local machine the admins suggest the rsync over scp. For example to tranfer the *urfs files on the current folder do:
 ```
 rsync -azvhe ssh name@aqua.lawr.ucdavis.edu:/path/of/the/results/*.urfs .
-# or for the farm cluster
-
+```
+or for the farm cluster
+```
 rsync -e "ssh -p 2022" --archive name@farm.cse.ucdavis.edu:/path/of/the/results/*.urfs .
 ```
-
+* **Delete many files**
+The simulation depending the number of processors and the number of particle tracking may create a large number of files. The command `rm -r` to delete all files let's say from the output folder may fail.
+An alternative command is ([see details](https://stackoverflow.com/questions/14731133/how-to-delete-all-files-older-than-3-days-when-argument-list-too-long?rq=1)):
+```
+find . -mtime +3 | xargs rm -Rf
+```
+It is also usefull to find the number of files in a directory. The following does that ([see more](https://askubuntu.com/questions/370697/how-to-count-number-of-files-in-a-directory-but-not-recursively)):
+```
+find -maxdepth 1 -type f | wc -l
+```
 
     
     
