@@ -34,7 +34,7 @@ function WellURF = readURFs(filename, opt)
     %clf
     %hold on
     % Set the true mode to true to compute the URFS
-    true_mode = false;
+    true_mode = true;
     
     if true_mode
         WellURF = allocate_space([]);
@@ -54,6 +54,9 @@ function WellURF = readURFs(filename, opt)
         C = fscanf(fid,'%f',Np*4);
         temp = fgetl(fid);
         C = reshape(C,4,Np)';
+        if Np == 1
+            continue
+        end
         %plot3(C(:,1),C(:,2),C(:,3),'.')
         if true_mode
             urf = ComputeURF(C(:,1:3), C(:,4), topt);
