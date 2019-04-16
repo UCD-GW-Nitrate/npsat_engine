@@ -17,50 +17,50 @@
 
 using namespace dealii;
 
-/*! \mainpage Home
- *
- * \section intro_sec Introduction
- *
- * The Non Point Source Assessment Toolbox (NPSAT) is a modelling framework
- * that can be used to assess and evaluate the dynamic, spatio‐temporally
- * distributed linkages between nonpoint sources above a groundwater basin
- * and groundwater discharges to wells, streams, or other compliance discharge
- * surfaces (CDSs) within a groundwater basin.
- *
- * The NPSAT framework consist of two phases:
- *  - Construction Phase:
- *      The construction phase of the NPSAT involves several steps, which are time
- *      consuming but need to executed only once
- *      -# Simulation of a fully three-dimensional groundwater flow field at a spatial
- *         resolution that can properly capture individual sources (e.g., crop fields,
- *         lagoons, septic leach fields) and the impact to individual CDSs (wells, streams).
- *      -# Streamline-based transport simulation at high-spatial resolution.
- *      -# Computation of Unit Response Functions which essentially link a fraction of the
- *         source area with a fraction of the CDS
- *
- *
- * \section install_sec Installation
- *
- * \subsection step1 Step 1: Opening the box
- *
- * etc...
- */
-
-
-/*! \page page1 A Tule River example
-  \tableofcontents
-  Leading text.
-  \section sec An example section
-  This page contains the subsections \ref subsection1 and \ref subsection2.
-  For more info see page \ref page2.
-  \subsection subsection1 The first subsection
-  Text.
-  \subsection subsection2 The second subsection
-  More text.
-*/
-/*! \page page2 Modesto example
-  Even more info.
-*/
+/////////////*! \mainpage Home
+//////////// *
+//////////// * \section intro_sec Introduction
+//////////// *
+//////////// * The Non Point Source Assessment Toolbox (NPSAT) is a modelling framework
+//////////// * that can be used to assess and evaluate the dynamic, spatio‐temporally
+//////////// * distributed linkages between nonpoint sources above a groundwater basin
+//////////// * and groundwater discharges to wells, streams, or other compliance discharge
+//////////// * surfaces (CDSs) within a groundwater basin.
+//////////// *
+//////////// * The NPSAT framework consist of two phases:
+//////////// *  - Construction Phase:
+//////////// *      The construction phase of the NPSAT involves several steps, which are time
+//////////// *      consuming but need to executed only once
+//////////// *      -# Simulation of a fully three-dimensional groundwater flow field at a spatial
+//////////// *         resolution that can properly capture individual sources (e.g., crop fields,
+//////////// *         lagoons, septic leach fields) and the impact to individual CDSs (wells, streams).
+//////////// *      -# Streamline-based transport simulation at high-spatial resolution.
+//////////// *      -# Computation of Unit Response Functions which essentially link a fraction of the
+//////////// *         source area with a fraction of the CDS
+//////////// *
+//////////// *
+//////////// * \section install_sec Installation
+//////////// *
+//////////// * \subsection step1 Step 1: Opening the box
+//////////// *
+//////////// * etc...
+//////////// */
+////////////
+////////////
+/////////////*! \page page1 A Tule River example
+////////////  \tableofcontents
+////////////  Leading text.
+////////////  \section sec An example section
+////////////  This page contains the subsections \ref subsection1 and \ref subsection2.
+////////////  For more info see page \ref page2.
+////////////  \subsection subsection1 The first subsection
+////////////  Text.
+////////////  \subsection subsection2 The second subsection
+////////////  More text.
+////////////*/
+/////////////*! \page page2 Modesto example
+////////////  Even more info.
+////////////*/
 
 int main (int argc, char **argv){
     deallog.depth_console (1);

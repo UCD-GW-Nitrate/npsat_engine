@@ -37,7 +37,10 @@
 # now ignore all the content of the folder
 /Doc/*
 #unignore doxygen parameter file
-!doxy_npsat.txt
+!/Doc/doxy_npsat.txt
+!/Doc/DoxygenLayout.xml
+!/Doc/*.md
+!/Doc/*.png
 
 # unignore the Logo folder =========Logo========
 !/Logo

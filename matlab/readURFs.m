@@ -15,7 +15,7 @@ function WellURF = readURFs(filename, opt)
     topt.dx = 20; % [m]
     topt.dt = 1; % [years]
     topt.Ttime = 200; % [years]
-    topt.Lmin = 500; %[m]
+    topt.Lmin = 200; %[m]
     if ~isempty(opt)
         topt.aL.alpha = opt.alpha;
         topt.aL.beta = opt.beta;
