@@ -41,11 +41,11 @@ void create_logo(){
     repetitions.push_back(20);
     repetitions.push_back(8);
     Point<2> p1(1,1);
-    Point<2> p2(400,160);
+    Point<2> p2(400,161);
     GridGenerator::subdivided_hyper_rectangle(triangulation,repetitions,p1,p2,false);
 
     InterpInterface<2> img;
-    img.get_data("../logo_data.npsat");
+    img.get_data("logo_data.npsat");
 
     // Define how many points will be sampled for each cell
     const unsigned int N = 4;
@@ -67,7 +67,7 @@ void create_logo(){
             for (unsigned int i = 0; i < yy.size(); ++i){
                 for (unsigned int j = 0; j < xx.size(); ++j){
                     double v = img.interpolate(Point<2>(xx[j], yy[i]));
-                    if (v > 0.1 && v < 254.9){
+                    if (v > 0.1 && v < 254){
                         n++;
                         if (n > 1){
                             cell->set_refine_flag ();
@@ -94,7 +94,7 @@ void create_logo(){
 
 int main() 
 {
-    std::cout << "Hello, World!" << std::endl;
+    std::cout << "Creating logo ..." << std::endl;
     create_logo();
     return 0;
 }

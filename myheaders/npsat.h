@@ -19,6 +19,8 @@
 
 #include <deal.II/numerics/error_estimator.h>
 
+#include <random>
+
 #include "user_input.h"
 #include "make_grid.h"
 #include "dsimstructs.h"

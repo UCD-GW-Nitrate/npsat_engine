@@ -110,6 +110,7 @@ private:
                  double top_fraction, double bot_fraction);
 
     void output_xyz_top(int iter, std::string output_file);
+    void output_DBC(int iter, std::string output_file);
 };
 
 template <int dim>
@@ -313,6 +314,7 @@ void GWFLOW<dim>::solve(){
                   system_rhs,
                   preconditioner);
 
+
     pcout << "   Solved in " << solver_control.last_step()
           << " iterations." << std::endl << std::flush;
 
@@ -379,6 +381,8 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
         //std::ofstream visit_master(visit_master_filename.c_str());
         //data_out.write_visit_record(visit_master, filenames);
     }
+
+    output_DBC(iter, output_file);
 
     // Write a point cloud of the Top surface only
     if (printflags.top_point_cloud > 0)
@@ -488,7 +492,7 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
                                 else if (dim == 3)
                                     ids = circle_search_in_2DSet(PointSet, ine_Point3(current_point[0], current_point[1], 0 ), 0.001);
                                 else
-                                    std::cerr << "That was a good one!!" << std::endl;
+                                    std::cerr << "Seriously??" << std::endl;
 
                                 if (ids.size() == 0){
                                     // Insert the point
@@ -498,7 +502,7 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
                                     else if (dim == 3)
                                         newpoint.push_back(std::make_pair(ine_Point2(current_point[0], current_point[1]), solution_points.size()));
                                     else
-                                        std::cerr << "Don't give up your day job " << std::endl;
+                                        std::cerr << "I know you can do better" << std::endl;
                                     PointSet.insert(newpoint.begin(), newpoint.end());
                                     std::vector<double> v_temp;
                                     for (unsigned int idim = 0; idim < dim; idim++)
@@ -522,6 +526,82 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
         top_stream_file <<  std::setprecision(15) << solution_points[i][dim] << std::endl;
     }
     top_stream_file.close();
+}
+
+template <int dim>
+void GWFLOW<dim>::output_DBC(int iter, std::string output_file){
+    const std::string dbc_filename = (output_file + "DBC_" +
+                                      Utilities::int_to_string(iter,3) + "_" +
+                                      Utilities::int_to_string(my_rank,4) +
+                                      ".dat");
+    std::ofstream dbc_stream_file;
+    dbc_stream_file.open(dbc_filename.c_str());
+
+    const QGauss<dim-1> face_quadrature_formula(2);
+    FEFaceValues<dim> fe_face_values (fe, face_quadrature_formula,
+                                      update_values | update_gradients         | update_quadrature_points |
+                                      update_normal_vectors | update_JxW_values);
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+    std::vector<Tensor<1, dim> >        head_grad_values(n_face_q_points);
+    std::vector<Tensor<1, dim> >        normal_vectors(n_face_q_points);
+    std::vector<Tensor<2,dim> >	 		hydraulic_conductivity_values(n_face_q_points);
+
+    typename FunctionMap<dim>::type::iterator itbc;
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face = 0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if (cell->face(i_face)->at_boundary()){
+
+                    for (itbc = dirichlet_boundary.begin(); itbc != dirichlet_boundary.end(); ++itbc){
+                        if (cell->face(i_face)->boundary_id() == itbc->first){
+                            //std::cout << cell->face(i_face)->boundary_id() << std::endl;
+                            fe_face_values.reinit (cell, i_face);
+                            Point<dim> b = cell->face(i_face)->center();
+                            //std::cout << b << std::endl;
+                            //for (unsigned int ipnt = 0; ipnt <GeometryInfo<dim>::vertices_per_face; ++ipnt){
+                            //   std::cout << cell->face(i_face)->vertex(ipnt) << std::endl;
+                            //}
+
+                            fe_face_values.get_function_gradients(locally_relevant_solution, head_grad_values);
+                            normal_vectors = fe_face_values.get_normal_vectors();
+                            HK.value_list(fe_face_values.get_quadrature_points(), hydraulic_conductivity_values);
+                            Tensor<1, dim> q_darcy;
+                            Tensor<1, dim> normal;
+                            for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point){
+                                for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                                    for (unsigned int idim = 0; idim < dim; ++idim){
+                                        double shapexJxW = fe_face_values.shape_value(i,q_point)*
+                                                           fe_face_values.JxW(q_point);
+
+                                        q_darcy[idim] += -(hydraulic_conductivity_values[q_point][idim][idim]*
+                                                           head_grad_values[q_point][idim]*shapexJxW);
+                                        normal[idim] += normal_vectors[q_point][idim]*shapexJxW;
+                                    }
+                                }
+                            }
+                            normal = normal/normal.norm();
+                            if (dim == 3)
+                                dbc_stream_file << std::setprecision(3) << b[0] << " " << b[1] << " " << b[2] << " "
+                                                                        << q_darcy[0] << " " << q_darcy[1] << " " << q_darcy[2] << " "
+                                                                        << normal[0] << " " << normal[1] << " " << normal[2] << std::endl;
+                            else if (dim == 2)
+                                dbc_stream_file << std::setprecision(3) << b[0] << " " << b[1] << " "
+                                                                        << q_darcy[0] << " " << q_darcy[1] << " "
+                                                                        << normal[0] << " " << normal[1] << std::endl;
+                            //std::cout << q_darcy << std::endl;
+                            //std::cout << normal << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    dbc_stream_file.close();
 }
 
 #endif // STEADY_STATE_H

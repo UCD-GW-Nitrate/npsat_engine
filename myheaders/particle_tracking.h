@@ -1582,6 +1582,25 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
         return false;
     }
 
+    // Replace the manual gradient calculation with a more general simpler "Deal.ii" way:
+
+    // To compute the head derivatives at the current unit position
+    // we set a quadrature rule at the current point
+    Quadrature<dim> point_quadrature(p_unit);
+    FEValues<dim> fe_values_point(fe, point_quadrature, update_gradients);
+    fe_values_point.reinit(cell);
+    const unsigned int n_q_points = point_quadrature.size();
+
+    std::vector<Tensor<1, dim> > hgrad(n_q_points);
+    fe_values_point.get_function_gradients(locally_relevant_solution, hgrad);
+    Tensor<1,dim> dHead;
+    for (int i = 0; i < dim; ++i){
+        dHead[i] = hgrad[0][i];
+    }
+    if (p[0] < 0.1){
+        std::cout << p[0] << ", " << p[1] << "," << p[2] << "," << dHead[0] << "," << dHead[1] << "," << dHead[2] << std::endl;
+    }
+    /*
     //The velocity is equal vx = - Kx*dHx/n
     // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]
     // For the current cell we will extract the hydraulic head solution
@@ -1602,6 +1621,7 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
     Quadrature<dim> temp_quadrature(p_unit);
     FEValues<dim> fe_values_temp(fe, temp_quadrature, update_gradients);
     fe_values_temp.reinit(cell);
+    const unsigned int n_temp_q_points = temp_quadrature.size();
 
     // dHead is the head gradient and is initialized to zero
     Tensor<1,dim> dHead;
@@ -1614,7 +1634,16 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
             dHead[i_dim] = dHead[i_dim] + dN[i_dim]*current_cell_head[i];
         }
     }
+    */
+
+
     //Tensor<2,dim> KK = HK_function.value(p);
+
+    //Vector<double> local_dof_values(cell->get_fe().dofs_per_cell);
+    //cell->get_dof_values(locally_relevant_solution, local_dof_values);
+    //std::vector< typename OutputType< typename InputVector::value_type >::gradient_type> head_grad;
+    //FEValuesViews::Scalar<dim>::get_function_gradients_from_local_dof_values(  local_dof_values, head_grad);
+
     bool returnHeadGrad = true;
     if (!returnHeadGrad){
         // divide dHead with the porosity

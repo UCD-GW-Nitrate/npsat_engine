@@ -1,12 +1,12 @@
 ## Overview
-This example is used primarily for debuggin illustrating the various dirichlet boundary conditions that can be applied in a domain.
+This example is primarily used for debugging and illustrating the various dirichlet boundary conditions that can be applied in a domain.
 
 #### Domain 
 The domain of the example is a box with dimensions 5x5 km and depth 300 m approximately. The bottom of the aquifer is set uniform and equal to -270 m. The initial approximation of the free surface is set to 30 m above msl.
 
 #### Stresses
-* Groundwater recharge is assumed uniform adn equal to 0.0002 m/day, which results in a total incoming volume of water from recharge equal to  5000 m^3/day.
-* There are 19 wells with pumping rates varying from 100 to 500 m^/day. Their total pumping equals the recharge amount.
+* Groundwater recharge is assumed uniform and equal to 0.0002 m/day, which results in a total incoming volume of water from recharge equal to  5000 m^3/day.
+* There are 19 wells with pumping rates varying from 100 to 500 m^3/day. Their total pumping equals the recharge amount.
 
 #### Boundary conditions
 The purpose of this example is to test all the available boundary condition options of NPSAT. 
@@ -42,7 +42,7 @@ x2 y2
 ##### Test 3 (dir_bc03.npsat)
 For the third example we will use the same boundaries and change their values. Instead of using a uniform value along the boundary we will use a variable interpolation function.
 * For the left boundary the head will vary also with depth.
-* the the right boundary since only the top face is affected we will use a variable interpolation function along the x-y plane. All z nodes will have the same constant head value for the same x,y location
+* The the right boundary since only the top face is affected we will use a variable interpolation function along the x-y plane. All z nodes will have the same constant head value for the same x,y location
  The input file is almost identical to the previous example. This time the values are replaced with the files that contain the interpolation functions:
  
 ```

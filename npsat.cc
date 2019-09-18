@@ -96,5 +96,6 @@ int main (int argc, char **argv){
         else
             std::cerr << "Error while reading the parameter file" << std::endl;
     }
+    //std::cout << "Just a dummy change" << std::endl;
 	return 0;
 }
