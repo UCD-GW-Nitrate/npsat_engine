@@ -586,11 +586,11 @@ void GWFLOW<dim>::output_DBC(int iter, std::string output_file){
                             }
                             normal = normal/normal.norm();
                             if (dim == 3)
-                                dbc_stream_file << std::setprecision(3) << b[0] << " " << b[1] << " " << b[2] << " "
+                                dbc_stream_file << std::setprecision(3) << std::fixed << b[0] << " " << b[1] << " " << b[2] << " "
                                                                         << q_darcy[0] << " " << q_darcy[1] << " " << q_darcy[2] << " "
                                                                         << normal[0] << " " << normal[1] << " " << normal[2] << std::endl;
                             else if (dim == 2)
-                                dbc_stream_file << std::setprecision(3) << b[0] << " " << b[1] << " "
+                                dbc_stream_file << std::setprecision(3) << std::fixed << b[0] << " " << b[1] << " "
                                                                         << q_darcy[0] << " " << q_darcy[1] << " "
                                                                         << normal[0] << " " << normal[1] << std::endl;
                             //std::cout << q_darcy << std::endl;
