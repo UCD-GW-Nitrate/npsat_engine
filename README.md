@@ -19,26 +19,31 @@ Deal library has quite a few options on how to compile. The easiest seems to be 
 
     (If you dont have more than 16 GB ram then use `-j 2` or even without `j`). 
     
-    _Changes on Candi distribution_
-    The last time we tried to build deal.ii using hte candii distribution we had to make a number of changes to make it work. Under the candi/deal.II-toolchain/packages folder there is a list of packages that containts the version numbers among other information. 
-    Do the following changes:
-    - hdf5 : MAJORVER=1.10, CHECKSUM=e115eeb66e944fa7814482415dd21cc4
-    - petsc : VERSION=3.10.4 CHECKSUM=06205518845df58771d579eab4e4e01b
-    - slepc : VERSION=3.10.2 CHECKSUM=92d4eef844b11f5ff673959f6f00e1cf
-    
 
 - [CGAL](https://www.cgal.org/).
 It is highly recommended to use version [4.11.3](https://github.com/CGAL/cgal/releases/tag/releases%2FCGAL-4.11.3)  as earlier or later compiled versions have failed to be compiled together with NPSAT. 
 If you already have a CGAL installation from sources (e.g.`sudo apt-get install libcgal-dev`) then it may work even if the installed version is not the specific one. 
 To find out about the compiled version compile and run this [program](https://gist.github.com/alecsphys/7398446).
 
-If you follow the installation guide from the library then you will do the following
-```
-cd /path/to/cgal-releases-CGAL-4.11.3
-mkdir -p build/release
-cmake -DCMAKE_BUILD_TYPE=Release ../..
-make
-```
+    If you follow the installation guide from the library then you will do the following
+    ```
+    cd /path/to/cgal-releases-CGAL-4.11.3
+    mkdir -p build/release
+    cmake -DCMAKE_BUILD_TYPE=Release ../..
+    make
+    ```
+    If you installed CGAL from the repositories the you may not know how to define the CGAL_DIR:PATH. A little trick to find out is the following:
+    ```
+    mkdir cgalfoo
+    cd cgalfoo
+    cgal_create_cmake_script
+    cmake .
+    ```
+    This will create a CMakeCache.txt file. Search for CGAL_DIR in that file.
+
+    Last, dont forget to delete the foo folder `rm -r cgalfoo`
+- [Boost](https://www.boost.org) Nowadays almost every project needs boost. However the installation deall.ii takes care of that.
+
 
 
 ## Build NPSAT
