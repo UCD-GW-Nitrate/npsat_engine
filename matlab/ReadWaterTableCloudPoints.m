@@ -1,4 +1,6 @@
-function WTC = ReadWaterTableCloudPoints( prefix, nproc, print_file )
+function WTC = ReadWaterTableCloudPoints( prefix, nproc, print_file, iter )
+% WTC = ReadWaterTableCloudPoints( prefix, nproc, print_file )
+%
 % ReadWaterTableCloudPoints Reads the point cloud from different processors
 %   prefix: the prefix of the file name. The name that the function will
 %           try to read is prefix [prefix num2str(iproc,'%04d') '.xyz']
@@ -23,7 +25,7 @@ FnewElev = scatteredInterpolant(Elev_new(:,1), Elev_new(:,2), Elev_new(:,4));
 WTC = [FnewElev.Points FnewElev.Values];
 
 if print_file
-    fid = fopen([prefix 'ALL.xyz'], 'w');
+    fid = fopen([prefix 'iter_' num2str(iter) '_ALL.xyz'], 'w');
     fprintf(fid, '%d\n', size(WTC,1));
     fprintf(fid, '%f %f %f\n', WTC');
     fclose(fid);
