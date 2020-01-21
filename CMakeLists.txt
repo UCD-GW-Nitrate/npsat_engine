@@ -4,6 +4,7 @@
 
 # Set the name of the project and target:
 SET(TARGET "npsat")
+PROJECT(${TARGET} CXX)
 
 FILE(GLOB_RECURSE TARGET_INC  "myheaders/*.h")
 SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
@@ -54,7 +55,7 @@ include( ${CGAL_USE_FILE} )
 
 
 
-PROJECT(${TARGET})
+
 ADD_EXECUTABLE(${TARGET} ${TARGET_SRC})
 DEAL_II_SETUP_TARGET(${TARGET})
 #DEAL_II_INVOKE_AUTOPILOT()

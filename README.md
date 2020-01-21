@@ -1,5 +1,5 @@
 
-<img src="Logo/logo_npsat_600.png" alt="Wells in Central Valley" width="700"/>
+<img src="Logo/logo_npsat_600.png" alt="Npsat engine logo" width="700"/>
 
 
 ## Overview
@@ -52,6 +52,81 @@ To compile the NPSAT code run the following command from the directory where the
 cmake -DDEAL_II_DIR=Path/to/candi/compiled/libs/deal.II-v9.0.0 -DCGAL_DIR:PATH=/path/to/cgal-releases-CGAL-4.11.3/build/release .
 make
 ```
+
+## Building with Spack
+[Spack](https://spack.io/) is a package manager with the aim to remove the hurdle of buidling libraries along with their dependencies. 
+
+First we need to [install](https://spack.io/about/) spack which can't get any easier.
+
+To keep spack orginized we will create the environment `DealCgal` to put the libraries
+```
+spack env create DealCgal
+spack env activate DealCgal
+``` 
+
+Next we can build any library with just few lines of code. However there are few tweaks that one should take into account. For the time being the only workable installation of deal under ubuntu 19.04 is the following:
+```
+spack install dealii target=x86_64 ^cmake@3.9.4^netcdf@4.7.1
+```
+The above line will get and build deal and all of the dependencies. This is going to take an hour or so.
+
+Similarly we can install cgal
+```
+spack install cgal target=x86_64 ^cmake@3.9.4
+``` 
+Next we navigate to a folder where we want to copy all the files. If for example we would like to have the librariescopied to Documents/Path/to/myDealii_lib then we do the following
+```
+cd Documents/Path/to/
+spack view -v symlink myDealii_lib dealii
+```
+This will create the folder myDealii_lib and copy all the nessecary files. If there are errors asking to append the -i flag then do
+```
+spack view -v symlink myDealii_lib dealii -i
+```
+Then we can copy the cgal files to the same folder as 
+```
+spack view -v symlink myDealii_lib cgal
+```
+The [deal in Spack](https://github.com/dealii/dealii/wiki/deal.II-in-Spack#known-issues-using-spack) documentation suggests to use the cmake 3.9.4 version. With spack we can install any version that is available. TO keep things a bit orginized we reccomend to use spack environments:
+```
+spack env create CMAKE
+spack env activate CMAKE
+spack install cmake@3.9.4 target=x86_64
+cd Documents/Path/to/
+spack view -v symlink CMAKE_3.9.4 cmake@3.9.4
+```
+The above commands will create an environment CMAKE, make it active, build cmake 3.9.4 and the create a folder and copy the cmake files into that folder. The cmake executable lives now in `Documents/Path/to/CMAKE_3.9.4/bin/cmake`.
+
+Finally to compile npsat_engine have to first make sure that we are in the right environment
+```
+set env activate DealCgal
+```
+clone the repository
+```
+git clone https://github.com/UCD-GW-Nitrate/npsat_engine.git
+cd npsat_engine
+```
+configure it
+```
+..../path/to/CMAKE_3.9.4/bin/cmake -DDEAL_II_DIR=..../Path/to/myDealii_lib -DCGAL_DIR:PATH=..../Path/to/myDealii_lib .
+```
+and build it
+```
+make
+```
+
+### Tweaks of QTCreator with spack 
+When I used spack to build Npsat engine, I had difficulties to configure QTCreator. 
+
+Here is a list of tweaks.
+First go to __Tools->Options->Kits->CMake__ and add a Manual cmake configuration where the name can be anything e.g CMake_3_9_4, the path should be the same as above `.../path/to/CMAKE_3.9.4/bin/cmake` and make sure that both Autorun CMake and Auto-create built directories are checked and apply.
+
+Next go to **Tools->Options->Kits->Kits** and make default the Manual Desktop. It is important here to make sure that the selected CMake Tool is the one that we created previously 
+
+<img src="Doc/QTCreator_Kits_Options.png" alt="Npsat engine logo" width="500"/>
+
+Last, to import the project into the QT creator File->Open File or Project and select the [CMakeList.txt](https://github.com/UCD-GW-Nitrate/npsat_engine/blob/topo/CMakeLists.txt) file. On the next menu select Desktop configuration only and deselect any imported ones. Expand the desktop and keep the Debug only and change the build path to the npsat_engine.
+
 
 
 ## Run
