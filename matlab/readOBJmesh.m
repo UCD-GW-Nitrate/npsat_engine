@@ -7,8 +7,12 @@ function [p, MSH] = readOBJmesh(varargin)
 %       readOBJmesh('filename', Nsides, Nalloc)
 %       readOBJmesh('filename', Nsides, Np_alloc, Nel_alloc)
 %
-% readOBJmesh reads the vertices (v) and faces (f) from an obj file.
+% readOBJmesh reads the vertices (v), faces (f) and lines (l) from an obj file.
 % All other info is ignored.
+% The programs that write obj files can write into the file any kind of
+% geometry. FOr example if there are degenerated polygons these will be
+% printed. Therefore before attempting to use this script make sure that
+% the onj file is somewhat clean.
 % Just by reading a file does not mean that the mesh would make any sense.
 % if the obj file represent something that it's not a mesh then the result
 % wont make any sense.
@@ -51,7 +55,7 @@ while ~feof(fid)
         p(cnt_p,:) = cell2mat(textscan(temp,'v %f %f %f'));
         cnt_p = cnt_p + 1;
     end
-    if strcmp(temp(1),'f')
+    if strcmp(temp(1),'f') || strcmp(temp(1),'l')
         temp1=temp(2:end);
         MSH(cnt_el,:) = cell2mat(textscan(temp1,' %f'))';
         cnt_el = cnt_el + 1;

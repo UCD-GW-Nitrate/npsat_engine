@@ -54,11 +54,11 @@ make
 ```
 
 ## Building with Spack
-[Spack](https://spack.io/) is a package manager with the aim to remove the hurdle of buidling libraries along with their dependencies. 
+[Spack](https://spack.io/) is a package manager with the aim to remove the hurdle of building libraries along with their dependencies. 
 
 First we need to [install](https://spack.io/about/) spack which can't get any easier.
 
-To keep spack orginized we will create the environment `DealCgal` to put the libraries
+To keep spack organized we will create the environment `DealCgal` to put the libraries
 ```
 spack env create DealCgal
 spack env activate DealCgal
@@ -74,7 +74,7 @@ Similarly we can install cgal
 ```
 spack install cgal target=x86_64 ^cmake@3.9.4
 ``` 
-Next we navigate to a folder where we want to copy all the files. If for example we would like to have the librariescopied to Documents/Path/to/myDealii_lib then we do the following
+Next we navigate to a folder where we want to copy all the files. If for example we would like to have the libraries copied to Documents/Path/to/myDealii_lib then we do the following:
 ```
 cd Documents/Path/to/
 spack view -v symlink myDealii_lib dealii
@@ -83,11 +83,11 @@ This will create the folder myDealii_lib and copy all the nessecary files. If th
 ```
 spack view -v symlink myDealii_lib dealii -i
 ```
-Then we can copy the cgal files to the same folder as 
+We can also copy the cgal files to the same folder as 
 ```
 spack view -v symlink myDealii_lib cgal
 ```
-The [deal in Spack](https://github.com/dealii/dealii/wiki/deal.II-in-Spack#known-issues-using-spack) documentation suggests to use the cmake 3.9.4 version. With spack we can install any version that is available. TO keep things a bit orginized we reccomend to use spack environments:
+The [deal in Spack](https://github.com/dealii/dealii/wiki/deal.II-in-Spack#known-issues-using-spack) documentation suggests to use the cmake 3.9.4 version. With spack we can install any version that is available. Again to stay organized we recommend to use spack environments:
 ```
 spack env create CMAKE
 spack env activate CMAKE
@@ -95,9 +95,9 @@ spack install cmake@3.9.4 target=x86_64
 cd Documents/Path/to/
 spack view -v symlink CMAKE_3.9.4 cmake@3.9.4
 ```
-The above commands will create an environment CMAKE, make it active, build cmake 3.9.4 and the create a folder and copy the cmake files into that folder. The cmake executable lives now in `Documents/Path/to/CMAKE_3.9.4/bin/cmake`.
+The above commands will create the environment _CMAKE_, make it active, build cmake 3.9.4 and the create a folder and copy the cmake files into that folder. The cmake executable lives now in `Documents/Path/to/CMAKE_3.9.4/bin/cmake`.
 
-Finally to compile npsat_engine have to first make sure that we are in the right environment
+Finally to compile npsat_engine we have to first make sure that we are in the right environment
 ```
 set env activate DealCgal
 ```
