@@ -32,6 +32,15 @@
 #unignore the *.m files
 !/matlab/*.m
 
+# unignore the Rwrkspc folder =========Rwrkspc========
+!/Rwrkspc
+# now ignore all the content of the folder
+/Rwrkspc/*
+#unignore the *.m files
+!/Rwrkspc/*.R
+!/Rwrkspc/*.Rproj
+.Rproj.user
+
 # unignore the Doc folder =========Doc========
 !/Doc
 # now ignore all the content of the folder
@@ -101,6 +110,7 @@
 /examples/Modesto/*
 #unignore the *.npsat files
 !/examples/Modesto/*.npsat
+
 
 
 
