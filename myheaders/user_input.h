@@ -358,6 +358,10 @@ void CL_arguments<dim>::declare_parameters(){
                           "e----------------------------------\n"
                           "The number of initial refinements around the Streams");
 
+        prm.declare_entry("f Top Refinement", "0", Patterns::Integer(0,10),
+                          "f----------------------------------\n"
+                          "The number of initial refinements on the top (water table)");
+
     }
     prm.leave_subsection();
 
@@ -754,6 +758,8 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.N_well_refinement = prm.get_integer("d Well Refinement");
 
         AQprop.N_streams_refinement = prm.get_integer("e Stream Refinement");
+
+        AQprop.N_top_refinements = prm.get_integer("f Top Refinement");
 
 
         if (temp_str != ""){

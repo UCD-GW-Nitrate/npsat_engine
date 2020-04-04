@@ -546,8 +546,22 @@ void initTria(dealii::Triangulation<dim-1> &tria){
         cells[0].vertices[3] = 3;
     }
     tria.create_triangulation(vertices, cells, dealii::SubCellData());
+}
 
-
+template <int dim>
+void refineTop(parallel::distributed::Triangulation<dim>& triangulation){
+    typename parallel::distributed::Triangulation<dim>::active_cell_iterator
+    cell = triangulation.begin_active(),
+    endc = triangulation.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if(cell->face(i_face)->at_boundary() && cell->face(i_face)->boundary_id() == GeometryInfo<dim>::faces_per_cell-1){
+                    cell->set_refine_flag ();
+                }
+            }
+        }
+    }
 }
 
 void print_poly_matlab(std::vector<double> xp, std::vector<double> yp){
