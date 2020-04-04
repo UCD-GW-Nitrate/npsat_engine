@@ -658,6 +658,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                 //Qwell_temp += Q_temp;
                             }
                         }
+                        //std::cout << "Qtot: " << Qwell_total << ", iter: " << i << std::endl;
                         wells[i].well_cells[j]->get_dof_indices (local_dof_indices);
                         constraints.distribute_local_to_global(cell_rhs_wells,
                                                                local_dof_indices,
