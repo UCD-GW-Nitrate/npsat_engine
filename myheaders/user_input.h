@@ -611,6 +611,13 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("c Load Solution", "0", Patterns::Integer(0,2),
                               "c----------------------------------\n"
                               "Loads an existing flow solution.");
+
+            prm.declare_entry("d Print velocity field cloud", "0", Patterns::Integer(0,2),
+                              "d----------------------------------\n"
+                              "Prints the velocity field cloud\n"
+                              "The file name is Prefix + proc.vel");
+
+
         }
         prm.leave_subsection();
 
@@ -985,6 +992,9 @@ bool CL_arguments<dim>::read_param_file(){
                 if(AQprop.solution_suffix.empty())
                     AQprop.solution_suffix = "sol";
             }
+
+            AQprop.print_velocity_cloud = prm.get_integer("d Print velocity field cloud");
+
         }
         prm.leave_subsection ();
 

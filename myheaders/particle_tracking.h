@@ -1024,7 +1024,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
-    typename DoFHandler<dim>::active_cell_iterator init_cell = cell;
+    //typename DoFHandler<dim>::active_cell_iterator init_cell = cell;
 
     if (param.method == 1){
         // Euler method is the simplest one. The next point is computed as function of the previous
@@ -2508,7 +2508,7 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
 
         count_av_vel_iter++;
         if (count_av_vel_iter > 30){
-            pcout << "The velocities havenot fully averaged" << std::endl;
+            pcout << "The velocities have not fully averaged" << std::endl;
             return false;
         }
     }

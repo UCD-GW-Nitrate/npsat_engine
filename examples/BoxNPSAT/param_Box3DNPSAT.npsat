@@ -83,11 +83,15 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 0
+  set e Stream Refinement       = 2
+
+  # f----------------------------------
+  # The number of initial refinements on the top (water table)
+  set f Top Refinement          = 2
 end
 
 
@@ -146,7 +150,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 1
 
   # b----------------------------------
   # Tolerance of solver
@@ -302,7 +306,13 @@ subsection J. Output Parameters ================================
 
     # c----------------------------------
     # Loads an existing flow solution.
-    set c Load Solution = 1
+    set c Load Solution = 0
+
+    # d----------------------------------
+    # Prints the velocity field cloud
+    # The file name is Prefix + proc.vel
+    set d Print velocity field cloud = 0
+
   end
 
   subsection B. Debug options =---=---=---=---=---=---=

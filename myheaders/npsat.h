@@ -20,6 +20,7 @@
 #include <deal.II/numerics/error_estimator.h>
 
 #include <random>
+#include <ostream>
 
 #include "user_input.h"
 #include "make_grid.h"
@@ -63,6 +64,8 @@ public:
     void do_refinement1();
 
     void particle_tracking();
+
+    void printVelocityField(MyTensorFunction<dim> &HK_function);
 
 
 
@@ -354,6 +357,9 @@ void NPSAT<dim>::solve_refine(){
 
     if (AQProps.solver_param.save_solution > 0)
         save();
+    if (AQProps.print_velocity_cloud > 0)
+        printVelocityField(HK_function[0]);
+
     pcout << "Simulation ended at \n" << print_current_time() << std::endl;
 
 }
@@ -847,5 +853,73 @@ void NPSAT<dim>::read_Particles_from_file(std::vector<Streamline<dim>> &Streamli
     }
 }
 
+
+template <int dim>
+void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
+    const std::string vel_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
+                                      Utilities::int_to_string(my_rank,4) + ".vel");
+
+    std::ofstream vel_stream_file;
+    vel_stream_file.open(vel_filename.c_str());
+
+    const QGauss<dim> quadrature_formula(2);
+    const unsigned int   n_q_points = quadrature_formula.size();
+    FEValues<dim> fe_values (fe, quadrature_formula,
+                             update_values    |  update_gradients |
+                             update_quadrature_points |
+                             update_JxW_values);
+
+    std::vector<Tensor<2,dim> > hydraulic_conductivity_values(n_q_points);
+    std::vector<Tensor<1, dim> > hgrad(n_q_points);
+    Tensor<1,dim> KdH;
+
+    std::vector<Point<dim>> cell_vertices(GeometryInfo<dim>::vertices_per_cell);
+
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    double shape_value;
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            std::cout << cell->id() << std::endl;
+            fe_values.reinit (cell);
+            fe_values.get_function_gradients(locally_relevant_solution, hgrad);
+            HK_function.value_list(fe_values.get_quadrature_points(), hydraulic_conductivity_values);
+
+            for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
+                cell_vertices[i] = cell->vertex(i);
+            }
+
+            for (unsigned int q_point=0; q_point < n_q_points; ++q_point){
+                KdH = hydraulic_conductivity_values[q_point]*hgrad[q_point];
+                Point<dim> p;
+                for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
+                    shape_value = fe_values.shape_value(i,q_point);
+                    for (unsigned int idim = 0; idim < dim; ++i){
+                        p[i] = p[i] + shape_value*cell_vertices[i](idim);
+                    }
+                }
+
+
+                if (dim == 2){
+                    vel_stream_file << std::setprecision(2) << std::fixed
+                                    << p[0] << " " << p[1] << " "
+                                    << std::setprecision(6) << std::fixed
+                                    << KdH[0] << " " << KdH[1] << " "
+                                    << my_rank << std::endl;
+                }
+                else if (dim == 3){
+                    vel_stream_file << std::setprecision(2) << std::fixed
+                                    << p[0] << " " << p[1] << " " << p[2] << " "
+                                    << std::setprecision(6) << std::fixed
+                                    << KdH[0] << " " << KdH[1] << " " << KdH[2] << " "
+                                    << my_rank << std::endl;
+                }
+            }
+        }
+    }
+    vel_stream_file.close();
+}
 
 #endif // NPSAT_H

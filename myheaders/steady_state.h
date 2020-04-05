@@ -219,9 +219,9 @@ void GWFLOW<dim>::assemble(){
                           hydraulic_conductivity_values);
 			
 			bool print_this_cell = false;
-            for (unsigned int q_point=0; q_point<n_q_points; ++q_point){
-                for (unsigned int i=0; i<dofs_per_cell; ++i){
-                    for (unsigned int j=0; j<dofs_per_cell; ++j){
+            for (unsigned int q_point=0; q_point < n_q_points; ++q_point){
+                for (unsigned int i=0; i < dofs_per_cell; ++i){
+                    for (unsigned int j=0; j < dofs_per_cell; ++j){
                         cell_matrix(i,j) += (fe_values.shape_grad(i,q_point)*
                                              hydraulic_conductivity_values[q_point]*
                                              fe_values.shape_grad(j,q_point)*
@@ -527,6 +527,7 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
     }
     top_stream_file.close();
 }
+
 
 template <int dim>
 void GWFLOW<dim>::output_DBC(int iter, std::string output_file){

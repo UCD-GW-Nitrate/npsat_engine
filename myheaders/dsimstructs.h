@@ -223,6 +223,9 @@ public:
     //! THis can be read easily in houdini for visual inspections
     int                                 print_point_top_cloud;
 
+    //! Prints the velocity field.
+    int                                 print_velocity_cloud;
+
     //! This is a structure that will store the hydraulic conductivity values
     std::vector<InterpInterface<dim> >	HydraulicConductivity;
 
