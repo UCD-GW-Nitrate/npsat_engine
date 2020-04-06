@@ -226,6 +226,15 @@ public:
     //! Prints the velocity field.
     int                                 print_velocity_cloud;
 
+    //! this is a constant number that the velocity is multiplied before printed.
+    //! The purpose of this is to increase the accuracy of the printed velocity without
+    //! increasing the number of printed digits. For example if the velocity is
+    //! 0.00006134234529 then by multiply it by 1 is going to print 6 digits e.g 0.000061
+    //! However if we multiply it by 10000 then in the file will be printed as 0.613423.
+    //! Of course it is the users responsibility to convert the velocity back to the actual value
+    //! in the application that is going to use the velocity field
+    double                              multiplier_velocity_print;
+
     //! This is a structure that will store the hydraulic conductivity values
     std::vector<InterpInterface<dim> >	HydraulicConductivity;
 

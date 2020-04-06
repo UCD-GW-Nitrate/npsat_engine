@@ -261,7 +261,7 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry ("a Input directory", "",Patterns::Anything(),
                            "a----------------------------------\n"
                            "The directory with all input data. \n"
-                           "All input data must be under the same directory.");
+                           "All input data must be relative to this directory.");
 
         prm.declare_entry ("b Output directory", "",Patterns::Anything(),
                            "b----------------------------------\n"
@@ -616,8 +616,9 @@ void CL_arguments<dim>::declare_parameters(){
                               "d----------------------------------\n"
                               "Prints the velocity field cloud\n"
                               "The file name is Prefix + proc.vel");
-
-
+            prm.declare_entry("e Velocity multiplier", "10000", Patterns::Double(1,1000000000),
+                              "e----------------------------------\n"
+                              "Multiplier coefficient to increase the printed velocity precision");
         }
         prm.leave_subsection();
 
@@ -994,6 +995,7 @@ bool CL_arguments<dim>::read_param_file(){
             }
 
             AQprop.print_velocity_cloud = prm.get_integer("d Print velocity field cloud");
+            AQprop.multiplier_velocity_print = prm.get_double("e Velocity multiplier");
 
         }
         prm.leave_subsection ();

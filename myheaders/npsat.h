@@ -613,7 +613,7 @@ void NPSAT<dim>::do_refinement1(){
 
     // now the mesh should consistent as when it was first created
     // so we can hopefully refine it
-    triangulation.execute_coarsening_and_refinement ();
+    triangulation.execute_coarsening_and_refinement();
     //{
     //    std::ofstream out ("test_triaE" + std::to_string(my_rank) + ".vtk");
     //    GridOut grid_out;
@@ -875,14 +875,16 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
 
     std::vector<Point<dim>> cell_vertices(GeometryInfo<dim>::vertices_per_cell);
 
+    double m = AQProps.multiplier_velocity_print;
 
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     double shape_value;
     for (; cell!=endc; ++cell){
-        if (cell->is_locally_owned()){
-            std::cout << cell->id() << std::endl;
+        if (cell->is_locally_owned() || cell->is_ghost()){
+            //if (my_rank == 0 & cell->is_ghost())
+            //  std::cout << cell->id() << " " << cell->subdomain_id() << std::endl;
             fe_values.reinit (cell);
             fe_values.get_function_gradients(locally_relevant_solution, hgrad);
             HK_function.value_list(fe_values.get_quadrature_points(), hydraulic_conductivity_values);
@@ -896,8 +898,8 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                 Point<dim> p;
                 for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
                     shape_value = fe_values.shape_value(i,q_point);
-                    for (unsigned int idim = 0; idim < dim; ++i){
-                        p[i] = p[i] + shape_value*cell_vertices[i](idim);
+                    for (unsigned int idim = 0; idim < dim; ++idim){
+                        p[idim] = p[idim] + shape_value*cell_vertices[i](idim);
                     }
                 }
 
@@ -906,15 +908,15 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << KdH[0] << " " << KdH[1] << " "
-                                    << my_rank << std::endl;
+                                    << m*KdH[0] << " " << m*KdH[1] << " "
+                                    << cell->subdomain_id() << std::endl;
                 }
                 else if (dim == 3){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " " << p[2] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << KdH[0] << " " << KdH[1] << " " << KdH[2] << " "
-                                    << my_rank << std::endl;
+                                    << m*KdH[0] << " " << m*KdH[1] << " " << m*KdH[2] << " "
+                                    << cell->subdomain_id() << std::endl;
                 }
             }
         }

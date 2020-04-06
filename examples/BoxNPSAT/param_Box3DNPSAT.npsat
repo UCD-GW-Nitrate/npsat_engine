@@ -3,12 +3,12 @@
 subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
-  # All input data must be under the same directory.
-  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/BoxNPSAT/
+  # All input data must be relative to this directory.
+  set a Input directory  = /home/giorgk/Documents/CODES/npsat_engine/examples/BoxNPSAT/
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/BoxNPSAT/output
+  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/BoxNPSAT/output
 end
 
 
@@ -68,7 +68,7 @@ subsection C. Discretization ===================================
   # a----------------------------------
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be present.
-  set a Nxyz                    = 20,20,5
+  set a Nxyz                    = 20,20,3
 
   # b----------------------------------
   # A list of numbers between 0 and 1 that correspond
@@ -83,15 +83,15 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 2
+  set d Well Refinement         = 3
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 2
+  set e Stream Refinement       = 1
 
   # f----------------------------------
   # The number of initial refinements on the top (water table)
-  set f Top Refinement          = 2
+  set f Top Refinement          = 1
 end
 
 
@@ -192,7 +192,7 @@ end
 subsection I. Particle tracking ================================
   # a----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set a Enable particle tracking = 1
+  set a Enable particle tracking = 0
 
 
   subsection A. Configuration =---=---=---=---=---=---=---=---=
@@ -311,15 +311,18 @@ subsection J. Output Parameters ================================
     # d----------------------------------
     # Prints the velocity field cloud
     # The file name is Prefix + proc.vel
-    set d Print velocity field cloud = 0
+    set d Print velocity field cloud = 1
 
+    # e----------------------------------
+    # Multiplier coefficient to increase the printed velocity precision
+    set e Velocity multiplier = 1000
   end
 
   subsection B. Debug options =---=---=---=---=---=---=
     # a----------------------------------
     # Prints the initial mesh after refinement or after loading.
     # The file name is Prefix + _init_mesh.vtk
-    set a Print initial mesh             = 0
+    set a Print initial mesh             = 1
 
     # b----------------------------------
     # Prints the coordinates of the free surface vertices.
