@@ -21,9 +21,15 @@
 /Vis/*
 #unignore the houdini files
 !/Vis/*.hipnc
-!/Vis/*.hdanc
+#!/Vis/*.hdanc
 # unignore the houdini python scripts
 !/Vis/*.py
+# unignore the Digital asset folder ----------box2D-----------
+!/Vis/DigitalAssets
+#ignore all the content of the folder
+/Vis/DigitalAssets/*
+#unignore the *.actual assets files
+!/Vis/DigitalAssets/*.hdanc
 
 # unignore the matlab folder =========matlab========
 !/matlab
@@ -32,14 +38,14 @@
 #unignore the *.m files
 !/matlab/*.m
 
-# unignore the Rwrkspc folder =========Rwrkspc========
-!/Rwrkspc
-# now ignore all the content of the folder
-/Rwrkspc/*
-#unignore the *.m files
-!/Rwrkspc/*.R
-!/Rwrkspc/*.Rproj
-.Rproj.user
+# # unignore the Rwrkspc folder =========Rwrkspc========
+# !/Rwrkspc
+# # now ignore all the content of the folder
+# /Rwrkspc/*
+# #unignore the *.m files
+# !/Rwrkspc/*.R
+# !/Rwrkspc/*.Rproj
+# .Rproj.user
 
 # unignore the Doc folder =========Doc========
 !/Doc
