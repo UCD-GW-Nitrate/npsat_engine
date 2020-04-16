@@ -70,6 +70,11 @@ spack install dealii target=x86_64 ^cmake@3.9.4^netcdf@4.7.1
 ```
 The above line will get and build deal and all of the dependencies. This is going to take an hour or so.
 
+All the libraries that dealii depends on are rapidly evolving so it is very likely that at some point the issue with the netcdf may not longer be present and another library may have issues. For example when installing deal and cgal on the farm cluster I encounter errors related to mpfr and the only workaround was to require a version without a patch e.g
+```
+spack install dealii ^mpfr@4.0.0
+```
+
 Similarly we can install cgal
 ```
 spack install cgal target=x86_64 ^cmake@3.9.4
