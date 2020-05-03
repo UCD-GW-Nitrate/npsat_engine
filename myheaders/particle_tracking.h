@@ -1597,9 +1597,9 @@ bool Particle_Tracking<dim>::calc_vel_on_point(typename DoFHandler<dim>::active_
     for (int i = 0; i < dim; ++i){
         dHead[i] = hgrad[0][i];
     }
-    if (p[0] < 0.1){
-        std::cout << p[0] << ", " << p[1] << "," << p[2] << "," << dHead[0] << "," << dHead[1] << "," << dHead[2] << std::endl;
-    }
+    //if (p[0] < 0.1){
+    //    std::cout << p[0] << ", " << p[1] << "," << p[2] << "," << dHead[0] << "," << dHead[1] << "," << dHead[2] << std::endl;
+    //}
     /*
     //The velocity is equal vx = - Kx*dHx/n
     // dHi is computed as dN1i*H1i + dN2i*H2i + ... + dNni*Hni, where n is dofs_per_cell and i=[x y z]

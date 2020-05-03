@@ -143,6 +143,18 @@ subsection F. Sources & Sinks ==================================
   # Well network
   # The name of a file with the well information
   set c Wells                = box01_wells.npsat
+
+  # d----------------------------------
+  # Multiplier for groundwater recharge
+  set d Recharge multiplier  = 1
+
+  # e----------------------------------
+  # Multiplier for groundwater pumping
+  set e Well multiplier      = 1
+
+  # f----------------------------------
+  # Multiplier for stream leackage
+  set f Stream multiplier    = 1
 end
 
 
@@ -169,7 +181,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 10
+  set a Max refinements iterations = 5
 
   # b----------------------------------
   # Top refinement fraction
@@ -192,7 +204,7 @@ end
 subsection I. Particle tracking ================================
   # a----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set a Enable particle tracking = 0
+  set a Enable particle tracking = 1
 
 
   subsection A. Configuration =---=---=---=---=---=---=---=---=
@@ -309,20 +321,30 @@ subsection J. Output Parameters ================================
     set c Load Solution = 0
 
     # d----------------------------------
-    # Prints the velocity field cloud
-    # The file name is Prefix + proc.vel
-    set d Print velocity field cloud = 1
+    # Prints the solution every iteration
+    # The file name is Prefix + ....*vtu
+    set d Print solution vtk         = 0
 
     # e----------------------------------
+    # Prints the velocity field cloud
+    # The file name is Prefix + proc.vel
+    set e Print velocity field cloud = 0
+
+    # f----------------------------------
     # Multiplier coefficient to increase the printed velocity precision
-    set e Velocity multiplier = 1000
+    set f Velocity multiplier        = 10000
+
+    # g----------------------------------
+    # Prints the constant head boundary condition polygons
+    # The file name is Prefix + proc.vel
+    set g Print Boundary conditions  = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=
     # a----------------------------------
     # Prints the initial mesh after refinement or after loading.
     # The file name is Prefix + _init_mesh.vtk
-    set a Print initial mesh             = 1
+    set a Print initial mesh             = 0
 
     # b----------------------------------
     # Prints the coordinates of the free surface vertices.
