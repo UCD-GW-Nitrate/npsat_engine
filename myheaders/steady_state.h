@@ -38,12 +38,18 @@ public:
         top_point_cloud(0),
         top_mesh(0),
         bot_mesh(0),
-        boundary_mesh(0)
+        boundary_mesh(0),
+        print_vtk(0),
+        print_velocity(0),
+        print_BND(0)
     {}
     int top_point_cloud;
     int top_mesh;
     int bot_mesh;
     int boundary_mesh;
+    int print_vtk;
+    int print_velocity;
+    int print_BND;
 };
 
 using namespace dealii;
@@ -205,6 +211,11 @@ void GWFLOW<dim>::assemble(){
     std::vector<Tensor<2,dim> >	 		hydraulic_conductivity_values(n_q_points);
     std::vector<double>			 		recharge_values(n_face_q_points);
 
+
+    if (std::abs(solver_param.rch_multiplier - 1) > 0.0001 ){
+        pcout << "Recharge multiplier: " << solver_param.rch_multiplier << std::endl;
+    }
+
     double QRCH_TOT = 0;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
@@ -257,8 +268,8 @@ void GWFLOW<dim>::assemble(){
 								    print_cell_face_matlab<dim>(cell, i_face);
                                 }
 
-                                cell_rhs(i) += Q_rch;
-                                QRCH_TOT += Q_rch;
+                                cell_rhs(i) += Q_rch * solver_param.rch_multiplier;
+                                QRCH_TOT += Q_rch * solver_param.rch_multiplier;
                             }
                         }
                     }
@@ -329,60 +340,63 @@ void GWFLOW<dim>::output(int iter, std::string output_file,
     TimerOutput::Scope t(computing_timer, "output");
     pcout << "\t Printing results..." << std::endl << std::flush;
 
-    DataOut<dim> data_out;
-    data_out.attach_dof_handler (dof_handler);
-    data_out.add_data_vector (locally_relevant_solution, "Head");
-    Vector<float> subdomain (triangulation.n_active_cells());
-    for (unsigned int i = 0; i < subdomain.size(); ++i){
-        subdomain(i) = triangulation.locally_owned_subdomain();
-    }
-    data_out.add_data_vector (subdomain, "subdomain");
-
-    Vector<double> Conductivity (triangulation.n_active_cells());
-    typename DoFHandler<dim>::active_cell_iterator
-    cell = dof_handler.begin_active(),
-    endc = dof_handler.end();
-    int cnt_cells = 0;
-    for (; cell!=endc; ++cell){
-        if (cell->is_locally_owned()){
-            Tensor<2,dim> value = HK.value(cell->barycenter());
-            Conductivity[cnt_cells] = value[0][0];
+    if (printflags.print_vtk == 1){
+        DataOut<dim> data_out;
+        data_out.attach_dof_handler (dof_handler);
+        data_out.add_data_vector (locally_relevant_solution, "Head");
+        Vector<float> subdomain (triangulation.n_active_cells());
+        for (unsigned int i = 0; i < subdomain.size(); ++i){
+            subdomain(i) = triangulation.locally_owned_subdomain();
         }
-        ++cnt_cells;
-    }
-    data_out.add_data_vector (Conductivity, "Conductivity",
-                              DataOut<dim>::type_cell_data);
+        data_out.add_data_vector (subdomain, "subdomain");
 
-    data_out.build_patches ();
-
-    const std::string filename = (output_file +
-                                  Utilities::int_to_string (iter, 3) +
-                                  "." +
-                                  Utilities::int_to_string
-                                  (triangulation.locally_owned_subdomain(), 4));
-
-    std::ofstream output ((filename + ".vtu").c_str());
-    data_out.write_vtu (output);
-    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0){
-        std::vector<std::string> filenames;
-        for (unsigned int i=0; i < Utilities::MPI::n_mpi_processes(mpi_communicator); ++i){
-            filenames.push_back (output_file +
-                                 Utilities::int_to_string (iter, 3) +
-                                 "." +
-                                 Utilities::int_to_string (i, 4) +
-                                 ".vtu");
+        Vector<double> Conductivity (triangulation.n_active_cells());
+        typename DoFHandler<dim>::active_cell_iterator
+        cell = dof_handler.begin_active(),
+        endc = dof_handler.end();
+        int cnt_cells = 0;
+        for (; cell!=endc; ++cell){
+            if (cell->is_locally_owned()){
+                Tensor<2,dim> value = HK.value(cell->barycenter());
+                Conductivity[cnt_cells] = value[0][0];
+            }
+            ++cnt_cells;
         }
-        const std::string pvtu_master_filename = (output_file +
-                                                  Utilities::int_to_string(iter,3) + ".pvtu");
-        std::ofstream pvtu_master (pvtu_master_filename.c_str());
-        data_out.write_pvtu_record(pvtu_master, filenames);
-        //const std::string visit_master_filename = (output_file +
-        //                                            Utilities::int_to_string(iter, 3) + ".visit");
-        //std::ofstream visit_master(visit_master_filename.c_str());
-        //data_out.write_visit_record(visit_master, filenames);
+        data_out.add_data_vector (Conductivity, "Conductivity",
+                                  DataOut<dim>::type_cell_data);
+
+        data_out.build_patches ();
+
+        const std::string filename = (output_file +
+                                      Utilities::int_to_string (iter, 3) +
+                                      "." +
+                                      Utilities::int_to_string
+                                      (triangulation.locally_owned_subdomain(), 4));
+
+        std::ofstream output ((filename + ".vtu").c_str());
+        data_out.write_vtu (output);
+        if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0){
+            std::vector<std::string> filenames;
+            for (unsigned int i=0; i < Utilities::MPI::n_mpi_processes(mpi_communicator); ++i){
+                filenames.push_back (output_file +
+                                     Utilities::int_to_string (iter, 3) +
+                                     "." +
+                                     Utilities::int_to_string (i, 4) +
+                                     ".vtu");
+            }
+            const std::string pvtu_master_filename = (output_file +
+                                                      Utilities::int_to_string(iter,3) + ".pvtu");
+            std::ofstream pvtu_master (pvtu_master_filename.c_str());
+            data_out.write_pvtu_record(pvtu_master, filenames);
+            //const std::string visit_master_filename = (output_file +
+            //                                            Utilities::int_to_string(iter, 3) + ".visit");
+            //std::ofstream visit_master(visit_master_filename.c_str());
+            //data_out.write_visit_record(visit_master, filenames);
+        }
     }
 
-    output_DBC(iter, output_file);
+    if (printflags.print_BND == 1)
+        output_DBC(iter, output_file);
 
     // Write a point cloud of the Top surface only
     if (printflags.top_point_cloud > 0)

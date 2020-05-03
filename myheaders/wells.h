@@ -202,6 +202,9 @@ public:
 
     //! Prints the well info. It is used for debuging.
     void print_wells();
+
+    //! well multiplier
+    double well_multiplier = 1.0;
 };
 
 template <int dim>
@@ -653,8 +656,8 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
                                 double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
                                 //std::cout << i << " : " << Q_temp << std::endl;
-                                cell_rhs_wells(ii) += Q_temp;
-                                Qwell_total += Q_temp;
+                                cell_rhs_wells(ii) += Q_temp * well_multiplier;
+                                Qwell_total += Q_temp * well_multiplier;
                                 //Qwell_temp += Q_temp;
                             }
                         }

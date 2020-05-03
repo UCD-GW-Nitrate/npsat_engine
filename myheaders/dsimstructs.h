@@ -35,6 +35,11 @@ struct SolverParameters{
     //! Print detailed output of the ML preconditioner
     int output_details;
 
+    //! This multipliers are used for special cases to make the incoming equal to outcoming flows.
+    //! Typically you run the model once and then if there is a discrepancy you can further refine
+    //! the volumes to make sure they are equal. (if that's important for the application)
+    double rch_multiplier = 1.0;
+
 };
 
 //! RefinementParameters is a struct with parameters that control the mesh refinements
@@ -219,12 +224,18 @@ public:
     //! This is a sufix that is appended a solution is saved or loaded
     std::string                         solution_suffix;
 
+    //! Print the solution into vtk file
+    int                                 print_solution_vtk;
+
     //! Prints the vertices of the free surface as point cloud.
     //! THis can be read easily in houdini for visual inspections
     int                                 print_point_top_cloud;
 
     //! Prints the velocity field.
     int                                 print_velocity_cloud;
+
+    //! Print boundary conditions
+    int                                 print_bnd_cond;
 
     //! this is a constant number that the velocity is multiplied before printed.
     //! The purpose of this is to increase the accuracy of the printed velocity without

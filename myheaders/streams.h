@@ -175,6 +175,8 @@ public:
     //! This function loops through the cells and flags for refinement those that their top face intersects with a stream
     void flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& 	triangulation);
 
+    double stream_multiplier = 1.0;
+
 private:
     //! a temporary 1-cell triangulation which is used as way to access methods that operate in 2 dimensions
     //Triangulation<dim-1> tria;
@@ -550,8 +552,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                     for (unsigned int q_point = 0; q_point < stream_quad.size(); ++q_point){
                                         for (unsigned int j = 0; j < dofs_per_cell; ++j){
                                             double Q_temp = weight*Qface[k]*fe_face_stream_values.shape_value(j,q_point);
-                                            cell_rhs_streams(j) += Q_temp;
-                                            QSTRM += Q_temp;
+                                            cell_rhs_streams(j) += Q_temp * stream_multiplier;
+                                            QSTRM += Q_temp * stream_multiplier;
                                         }
                                     }
                                 }

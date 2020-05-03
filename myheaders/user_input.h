@@ -427,6 +427,18 @@ void CL_arguments<dim>::declare_parameters(){
                            "c----------------------------------\n"
                            "Well network\n"
                            "The name of a file with the well information");
+
+        prm.declare_entry("d Recharge multiplier", "1", Patterns::Double(0,10000),
+                          "d----------------------------------\n"
+                          "Multiplier for groundwater recharge");
+
+        prm.declare_entry("e Well multiplier", "1", Patterns::Double(0,10000),
+                          "e----------------------------------\n"
+                          "Multiplier for groundwater pumping");
+
+        prm.declare_entry("f Stream multiplier", "1", Patterns::Double(0,10000),
+                          "f----------------------------------\n"
+                          "Multiplier for stream leackage");
     }
     prm.leave_subsection();
 
@@ -612,13 +624,24 @@ void CL_arguments<dim>::declare_parameters(){
                               "c----------------------------------\n"
                               "Loads an existing flow solution.");
 
-            prm.declare_entry("d Print velocity field cloud", "0", Patterns::Integer(0,2),
+            prm.declare_entry("d Print solution vtk", "0", Patterns::Integer(0,2),
                               "d----------------------------------\n"
+                              "Prints the solution every iteration\n"
+                              "The file name is Prefix + ....*vtu");
+
+            prm.declare_entry("e Print velocity field cloud", "0", Patterns::Integer(0,2),
+                              "e----------------------------------\n"
                               "Prints the velocity field cloud\n"
                               "The file name is Prefix + proc.vel");
-            prm.declare_entry("e Velocity multiplier", "10000", Patterns::Double(1,1000000000),
-                              "e----------------------------------\n"
+
+            prm.declare_entry("f Velocity multiplier", "10000", Patterns::Double(1,1000000000),
+                              "f----------------------------------\n"
                               "Multiplier coefficient to increase the printed velocity precision");
+
+            prm.declare_entry("g Print Boundary conditions", "0", Patterns::Integer(0,2),
+                              "g----------------------------------\n"
+                              "Prints the constant head boundary condition polygons\n"
+                              "The file name is Prefix + proc.vel");
         }
         prm.leave_subsection();
 
@@ -886,6 +909,7 @@ bool CL_arguments<dim>::read_param_file(){
         if (well_file != ""){
             well_file = input_dir + well_file;
             AQprop.have_wells = AQprop.wells.read_wells(well_file);
+
         }
 
         //Read Rivers
@@ -895,6 +919,9 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.have_streams = AQprop.streams.read_streams(stream_file);
         }
 
+        AQprop.wells.well_multiplier = prm.get_double("e Well multiplier");
+        AQprop.solver_param.rch_multiplier = prm.get_double("d Recharge multiplier");
+        AQprop.streams.stream_multiplier = prm.get_double("f Stream multiplier");
     }
     prm.leave_subsection();
 
@@ -993,9 +1020,10 @@ bool CL_arguments<dim>::read_param_file(){
                 if(AQprop.solution_suffix.empty())
                     AQprop.solution_suffix = "sol";
             }
-
-            AQprop.print_velocity_cloud = prm.get_integer("d Print velocity field cloud");
-            AQprop.multiplier_velocity_print = prm.get_double("e Velocity multiplier");
+            AQprop.print_solution_vtk = prm.get_integer("d Print solution vtk");
+            AQprop.print_velocity_cloud = prm.get_integer("e Print velocity field cloud");
+            AQprop.multiplier_velocity_print = prm.get_double("f Velocity multiplier");
+            AQprop.print_bnd_cond = prm.get_integer("g Print Boundary conditions");
 
         }
         prm.leave_subsection ();

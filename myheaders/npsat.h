@@ -290,6 +290,10 @@ void NPSAT<dim>::solve_refine(){
 
     SimPrintFlags printing_flags;
     printing_flags.top_point_cloud = AQProps.print_point_top_cloud;
+    printing_flags.print_vtk = AQProps.print_solution_vtk;
+    printing_flags.print_velocity = AQProps.print_velocity_cloud;
+    printing_flags.print_BND = AQProps.print_bnd_cond;
+
 
 
     for (int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){
