@@ -1,6 +1,10 @@
 #ifndef USER_INPUT_H
 #define USER_INPUT_H
 
+// see https://stackoverflow.com/questions/35007134/c-boost-undefined-reference-to-boostfilesystemdetailcopy-file
+//#define BOOST_NO_CXX11_SCOPED_ENUMS
+//#include <boost/filesystem.hpp>
+//#undef BOOST_NO_CXX11_SCOPED_ENUMS
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
 
@@ -695,7 +699,19 @@ bool CL_arguments<dim>::read_param_file(){
         output_dir = prm.get("b Output directory");
 
         append_slash(input_dir);
+        //if (boost::filesystem::exists(input_dir.c_str())){
+        //    boost::filesystem::current_path(input_dir);
+        //}
+        //else{
+        //    pcout << "Input directory '" << input_dir << "' does not exists" << std::endl;
+        //    return false;
+        //}
         append_slash(output_dir);
+        //if (!boost::filesystem::exists(output_dir.c_str())){
+        //    pcout << "Output directory '" << output_dir << "' does not exists" << std::endl;
+        //    return false;
+        //}
+
         AQprop.Dirs.input = input_dir;
         AQprop.Dirs.output = output_dir;
     }

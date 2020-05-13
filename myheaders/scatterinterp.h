@@ -118,6 +118,9 @@ private:
     std::vector<std::vector<double>> V_1D;
 
     bool Stratified;
+
+    bool interpolated;
+
     /*!
      * \brief sci_type gets
      * * 0 -> FULL
@@ -194,10 +197,18 @@ void ScatterInterp<dim>::get_data(std::string filename){
             std::istringstream inp(buffer);
             std::string temp;
             inp >> temp;
-            if (temp == "STRATIFIED")
+            if (temp == "STRATIFIED"){
                 Stratified = true;
-            else if (temp == "SIMPLE")
+                interpolated = false;
+            }
+            else if (temp == "SIMPLE"){
                 Stratified = false;
+                interpolated = false;
+            }
+            else if (temp == "INTERPOLATED"){
+                Stratified = false;
+                interpolated = true;
+            }
             else
                 std::cout << "Unknown interpolation style. Valid options are STRATIFIED or SIMPLE" << std::endl;
 
@@ -216,7 +227,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
                 if ((dim == 2 && sci_type == 1) || // 2D horizontal interpolation
-                    (dim == 2 && Stratified) || // 2D stratified interpolation
+                    (dim == 2 && (Stratified || interpolated)  ) || // 2D stratified interpolation
                     (dim == 3 && sci_type == 2) //3D vertical interpolation
                     )
                 {
@@ -323,9 +334,12 @@ void ScatterInterp<dim>::interp_X1D(double x, int &ind, double &t)const{
     t = -9999;
     if (x <= X_1D[0]){
         ind = 0;
+        t = 0.0;
     }
-    else if (x >= X_1D[X_1D.size()-1])
-        ind = X_1D.size()-1;
+    else if (x >= X_1D[X_1D.size()-1]){
+        ind = X_1D.size()-2;
+        t = 1.0;
+    }
     else{
         for (unsigned int i = 0; i < X_1D.size()-1; ++i){
             if (x >= X_1D[i] && x <= X_1D[i+1]){

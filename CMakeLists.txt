@@ -53,6 +53,8 @@ endif()
 # include helper file
 include( ${CGAL_USE_FILE} )
 
+INCLUDE_DIRECTORIES(${GRID_INTERP})
+
 
 
 

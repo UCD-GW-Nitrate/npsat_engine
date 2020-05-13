@@ -9,6 +9,7 @@
 #include "helper_functions.h"
 #include "scatterinterp.h"
 #include "boundaryinterp.h"
+#include <gridInterp.h>
 
 using namespace dealii;
 
@@ -45,6 +46,7 @@ private:
     //! * 0 -> Constrant interpolation
     //! * 1 -> Scattered interpolation
     //! * 2 -> Boundary Line interpolation
+    //! * 3 -> Gridded interpolation
     unsigned int TYPE;
 
      //! Constant interpolation function
@@ -55,6 +57,9 @@ private:
 
      //! Container for boundary line interpolation
      BoundaryInterp<dim> BND_LINE;
+
+     //! Container for gridded interpolation
+     GRID_INTERP::interp<dim> GRD;
 };
 
 template <int dim>
@@ -66,7 +71,8 @@ InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
       TYPE(Interp_in.TYPE),
       CNI(Interp_in.CNI),
       SCI(Interp_in.SCI),
-      BND_LINE(Interp_in.BND_LINE)
+      BND_LINE(Interp_in.BND_LINE),
+      GRD(Interp_in.GRD)
 {}
 
 
@@ -101,6 +107,12 @@ void InterpInterface<dim>::get_data(std::string namefile){
                 TYPE = 2;
                 BND_LINE.get_data(namefile);
             }
+            else if (type_temp.compare("GRIDDED") == 0 ){
+                TYPE = 3;
+                std::string grid_namefile;
+                inp >> grid_namefile;
+                GRD.getDataFromFile(grid_namefile);
+            }
             else{
                 std::cerr << "Unknown interpolation method on " << namefile << std::endl;
             }
@@ -120,8 +132,12 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
         return BND_LINE.interpolate(p);
     }
     else if (TYPE == 3) {
-        std::cerr << "Not Implemented yet" << std::endl;
-        return 0;
+        if (dim == 1)
+           return GRD.interpolate(p[0]);
+        else if (dim == 2)
+            return GRD.interpolate(p[0], p[1]);
+        else if (dim == 3)
+            return GRD.interpolate(p[0], p[1], p[2]);
     }else{
         std::cerr << "Unknown interpolation method" << std::endl;
     }
@@ -141,6 +157,9 @@ void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
     }
     else if (TYPE == 1){
         SCI = interp_in.SCI;
+    }
+    else if (TYPE = 3){
+        GRD = interp_in.GRD;
     }
 }
 
