@@ -656,7 +656,8 @@ void NPSAT<dim>::particle_tracking(){
             AQProps.wells.distribute_particles(All_streamlines,
                                                AQProps.part_param.Wells_N_per_layer,
                                                AQProps.part_param.Wells_N_Layers,
-                                               AQProps.part_param.radius);
+                                               AQProps.part_param.radius,
+                                               AQProps.part_param.PartDistribType);
 
         read_Particles_from_file(All_streamlines);
     }

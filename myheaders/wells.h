@@ -61,7 +61,8 @@ public:
      * \param radius is the distance to place the particles around the well
      */
     void distribute_particles(std::vector<Point<dim> >& particles,
-                              int Nppl, int Nlay, double radius);
+                              int Nppl, int Nlay, double radius,
+                              wellParticleDistributionType partDirtibType);
 
 };
 
@@ -70,11 +71,10 @@ Well<dim>::Well(){}
 
 template <int dim>
 void Well<dim>::distribute_particles(std::vector<Point<dim> >& particles,
-                                     int Nppl, int Nlay, double radius){
-
-    std::vector<double> zval = linspace(bottom[dim-1], top[dim-1],Nlay);
-
+                                     int Nppl, int Nlay, double radius,
+                                     wellParticleDistributionType partDirtibType){
     if (dim == 2){
+        std::vector<double> zval = linspace(bottom[dim-1], top[dim-1],Nlay);
         std::vector<double> r;
         r.push_back(radius);
         r.push_back(-radius);
@@ -89,23 +89,59 @@ void Well<dim>::distribute_particles(std::vector<Point<dim> >& particles,
 
     }
     else if (dim == 3){
-        double rads = (2.0*numbers::PI)/Nppl;
-        std::vector<double> rads1 = linspace(0, 2.0*numbers::PI,Nlay);
-        std::vector<std::vector<double> > radpos;
-        for (unsigned int i = 0; i < static_cast<unsigned int>(Nlay); ++i){
-            radpos.push_back(linspace(0 + rads/2.0 + rads1[i],
-                             2.0*numbers::PI - rads/2.0 + rads1[i], Nppl));
-        }
 
-        for(int i = 0; i < Nlay; ++i){
-            for( int j = 0; j < Nppl; ++j){
+        switch (partDirtibType) {
+        case wellParticleDistributionType::LAYERED:
+        {
+            std::vector<double> zval = linspace(bottom[dim-1], top[dim-1],Nlay);
+            double rads = (2.0*numbers::PI)/Nppl;
+            std::vector<double> rads1 = linspace(0, 2.0*numbers::PI,Nlay);
+            std::vector<std::vector<double> > radpos;
+            for (unsigned int i = 0; i < static_cast<unsigned int>(Nlay); ++i){
+                radpos.push_back(linspace(0 + rads/2.0 + rads1[i],
+                                 2.0*numbers::PI - rads/2.0 + rads1[i], Nppl));
+            }
+
+            for(int i = 0; i < Nlay; ++i){
+                for( int j = 0; j < Nppl; ++j){
+                    Point<dim>temp;
+                    temp[0] = cos(radpos[i][j])*radius + top[0];
+                    temp[1] = sin(radpos[i][j])*radius + top[1];
+                    temp[2] = zval[i];
+                    particles.push_back(temp);
+                }
+            }
+        }
+            break;
+        case wellParticleDistributionType::SPIRAL:
+        {
+            const double PI = 4 * atan(1);
+            double maxt = 2*PI*static_cast<double>(Nlay);
+            double dt = 1 / (static_cast<double>(Nppl*Nlay) - 1);
+            double t;
+            double r = radius;
+            double h = top[dim-1] - bottom[dim-1];
+            for (double i = 0; i <= 1+dt/2.0; i = i + dt){
                 Point<dim>temp;
-                temp[0] = cos(radpos[i][j])*radius + top[0];
-                temp[1] = sin(radpos[i][j])*radius + top[1];
-                temp[2] = zval[i];
+                t = i * maxt;
+                temp[0] = top[0] + r * cos(t);
+                temp[1] = top[1] + r * sin(t);
+                temp[2] = bottom[dim-1] + h * i;
                 particles.push_back(temp);
             }
         }
+            break;
+        case wellParticleDistributionType::LAYROT:
+        {
+
+        }
+
+                break;
+        default:
+            distribute_particles(particles, Nppl, Nlay, radius, wellParticleDistributionType::SPIRAL);
+
+        }
+
     }
 }
 
@@ -197,7 +233,8 @@ public:
      * \sa Well#distribute_particles method for explanation of the inputs
      */
     void distribute_particles(std::vector<Streamline<dim>>& Streamlines,
-                              int Nppl, int Nlay, double radius);
+                              int Nppl, int Nlay, double radius,
+                              wellParticleDistributionType partDirtibType);
 
 
     //! Prints the well info. It is used for debuging.
@@ -698,10 +735,11 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
 template <int dim>
 void Well_Set<dim>::distribute_particles(std::vector<Streamline<dim>> &Streamlines,
-                                         int Nppl, int Nlay, double radius){
+                                         int Nppl, int Nlay, double radius,
+                                         wellParticleDistributionType partDirtibType){
     for (int i = 0; i < Nwells; ++i){
         std::vector<Point<dim>> particles;
-        wells[i].distribute_particles(particles, Nppl, Nlay, radius);
+        wells[i].distribute_particles(particles, Nppl, Nlay, radius, partDirtibType);
         for (unsigned int j = 0; j < particles.size(); ++j){
             Streamlines.push_back(Streamline<dim>(i,j,particles[j]));
         }

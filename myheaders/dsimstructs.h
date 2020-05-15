@@ -9,6 +9,7 @@
 #include "streams.h"
 #include "my_functions.h"
 
+
 struct Directories{
 public:
     std::string input;
@@ -121,6 +122,9 @@ struct ParticleParameters{
 
     //! Number of particles per layer for the wells
     int Wells_N_per_layer;
+
+    //! The type of particle distribution
+    wellParticleDistributionType PartDistribType;
 
     //! Well radius. The distance from the well that the particles will be realized
     double radius;

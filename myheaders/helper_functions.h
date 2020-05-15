@@ -14,6 +14,8 @@
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/trilinos_vector.h>
 
+#include "dsimstructs.h"
+
 /*!
  * \brief linspace generate a linearly spaced vector between the two numbers min and max
  * \param min is the lower end
@@ -1028,6 +1030,19 @@ int is_the_vertex_on_faceEdge(int vertex,int face, int subface, bool& onface){
         }
     }
     return out;
+}
+
+wellParticleDistributionType string2Enum_wellParticleDistributionType(std::string stringtype){
+    if (stringtype.compare("LAYERED") == 0)
+        return wellParticleDistributionType::LAYERED;
+    else if (stringtype.compare("SPIRAL") == 0)
+        return wellParticleDistributionType::SPIRAL;
+    else if (stringtype.compare("LAYROT") == 0)
+        return wellParticleDistributionType::LAYROT;
+    else{
+        std::cout << "invalid well particle distribution type switch to SPIRAL" << std::endl;
+        return wellParticleDistributionType::SPIRAL;
+    }
 }
 
 /*

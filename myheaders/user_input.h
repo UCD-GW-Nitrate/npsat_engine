@@ -573,6 +573,11 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("e Distance from well", "50.0", Patterns::Double(1,1000),
                               "e----------------------------------\n"
                               "The distance from well that the particles will be releazed");
+
+            prm.declare_entry("f Well Distribution type", "", Patterns::Anything(),
+                              "f----------------------------------\n"
+                              "This is one of the following:\n"
+                              "LAYER SPIRAL LAYROT");
         }
         prm.leave_subsection();
 
@@ -992,6 +997,7 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.part_param.Wells_N_Layers = prm.get_integer("c Layers per well");
             AQprop.part_param.Wells_N_per_layer = prm.get_integer("d Particles per layer(well)");
             AQprop.part_param.radius = prm.get_double("e Distance from well");
+            AQprop.part_param.PartDistribType = string2Enum_wellParticleDistributionType(prm.get("f Well Distribution type"));
         }
         prm.leave_subsection ();
 
