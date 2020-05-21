@@ -8,6 +8,7 @@
 #include "wells.h"
 #include "streams.h"
 #include "my_functions.h"
+#include "dirichlet_boundary.h"
 
 
 struct Directories{
@@ -271,11 +272,15 @@ public:
     //! This holds the information about the wells in the aquifer
     Well_Set<dim>                       wells;
 
+    BoundaryConditions::Neumann<dim>    NeumanBoundaries;
+
     //! A boolean value which is set to false if there are no wells
     bool                                have_wells;
 
     //! A boolean value which is set to false if there are no streams
     bool                                have_streams;
+
+    bool                                have_neumann;
 
     //! Holds the Refinements parameters
     RefinementParameters                refine_param;

@@ -432,16 +432,21 @@ void CL_arguments<dim>::declare_parameters(){
                            "Well network\n"
                            "The name of a file with the well information");
 
-        prm.declare_entry("d Recharge multiplier", "1", Patterns::Double(0,10000),
-                          "d----------------------------------\n"
+        prm.declare_entry ("d Neumann Conditions", "",Patterns::Anything(),
+                           "d----------------------------------\n"
+                           "Neumann Conditions\n"
+                           "The name of a file with additional boundary flows");
+
+        prm.declare_entry("e Recharge multiplier", "1", Patterns::Double(0,10000),
+                          "e----------------------------------\n"
                           "Multiplier for groundwater recharge");
 
-        prm.declare_entry("e Well multiplier", "1", Patterns::Double(0,10000),
-                          "e----------------------------------\n"
+        prm.declare_entry("f Well multiplier", "1", Patterns::Double(0,10000),
+                          "f----------------------------------\n"
                           "Multiplier for groundwater pumping");
 
-        prm.declare_entry("f Stream multiplier", "1", Patterns::Double(0,10000),
-                          "f----------------------------------\n"
+        prm.declare_entry("g Stream multiplier", "1", Patterns::Double(0,10000),
+                          "g----------------------------------\n"
                           "Multiplier for stream leackage");
     }
     prm.leave_subsection();
@@ -577,7 +582,7 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("f Well Distribution type", "", Patterns::Anything(),
                               "f----------------------------------\n"
                               "This is one of the following:\n"
-                              "LAYER SPIRAL LAYROT");
+                              "LAYERED SPIRAL LAYROT");
         }
         prm.leave_subsection();
 
@@ -587,8 +592,7 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("a Particles Prefix", "", Patterns::Anything(),
                               "a----------------------------------\n"
                               "Particles Prefix is a keyword that is used when printing the various\n"
-                              "particle related output files. If this is empty it will use the default\n"
-                              "prefix, which may overwrite existing files with the same name");
+                              "particle related output files. This is required if particle is enabled");
 
             prm.declare_entry("b Simplify threshold", "5.5", Patterns::Double(0,100),
                               "b----------------------------------\n"
@@ -925,13 +929,6 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.GroundwaterRecharge.get_data(input_dir + temp_name);
         }
 
-        // Read Wells
-        std::string well_file = prm.get("c Wells");
-        if (well_file != ""){
-            well_file = input_dir + well_file;
-            AQprop.have_wells = AQprop.wells.read_wells(well_file);
-
-        }
 
         //Read Rivers
         std::string stream_file = prm.get("b Stream recharge");
@@ -940,9 +937,24 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.have_streams = AQprop.streams.read_streams(stream_file);
         }
 
-        AQprop.wells.well_multiplier = prm.get_double("e Well multiplier");
-        AQprop.solver_param.rch_multiplier = prm.get_double("d Recharge multiplier");
-        AQprop.streams.stream_multiplier = prm.get_double("f Stream multiplier");
+        // Read Wells
+        std::string well_file = prm.get("c Wells");
+        if (well_file != ""){
+            well_file = input_dir + well_file;
+            AQprop.have_wells = AQprop.wells.read_wells(well_file);
+
+        }
+
+        // Read Neumann Conditions file
+        std::string neumann_file = prm.get("d Neumann Conditions");
+        if (neumann_file != ""){
+            neumann_file = input_dir + neumann_file;
+            AQprop.have_neumann = AQprop.NeumanBoundaries.getData(neumann_file);
+        }
+
+        AQprop.solver_param.rch_multiplier = prm.get_double("e Recharge multiplier");
+        AQprop.wells.well_multiplier = prm.get_double("f Well multiplier");
+        AQprop.streams.stream_multiplier = prm.get_double("g Stream multiplier");
     }
     prm.leave_subsection();
 
@@ -1003,11 +1015,15 @@ bool CL_arguments<dim>::read_param_file(){
 
         prm.enter_subsection("C. Particle Output configuration =---=---=---=---=---=");
         {
-            AQprop.part_param.particle_prefix = AQprop.Dirs.output + prm.get("a Particles Prefix");
-            if (AQprop.part_param.bDoParticleTracking == 1 && AQprop.part_param.particle_prefix.empty()){
+            std::string part_prefix = prm.get("a Particles Prefix");
+            if (AQprop.part_param.bDoParticleTracking == 1 && part_prefix.empty()){
                 pcout << "I. Particle tracking->C. Particle Output configuration->a Particles Prefix: Is empty" << std::endl;
                 return false;
             }
+            else{
+                AQprop.part_param.particle_prefix = AQprop.Dirs.output + part_prefix;
+            }
+
 
             AQprop.part_param.simplify_thres = prm.get_double("b Simplify threshold");
             AQprop.part_param.Entity_freq = prm.get_integer("c Print entity frequency");

@@ -35,6 +35,9 @@ typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
 typedef std::pair<int, int> Edge;
 typedef std::vector<Edge> Edgelist;
 
+typedef boost::geometry::model::d2::point_xy<double> boost_point;
+typedef boost::geometry::model::polygon<boost_point> boost_polygon;
+
 
 
 template <typename Point>
@@ -70,37 +73,37 @@ double polyXpoly(std::vector<double>& x1, std::vector<double>& y1,
                  std::vector<double>& x2, std::vector<double>& y2,
                  double& xc, double& yc ){
     double area = 0;
-    typedef boost::geometry::model::d2::point_xy<double> strm_point;
-    typedef boost::geometry::model::polygon<strm_point> strm_polygon;
-    std::vector<strm_point> pnts;
+    //typedef boost::geometry::model::d2::point_xy<double> strm_point;
+    //typedef boost::geometry::model::polygon<strm_point> strm_polygon;
+    std::vector<boost_point> pnts;
 
     for (unsigned int i = 0; i < x1.size(); ++i){
-        pnts.push_back(strm_point(x1[i], y1[i]));
+        pnts.push_back(boost_point(x1[i], y1[i]));
     }
-    strm_polygon Poly1;
+    boost_polygon Poly1;
     boost::geometry::assign_points(Poly1, pnts);
     boost::geometry::correct(Poly1);
 
-    std::vector<strm_point> pnts2;
+    std::vector<boost_point> pnts2;
     for (unsigned int i = 0; i < x2.size(); ++i){
-        pnts2.push_back(strm_point(x2[i], y2[i]));
+        pnts2.push_back(boost_point(x2[i], y2[i]));
     }
-    strm_polygon Poly2;
+    boost_polygon Poly2;
     boost::geometry::assign_points(Poly2, pnts2);
     boost::geometry::correct(Poly2);
 
-    std::deque<strm_polygon> output;
+    std::deque<boost_polygon> output;
     boost::geometry::intersection(Poly1, Poly2, output);
 
-    BOOST_FOREACH(strm_polygon const& p, output){
+    BOOST_FOREACH(boost_polygon const& p, output){
         area = boost::geometry::area(p);
-        strm_point cntr(0,0);
+        boost_point cntr(0,0);
         boost::geometry::centroid(p,cntr);
         // Plot intersction ------------
         //std::cout << "plot([";
-        //boost::geometry::for_each_point(p,list_coordinatesX_oneline<strm_point>);
+        //boost::geometry::for_each_point(p,list_coordinatesX_oneline<boost_point>);
         //std::cout << "],[";
-        //boost::geometry::for_each_point(p,list_coordinatesY_oneline<strm_point>);
+        //boost::geometry::for_each_point(p,list_coordinatesY_oneline<boost_point>);
         //std::cout << "])" << std::endl;
         //------------------------------
         xc = cntr.x();

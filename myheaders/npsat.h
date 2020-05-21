@@ -312,6 +312,7 @@ void NPSAT<dim>::solve_refine(){
                        dirichlet_boundary,
                        HK_function[0],
                        GR_funct,
+                       AQProps.NeumanBoundaries,
                        top_boundary_ids,
                         AQProps.solver_param);
 
@@ -645,7 +646,6 @@ void NPSAT<dim>::particle_tracking(){
     //pt.average_velocity_field(velocity_dof_handler,velocity_fe);
     //pt.calculate_RT0_velocity_field();
     pt.average_velocity_field1();
-
 
     std::vector<Streamline<dim>> All_streamlines;
     std::vector<std::vector<Streamline<dim>>> part_of_streamlines(n_proc);

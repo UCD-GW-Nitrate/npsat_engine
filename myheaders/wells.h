@@ -115,8 +115,7 @@ void Well<dim>::distribute_particles(std::vector<Point<dim> >& particles,
             break;
         case wellParticleDistributionType::SPIRAL:
         {
-            const double PI = 4 * atan(1);
-            double maxt = 2*PI*static_cast<double>(Nlay);
+            double maxt = 2.0 * numbers::PI * static_cast<double>(Nlay);
             double dt = 1 / (static_cast<double>(Nppl*Nlay) - 1);
             double t;
             double r = radius;
@@ -133,10 +132,26 @@ void Well<dim>::distribute_particles(std::vector<Point<dim> >& particles,
             break;
         case wellParticleDistributionType::LAYROT:
         {
-
+            std::vector<double> zval = linspace(bottom[dim-1], top[dim-1],Nlay);
+            double t_lay = 0.0; // parametric offset within the layer
+            double t_rot = 0.0; //parametric offset between layers
+            double dt_lay = 2.0 * numbers::PI / static_cast<double>(Nppl);
+            double dt_rot = 2.0 * numbers::PI / static_cast<double>(Nlay);
+            for (int i = 0; i < Nlay; ++i){
+                t_lay = 0.0;
+                for (int j = 0; j < Nppl; ++j){
+                    Point<dim>temp;
+                    double t = t_lay + t_rot;
+                    temp[0] = top[0] + radius * cos(t);
+                    temp[1] = top[1] + radius * sin(t);
+                    temp[2] = zval[i];
+                    particles.push_back(temp);
+                    t_lay += dt_lay;
+                }
+                t_rot += dt_rot;
+            }
         }
-
-                break;
+            break;
         default:
             distribute_particles(particles, Nppl, Nlay, radius, wellParticleDistributionType::SPIRAL);
 

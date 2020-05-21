@@ -30,6 +30,7 @@
 #include "streams.h"
 #include "cgal_functions.h"
 #include "dsimstructs.h"
+#include "dirichlet_boundary.h"
 
 struct SimPrintFlags{
 public:
@@ -65,7 +66,8 @@ public:
            TrilinosWrappers::MPI::Vector&       system_rhs,
            typename FunctionMap<dim>::type&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
-           MyFunction<dim,dim>&               groundwater_recharge,
+           MyFunction<dim,dim>&                 groundwater_recharge,
+           BoundaryConditions::Neumann<dim>&    Neumann_conditions,
            std::vector<int>&                    top_boundary_ids,
            SolverParameters&                    solver_param_in);
 
@@ -97,6 +99,7 @@ private:
     typename FunctionMap<dim>::type				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
+    BoundaryConditions::Neumann<dim>            Neumann;
     std::vector<int>                            top_boundary_ids;
     SolverParameters                            solver_param;
 
@@ -129,6 +132,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
                     typename FunctionMap<dim>::type&    dirichlet_boundary_in,
                     MyTensorFunction<dim>&              HK_function,
                     MyFunction<dim, dim>&               groundwater_recharge,
+                    BoundaryConditions::Neumann<dim>&   Neumann_conditions,
                     std::vector<int>&                   top_boundary_ids_in,
                     SolverParameters&                   solver_param_in)
     :
@@ -141,6 +145,7 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
       dirichlet_boundary(dirichlet_boundary_in),
       HK(HK_function),
       GWRCH(groundwater_recharge),
+      Neumann(Neumann_conditions),
       top_boundary_ids(top_boundary_ids_in),
       solver_param(solver_param_in),
       pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0)),
@@ -217,6 +222,7 @@ void GWFLOW<dim>::assemble(){
     }
 
     double QRCH_TOT = 0;
+    std::vector<double> QFLOW_TOT(Neumann.Nbnd(),0);
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -250,7 +256,7 @@ void GWFLOW<dim>::assemble(){
             for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
                 if(cell->face(i_face)->at_boundary()){
                     if ((cell->face(i_face)->boundary_id() == 5 && dim == 3) ||
-                            (cell->face(i_face)->boundary_id() == 3 && dim == 2)){
+                            (cell->face(i_face)->boundary_id() == 3 && dim == 2)){ // Top recharge
                         fe_face_values.reinit (cell, i_face);
                         double weight = recharge_weight<dim>(cell, i_face);
                         GWRCH.value_list(fe_face_values.get_quadrature_points(), recharge_values);
@@ -273,6 +279,27 @@ void GWFLOW<dim>::assemble(){
                             }
                         }
                     }
+                    if (Neumann.Nbnd() > 0){
+                        for (int ibnd = 0; ibnd < Neumann.Nbnd(); ++ibnd){
+                            if (((cell->face(i_face)->boundary_id() == 4 && dim == 3) ||
+                                (cell->face(i_face)->boundary_id() == 2 && dim == 2)) &&
+                                  Neumann.getType(ibnd) == BoundaryConditions::BoundaryType::BOT){ // Flows from bottom face
+                                fe_face_values.reinit (cell, i_face);
+                                std::vector<Point<dim> > q_pnts = fe_face_values.get_quadrature_points();
+                                for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point){
+                                    double flow_rate = Neumann.interpolate(q_pnts[q_point], ibnd);
+                                    for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                                        double Q_flow = flow_rate *
+                                                fe_face_values.shape_value(i,q_point)*
+                                                fe_face_values.JxW(q_point);
+
+                                        cell_rhs(i) += Q_flow;
+                                        QFLOW_TOT[ibnd] += Q_flow;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             cell->get_dof_indices (local_dof_indices);
@@ -286,9 +313,16 @@ void GWFLOW<dim>::assemble(){
     }
 
     MPI_Barrier(mpi_communicator);
+    // Sum up Flow contributions for display
     sum_scalar<double>(QRCH_TOT, n_proc, mpi_communicator, MPI_DOUBLE);
-    if (my_rank == 0)
+    for (int ii = 0; ii < Neumann.Nbnd(); ++ii)
+        sum_scalar<double>(QFLOW_TOT[ii], n_proc, mpi_communicator, MPI_DOUBLE);
+
+    if (my_rank == 0){
         std::cout << "\t QRCH: [" << QRCH_TOT << "]" << std::endl;
+        for (int ii = 0; ii < Neumann.Nbnd(); ++ii)
+            std::cout << "\t QFLOW(" << ii << "): [" << QFLOW_TOT[ii] << "]" << std::endl;
+    }
     MPI_Barrier(mpi_communicator);
 
     system_matrix.compress (VectorOperation::add);

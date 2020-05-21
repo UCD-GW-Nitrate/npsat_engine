@@ -9,12 +9,14 @@
 #include "my_functions.h"
 #include "cgal_functions.h"
 #include "helper_functions.h"
+#include "boost_functions.h"
 
 
 namespace BoundaryConditions{
 
 using namespace dealii;
 
+enum class BoundaryType{BOT,VER};
 
 /*! A primitive boundary shape.
  *
@@ -45,7 +47,13 @@ public:
     //! A method that checks if any point in the list is inside the bounding box of the primitive polygon
     bool is_any_point_insideBB(std::vector<double> x, std::vector<double> y);
 
+    bool is_any_point_insideBB(double x, double y);
+
     bool Point_in_BB(double xmin, double ymin, double xmax, double ymax, double x, double y);
+
+    bool is_point_inside_poly(double x, double y);
+
+    boost_polygon poly;
 };
 
 bool BoundPrim::is_any_point_insideBB(std::vector<double> x, std::vector<double> y){
@@ -91,7 +99,17 @@ bool BoundPrim::Point_in_BB(double xmin, double ymin, double xmax, double ymax, 
         return false;
 }
 
+bool BoundPrim::is_any_point_insideBB(double x, double y){
+    if (Point_in_BB(BBmin[0], BBmin[1], BBmax[0], BBmax[1], x, y)){
+        return true;
+    }
+    return false;
+}
 
+bool BoundPrim::is_point_inside_poly(double x, double y){
+    boost_point pnt(x,y);
+    return boost::geometry::within(pnt, poly);
+}
 
 
 /*! This is the class that provides methods to read the dirichlet boundary condition data
@@ -320,6 +338,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
             }
         }
     }
+    datafile.close();
 }
 
 template <int dim>
@@ -544,6 +563,158 @@ void Dirichlet<dim>::add_id(std::vector<int>& id_list, int id){
 
     if (!id_found)
         id_list.push_back(id);
+}
+
+
+
+template<int dim>
+class Neumann{
+public:
+    //! A constructor that does nothing
+    Neumann();
+
+    double interpolate(Point<dim> p, int ibnd);
+    bool getData(std::string filename);
+    int Nbnd();
+    BoundaryType getType(int i);
+
+private:
+    int Nb = 0;
+    std::vector<BoundPrim> boundary_parts;
+    std::vector<InterpInterface<dim> > interp_funct;
+    std::vector<BoundaryType> bnd_type;
+    std::vector<double> multiplier;
+
+};
+
+template<int dim>
+Neumann<dim>::Neumann(){
+    Nb = 0;
+}
+
+template<int dim>
+int Neumann<dim>::Nbnd(){
+    return Nb;
+}
+
+template<int dim>
+BoundaryType Neumann<dim>::getType(int i){
+    return bnd_type[i];
+}
+
+template<int dim>
+double Neumann<dim>::interpolate(Point<dim> p, int ibnd){
+
+    double out = 0.0;
+    if (dim == 2){
+        std::cout << "Neuman conditions in 2D are not impemented yet" << std::endl;
+    }
+    else if (dim == 3){
+        if (bnd_type[ibnd] == BoundaryType::BOT){
+            if (boundary_parts[ibnd].is_any_point_insideBB(p[0], p[1])){
+                if (boundary_parts[ibnd].is_point_inside_poly(p[0], p[1])){
+                    out = interp_funct[ibnd].interpolate(p) * multiplier[ibnd];
+                }
+            }
+        }
+        else if (bnd_type[ibnd] == BoundaryType::VER){
+            std::cout << "Vertical Neuman conditions in 3D are not impemented yet" << std::endl;
+        }
+    }
+    return out;
+}
+
+template<int dim>
+bool Neumann<dim>::getData(std::string filename){
+    std::ifstream  datafile(filename.c_str());
+    if (!datafile.good()){
+        std::cout << "Can't open " << filename << std::endl;
+        return false;
+    }
+    else{
+        std::string line, tmp;
+        {// NBND number of boundaries
+            getline(datafile, line);
+            std::istringstream inp(line.c_str());
+            inp >> Nb;
+            boundary_parts.resize(Nb);
+            interp_funct.resize(Nb);
+            bnd_type.resize(Nb);
+            multiplier.resize(Nb);
+        }
+        for (int i = 0; i < Nb; ++i){
+            std::string type, value;
+            int np;
+            double mult;
+
+            {// TYPE N VALUE (For each boundary)
+                getline(datafile, line);
+                std::istringstream inp(line.c_str());
+                inp >>type;
+                if (type.compare("BOT") == 0){
+                    bnd_type[i] = BoundaryType::BOT;
+                }
+                else if (type.compare("VER") == 0){
+                    bnd_type[i] = BoundaryType::VER;
+                }
+                else{
+                    std::cout << "Unknown type of Neumann condition: " << type << std::endl;
+                }
+                inp >> np;
+                inp >> mult;
+                multiplier[i] = mult;
+                inp >> value;
+            }
+            if (dim == 2){
+                std::cout << "Neumann readers are not implemented yet for 2D" << std::endl;
+                return false;
+            }
+            else if (dim == 3){
+                switch (bnd_type[i]) {
+                case BoundaryType::BOT:
+                {// in BOT case the geometry is a polygon
+                    double x, y;
+                    std::vector<boost_point> tmp_pnts;
+                    boundary_parts[i].BBmin[0] = 99999999999;
+                    boundary_parts[i].BBmin[1] = 99999999999;
+                    boundary_parts[i].BBmax[0] = -99999999999;
+                    boundary_parts[i].BBmax[1] = -99999999999;
+                    for (int iv = 0; iv < np; ++iv){
+                        getline(datafile, line);
+                        std::istringstream inp(line.c_str());
+                        inp >> x;
+                        // X coordinate
+                        if (x < boundary_parts[i].BBmin[0])
+                            boundary_parts[i].BBmin[0] = x;
+                        if (x > boundary_parts[i].BBmax[0])
+                            boundary_parts[i].BBmax[0] = x;
+                         boundary_parts[i].Xcoords.push_back(x);
+
+                         // Y coordinate
+                         inp >> y;
+                         if (y < boundary_parts[i].BBmin[1])
+                             boundary_parts[i].BBmin[1] = y;
+                         if (y > boundary_parts[i].BBmax[1])
+                             boundary_parts[i].BBmax[1] = y;
+                         boundary_parts[i].Ycoords.push_back(y);
+                         tmp_pnts.push_back(boost_point(x,y));
+
+                    }
+                    boost::geometry::assign_points(boundary_parts[i].poly, tmp_pnts);
+                    boost::geometry::correct(boundary_parts[i].poly);
+                    interp_funct[i].get_data(value);
+                }
+                break;
+                case BoundaryType::VER:{
+                    std::cout << "Neumann readers are not implemented yet for VER type" << std::endl;
+                }
+                break;
+                }
+            }
+        }
+    }
+    datafile.close();
+    return true;
 }
 
 }

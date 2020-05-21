@@ -6,6 +6,7 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/base/conditional_ostream.h>
+#include <deal.II/base/bounding_box.h>
 
 #include "my_functions.h"
 #include "dsimstructs.h"
@@ -17,7 +18,21 @@
 
 using namespace dealii;
 
-
+enum class ParticleExit{
+    NO_EXIT, /**< THe particle should not exit */
+    TOP, /**< The particle exits from the top */
+    BOT, /**< The particle exits from the bottom */
+    SIDEX, /**< The particle exits from the side */
+    SIDEY, /**< The particle exits from the side */
+    CHANGE_PROC, /**< The particle should continue to another processor */
+    MAX_STEPS, /**< Reach the maximum number of steps */
+    STUCK, /**< The particle stuck for a given number of iterations */
+    FAIL, /**< Transformation failed */
+    GHOST, /**< Attempt to compute velocity on artificial cell */
+    INIT_OUT, /**< The first point is outside the cell */
+    DOF_NOT_FOUND, /**< A dof could not be found in the velocity map */
+    UNKNOWN /**< The particle exits from the top */
+};
 
 /*!
  * \brief The AverageVel class is a container to hold the averaged values of a vector type (Velocity head gradient)
@@ -205,7 +220,7 @@ private:
      */
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller);
 
-    double calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel);
+    double calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& Vel);
 
     /**
      * @brief add_streamline_point Adds the point and velocity to the streamline. First checks if the cell is locally owned.
@@ -294,6 +309,8 @@ private:
                                   Point<dim>& vel,
                                   Point<dim>& dH,
                                   double& H);
+
+    void printAveragedVelocityField(std::string filename);
 
 
 
@@ -491,8 +508,8 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         pcout << "          Number of active particles: " << max_N_part << " --------" << std::endl << std::flush;
         //std::cout << my_rank << " : " << max_N_part << std::endl;
 
-        if (trace_iter>3)
-            return;
+        //if (trace_iter>3)
+        //    return;
 
         if (max_N_part == 0)
             break;
@@ -520,13 +537,13 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
     //std::cout << "Eid: " << streamline.E_id << ", Sid: " << streamline.S_id << std::endl;
 
     // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
-    int reason_to_exit= -99;
+    int reason_to_exit= -99; //UNKNOWN
     int cnt_iter = 0;
     if (bprint_DBG){
         print_Cell_var(cell, cell_type(cell));
         print_point_var(streamline.P[streamline.P.size()-1], 1000);
     }
-    while(cnt_iter < param.streaml_iter){
+    while(true){
         if (cnt_iter == 0){ // If this is the starting point of the streamline we need to compute the velocity
             int check_id = check_cell_point(cell, streamline.P[streamline.P.size()-1]);
             Point<dim> v;
@@ -534,7 +551,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
                 reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell, check_id, 0);
             }
             else{
-                reason_to_exit = -88;
+                reason_to_exit = -88; //INIT_OUT
             }
             if (reason_to_exit != 0){
                 if (bprint_DBG)
@@ -550,7 +567,7 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
         // The following function returns both the position with velocity
         reason_to_exit = find_next_point(streamline, cell);
         if (streamline.times_not_expanded > param.Stuck_iter){
-            reason_to_exit = -66;
+            reason_to_exit = -66; //STUCK
             if (bprint_DBG)
                 print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
             return reason_to_exit;
@@ -559,6 +576,9 @@ int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>:
         if ( reason_to_exit != 0 )
             break;
         cnt_iter++;
+        if (cnt_iter > param.streaml_iter){
+            reason_to_exit = 777; //MAX_STEPS
+        }
     }
     print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
     return  reason_to_exit;
@@ -704,7 +724,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                   << "), for Eid: " << dbg_curr_Eid << " and Sid: "
                   << dbg_curr_Sid
                   << " however the check_point_status is negative" << std::endl;
-        outcome = -99;
+        outcome = -99; //GHOST
         return outcome;
     }
 
@@ -713,7 +733,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     bool success = try_mapping(p, p_unit, cell, mapping);
     if (!success){
         std::cerr << "P fail v1:" << p << " caller: " << caller << std::endl;
-        outcome = -88;
+        outcome = -88; //FAIL
         return outcome;
     }
 
@@ -721,21 +741,21 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     if (check_point_status == 0){
         // no new cell has been found the particle possible has left the domain for ever
         if (p_unit[dim-1] > 1){ // the particle exits from the top face which is what we want
-            outcome = 1;
+            outcome = 1; //TOP
             return outcome;
         }
         else if (p_unit[dim-1] < 0){ // the particle exits from the bottom face (BAD BAD BAD!!!)
-            outcome = -9;
+            outcome = -9; //BOT
             return outcome;
         }
         else if(p_unit[0] < 0 || p_unit[0] > 1){ // the particle exits from either side in x direction (not ideal but its ok)
-            outcome = 2;
+            outcome = 2; //SIDEX
             return outcome;
         }
         else if (dim == 3){
             if (p_unit[1] < 0 || p_unit[1] > 1){ // same as above
                outcome = 2;
-               return outcome;
+               return outcome; //SIDEY
             }
         }
 
@@ -780,13 +800,13 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                         v[idim] += N * vel_it->second.av_vel[idim];
                 }
                 else {
-                    return -98;
+                    return -98;//DOF_NOT_FOUND
                 }
             }
             for (unsigned int idim = 0; idim < dim; ++idim){
                 v[idim] = (HK[idim][idim]*v[idim])/por;
             }
-            return 0;
+            return 0;//NO_EXIT
         }
         else {
             //The velocity is equal vx = - Kx*dHx/n
@@ -825,7 +845,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
             Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
             for (int i_dim = 0; i_dim < dim; ++i_dim)
                 v[i_dim] = temp_v[i_dim];
-            return 0;
+            return 0;//NO_EXIT
         }
     }
     return outcome;
@@ -1018,7 +1038,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
 
 template <int dim>
 int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
-    int outcome = -9999;
+    int outcome = -9999;//UNKNOWN
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
     double step_lenght = time_step_multiplier(cell) *(cell->minimum_vertex_distance()/param.step_size);
     double step_time;
@@ -1201,7 +1221,15 @@ void Particle_Tracking<dim>::Send_receive_particles(std::vector<Streamline<dim>>
 }
 
 template <int dim>
-double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_cell_iterator cell, Point<dim> Vel){
+double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& Vel){
+    BoundingBox<dim> BB = cell->bounding_box();
+    std::pair<Point<dim>, Point<dim>> bb_points = BB.get_boundary_points();
+
+    return 0.0;
+
+
+
+
     double xmin, ymin, zmin;
     xmin = 10000000;
     ymin = 10000000;
@@ -1217,13 +1245,12 @@ double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_c
         if (dst < zmin) zmin = dst;
         dst = cell->vertex(1).distance(cell->vertex(3));
         if (dst < zmin) zmin = dst;
-        double Vn = Vel.norm_sqr();
+        double Vn = Vel.norm_square();
         Vel[0] = Vel[0]/Vn;
         Vel[1] = Vel[1]/Vn;
         return xmin*Vel[0] + zmin*Vel[1];
 
     }
-
 }
 
 template <int dim>
@@ -1239,12 +1266,12 @@ int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::activ
     if (return_value == 0 || return_value == -1){ // Either the computation has been normal or with reduced step
         if (cell->is_ghost() || cell->is_artificial()){
             streamline.add_point(p, cell->subdomain_id());
-            return 55;
+            return 55; //CHANGE_PROC
         }
         else if (cell->is_locally_owned()){
             //plot_segment(streamline.P[streamline.P.size()-1], p);
             streamline.add_point_vel(p, vel, cell->subdomain_id());
-            return 0;
+            return 0; //NO_EXIT
         }
     }
     else{
@@ -2573,7 +2600,70 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
         }
     }
     std::cout << "Max vel: " << max_vel << ", Min vel: " << min_vel << std::endl;
+    printAveragedVelocityField(param.particle_prefix + "AvVelField" + Utilities::int_to_string(my_rank, 4) + ".vel");
+
     return true;
+}
+
+template <int dim>
+void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
+    std::cout << "Printing Velocity field" << std::endl;
+    std::ofstream vel_file;
+    vel_file.open(filename.c_str());
+    typename std::map<unsigned int, AverageVel<dim>>::iterator it;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    double vel_mult = 1000.0;
+
+    std::vector<bool> printed(dof_handler.n_dofs(), false);
+
+    QTrapez<dim> trapez_formula;
+    std::vector<double> cell_head(dofs_per_cell);
+    FEValues<dim> fe_values_trapez(fe, trapez_formula, update_values);
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned()){
+
+
+
+            fe_values_trapez.reinit(cell);
+            fe_values_trapez.get_function_values(locally_relevant_solution, cell_head);
+
+            cell->get_dof_indices (local_dof_indices);
+            for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
+                if (!printed[local_dof_indices[ii]]){
+                    Point<dim> p = cell->vertex(ii);
+                    it = VelocityMap.find(local_dof_indices[ii]);
+                    if (it != VelocityMap.end()){
+
+                        double temp = calculate_step(cell, it->second.av_vel);
+
+                        vel_file << local_dof_indices[ii] << " " << std::fixed << std::setprecision(2)
+                                 << p[0] << " "
+                                 << p[1] << " ";
+                        if (dim == 3){
+                            vel_file << p[2] << " ";
+                        }
+                        vel_file << std::fixed << std::setprecision(5) << it->second.av_vel[0]*vel_mult << " "
+                                 << it->second.av_vel[1]*vel_mult << " ";
+                        if (dim == 3){
+                            vel_file << it->second.av_vel[2]*vel_mult << " ";
+                        }
+                        vel_file << std::fixed << std::setprecision(4) << cell_head[ii] << std::endl;
+                        printed[local_dof_indices[ii]] = true;
+                    }
+                    else{
+                        std::cout << "That can't be happening" << std::endl;
+                    }
+                }
+            }
+        }
+    }
+    vel_file.close();
 }
 
 #endif // PARTICLE_TRACKING_H

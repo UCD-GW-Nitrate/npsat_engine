@@ -10,4 +10,5 @@ enum class wellParticleDistributionType{
     INVALID /**< This is a placeholder for not valid types*/
 };
 
+
 #endif // MY_MACROS_H
