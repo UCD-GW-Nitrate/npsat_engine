@@ -178,8 +178,11 @@ public:
     //! The number of initial refinements around the streams
     unsigned int                    N_streams_refinement;
 
-    //! The number ot initial refinements around the top
+    //! The number of initial refinements around the top
     unsigned int                    N_top_refinements;
+
+    //! The number of initial refinements of all boundaries except the top which is controled by the N_top_refinements
+    unsigned int                    N_Bnd_refinements;
 
     //! A vector that defines the vertical discretization of the aquifer. The size of the vector defines the number of the layers,
     //! while the distribution is dictated by the values. The values should range between 0 and 1. For example a vector 0 0.2 0.4 0.6 0.8 1

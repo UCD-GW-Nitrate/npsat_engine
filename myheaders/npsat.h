@@ -201,6 +201,7 @@ void NPSAT<dim>::make_grid(){
         bool done_wells = false;
         bool done_streams = false;
         bool done_top = false;
+        bool done_bnds = false;
 
 
         if (count_refinements < AQProps.N_well_refinement){
@@ -215,14 +216,19 @@ void NPSAT<dim>::make_grid(){
         else
             done_streams = true;
 
-        if (count_refinements < AQProps.N_top_refinements){
-            refineTop<dim>(triangulation);
-        }
-        else{
+        if (count_refinements >= AQProps.N_top_refinements){
             done_top = true;
         }
+        if (count_refinements >= AQProps.N_Bnd_refinements){
+            done_bnds = true;
+        }
+        if (!done_top || !done_bnds){
+            refineTop<dim>(triangulation, !done_top, !done_bnds);
+        }
 
-        if (done_wells && done_streams && done_top)
+
+
+        if (done_wells && done_streams && done_top && done_bnds)
             break;
 
         do_refinement1();

@@ -350,21 +350,25 @@ void CL_arguments<dim>::declare_parameters(){
                           "This parameter, if present, overrides the 3rd or 2nd element of the Nxyz\n"
                           "in 3D or 2D respectively");
 
-        prm.declare_entry("c Initial Refinement", "0", Patterns::Integer(0,10),
+        prm.declare_entry("c Initial Refinement", "0", Patterns::Integer(0,20),
                           "c----------------------------------\n"
                           "The number of initial refinements");
 
-        prm.declare_entry("d Well Refinement", "0", Patterns::Integer(0,10),
+        prm.declare_entry("d Well Refinement", "0", Patterns::Integer(0,20),
                           "d----------------------------------\n"
                           "The number of initial refinements around the wells");
 
-        prm.declare_entry("e Stream Refinement", "0", Patterns::Integer(0,10),
+        prm.declare_entry("e Stream Refinement", "0", Patterns::Integer(0,20),
                           "e----------------------------------\n"
                           "The number of initial refinements around the Streams");
 
-        prm.declare_entry("f Top Refinement", "0", Patterns::Integer(0,10),
+        prm.declare_entry("f Top Refinement", "0", Patterns::Integer(0,20),
                           "f----------------------------------\n"
                           "The number of initial refinements on the top (water table)");
+
+        prm.declare_entry("g Remaining Boundaries Refinement", "0", Patterns::Integer(0,20),
+                          "g----------------------------------\n"
+                          "The number of initial refinements for the remaining boundaries");
 
     }
     prm.leave_subsection();
@@ -816,6 +820,8 @@ bool CL_arguments<dim>::read_param_file(){
         AQprop.N_streams_refinement = prm.get_integer("e Stream Refinement");
 
         AQprop.N_top_refinements = prm.get_integer("f Top Refinement");
+
+        AQprop.N_Bnd_refinements = prm.get_integer("g Remaining Boundaries Refinement");
 
 
         if (temp_str != ""){

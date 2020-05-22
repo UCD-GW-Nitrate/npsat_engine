@@ -220,7 +220,7 @@ private:
      */
     int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller);
 
-    double calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& Vel);
+    double calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p0, Point<dim>& Vel);
 
     /**
      * @brief add_streamline_point Adds the point and velocity to the streamline. First checks if the cell is locally owned.
@@ -1040,7 +1040,9 @@ template <int dim>
 int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
     int outcome = -9999;//UNKNOWN
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
-    double step_lenght = time_step_multiplier(cell) *(cell->minimum_vertex_distance()/param.step_size);
+
+    double step_lenght = time_step_multiplier(cell) *calculate_step(cell, streamline.P[last], streamline.V[last]);
+    //double old_step = cell->minimum_vertex_distance()/param.step_size;
     double step_time;
     Point<dim> next_point;
     Point<dim> temp_velocity;
@@ -1221,36 +1223,43 @@ void Particle_Tracking<dim>::Send_receive_particles(std::vector<Streamline<dim>>
 }
 
 template <int dim>
-double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& Vel){
+double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p0, Point<dim>& Vel){
+    // get the bounding box of the cell
     BoundingBox<dim> BB = cell->bounding_box();
     std::pair<Point<dim>, Point<dim>> bb_points = BB.get_boundary_points();
 
-    return 0.0;
+    // define a line in the direction of velocity and calculate the parametric value where the line intersects the bounding box
+    Point<dim> p1;
+    p1 = p0 + Vel.operator*(0.1);
+    double t_max = 1000000000;
+    double t_min = -1000000000;
+    double tmp_min, tmp_max;
 
+    for (int idim = 0; idim < dim; ++idim){
+        //p1[idim] = p0[idim] + Vel[idim]*0.1;
 
-
-
-    double xmin, ymin, zmin;
-    xmin = 10000000;
-    ymin = 10000000;
-    zmin = 10000000;
-    if (dim == 2){
-        // x direction
-        double dst = cell->vertex(0).distance(cell->vertex(1));
-        if (dst < xmin) xmin = dst;
-        dst = cell->vertex(2).distance(cell->vertex(3));
-        if (dst < xmin) xmin = dst;
-
-        dst = cell->vertex(0).distance(cell->vertex(2));
-        if (dst < zmin) zmin = dst;
-        dst = cell->vertex(1).distance(cell->vertex(3));
-        if (dst < zmin) zmin = dst;
-        double Vn = Vel.norm_square();
-        Vel[0] = Vel[0]/Vn;
-        Vel[1] = Vel[1]/Vn;
-        return xmin*Vel[0] + zmin*Vel[1];
-
+        if (std::abs(Vel[idim]) < 0.000001){
+            tmp_min = -1000000000;
+            tmp_max =  1000000000;
+        }
+        else if (Vel[idim] > 0.0 ){
+            tmp_min = (bb_points.first[idim] - p0[idim])/(p1[idim] - p0[idim]);
+            tmp_max = (bb_points.second[idim] - p0[idim])/(p1[idim] - p0[idim]);
+        }
+        else if (Vel[idim] < 0.0){
+            tmp_min = (bb_points.second[idim] - p0[idim])/(p1[idim] - p0[idim]);
+            tmp_max = (bb_points.first[idim] - p0[idim])/(p1[idim] - p0[idim]);
+        }
+        if (tmp_max < t_max)
+            t_max = tmp_max;
+        if (tmp_min > t_min)
+            t_min = tmp_min;
     }
+
+    Point<dim> pmin = p0.operator*(1-t_min) + p1.operator*(t_min);
+    Point<dim> pmax = p0.operator*(1-t_max) + p1.operator*(t_max);
+
+    return pmin.distance(pmax)/param.step_size;
 }
 
 template <int dim>
@@ -2639,9 +2648,6 @@ void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
                     Point<dim> p = cell->vertex(ii);
                     it = VelocityMap.find(local_dof_indices[ii]);
                     if (it != VelocityMap.end()){
-
-                        double temp = calculate_step(cell, it->second.av_vel);
-
                         vel_file << local_dof_indices[ii] << " " << std::fixed << std::setprecision(2)
                                  << p[0] << " "
                                  << p[1] << " ";
