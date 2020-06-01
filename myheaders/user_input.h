@@ -659,6 +659,10 @@ void CL_arguments<dim>::declare_parameters(){
                               "g----------------------------------\n"
                               "Prints the constant head boundary condition polygons\n"
                               "The file name is Prefix + proc.vel");
+            prm.declare_entry("h Print Average Velocity", "0", Patterns::Integer(0,2),
+                              "h----------------------------------\n"
+                              "Prints the average velocity field\n"
+                              "The file name is Prefix + AvVelField + proc.vel");
         }
         prm.leave_subsection();
 
@@ -1068,6 +1072,7 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.print_velocity_cloud = prm.get_integer("e Print velocity field cloud");
             AQprop.multiplier_velocity_print = prm.get_double("f Velocity multiplier");
             AQprop.print_bnd_cond = prm.get_integer("g Print Boundary conditions");
+            AQprop.print_Average_Velocity = prm.get_integer("h Print Average Velocity");
 
         }
         prm.leave_subsection ();

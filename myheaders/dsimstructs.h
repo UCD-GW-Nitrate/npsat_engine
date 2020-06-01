@@ -239,8 +239,11 @@ public:
     //! THis can be read easily in houdini for visual inspections
     int                                 print_point_top_cloud;
 
-    //! Prints the velocity field.
+    //! Prints the velocity field. The cloud velocity field is calculated on the quadrature points of the elements
     int                                 print_velocity_cloud;
+
+    //! This prints the average velocity of the solution which is defined on the mesh nodes
+    int                                 print_Average_Velocity;
 
     //! Print boundary conditions
     int                                 print_bnd_cond;

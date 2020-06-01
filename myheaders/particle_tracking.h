@@ -131,7 +131,7 @@ public:
     void print_all_cell_velocity();
 
     bool average_velocity_field();
-    bool average_velocity_field1();
+    bool average_velocity_field1(int printit);
 
 private:
     MPI_Comm                            mpi_communicator;
@@ -2168,7 +2168,7 @@ bool Particle_Tracking<dim>::average_velocity_field(){
 }
 
 template <int dim>
-bool Particle_Tracking<dim>::average_velocity_field1(){
+bool Particle_Tracking<dim>::average_velocity_field1(int printit){
     unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
@@ -2609,7 +2609,8 @@ bool Particle_Tracking<dim>::average_velocity_field1(){
         }
     }
     std::cout << "Max vel: " << max_vel << ", Min vel: " << min_vel << std::endl;
-    printAveragedVelocityField(param.particle_prefix + "AvVelField" + Utilities::int_to_string(my_rank, 4) + ".vel");
+    if (printit > 0)
+        printAveragedVelocityField(param.particle_prefix + "AvVelField" + Utilities::int_to_string(my_rank, 4) + ".vel");
 
     return true;
 }
