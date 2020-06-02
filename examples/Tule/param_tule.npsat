@@ -4,11 +4,11 @@ subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/Tule/
+  set a Input directory  = ./examples/Tule/
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/Tule/output/
+  set b Output directory = ./examples/Tule/output/
 end
 
 
@@ -83,11 +83,19 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 4
+  set d Well Refinement         = 1
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 4
+  set e Stream Refinement       = 1
+
+  # f----------------------------------
+  # The number of initial refinements on the top (water table)
+  set f Top Refinement                  = 0
+
+  # g----------------------------------
+  # The number of initial refinements for the remaining boundaries
+  set g Remaining Boundaries Refinement = 0
 end
 
 
@@ -139,6 +147,23 @@ subsection F. Sources & Sinks ==================================
   # Well network
   # The name of a file with the well information
   set c Wells                = Tule_wells_v1.npsat
+
+  # d----------------------------------
+  # Neumann Conditions
+  # The name of a file with additional boundary flows
+  set d Neumann Conditions   = 
+
+  # e----------------------------------
+  # Multiplier for groundwater recharge
+  set e Recharge multiplier  = 1
+
+  # f----------------------------------
+  # Multiplier for groundwater pumping
+  set f Well multiplier      = 1
+
+  # g----------------------------------
+  # Multiplier for stream leackage
+  set g Stream multiplier    = 1
 end
 
 
@@ -188,7 +213,7 @@ end
 subsection I. Particle tracking ================================
   # a----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set a Enable particle tracking = 1
+  set a Enable particle tracking = 0
 
 
   subsection A. Configuration =---=---=---=---=---=---=---=---=
@@ -256,6 +281,12 @@ subsection I. Particle tracking ================================
     # e----------------------------------
     # The distance from well that the particles will be releazed
     set e Distance from well        = 5.85
+
+    # f----------------------------------
+    # This is one of the following:
+    # LAYERED SPIRAL LAYROT
+    set f Well Distribution type    = LAYERED
+
   end
 
   subsection C. Particle Output configuration =---=---=---=---=---=
@@ -302,7 +333,31 @@ subsection J. Output Parameters ================================
 
     # c----------------------------------
     # Loads an existing flow solution.
-    set c Load Solution = 1
+    set c Load Solution = 0
+
+    # d----------------------------------
+    # Prints the solution every iteration
+    # The file name is Prefix + ....*vtu
+    set d Print solution vtk         = 0
+
+    # e----------------------------------
+    # Prints the velocity field cloud
+    # The file name is Prefix + proc.vel
+    set e Print velocity field cloud = 0
+
+    # f----------------------------------
+    # Multiplier coefficient to increase the printed velocity precision
+    set f Velocity multiplier        = 10000
+
+    # g----------------------------------
+    # Prints the constant head boundary condition polygons
+    # The file name is Prefix + proc.vel
+    set g Print Boundary conditions  = 0
+
+    # h----------------------------------
+    # Prints the average velocity field
+    # The file name is Prefix + AvVelField + proc.vel
+    set h Print Average Velocity     = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=
@@ -314,7 +369,7 @@ subsection J. Output Parameters ================================
     # b----------------------------------
     # Prints the coordinates of the free surface vertices.
     # The file name is Prefix + top + iter + proc.xyz
-    set b Print free surface point cloud = 1
+    set b Print free surface point cloud = 0
 
     # c----------------------------------
     # This should be roughly equal to the maximum dimension

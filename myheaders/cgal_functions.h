@@ -433,7 +433,20 @@ bool any_point_inside(Range_tree_3_type& Range_tree_3,
     return outcome;
 }
 
+/* If the real_to_unit_cell_affine_approximation wont work this is the last hope to solve this issue
+template<int dim>
+bool try_cgal_mapping(std::vector<dealii::Point<dim>>& cell_coord, dealii::Point<dim>& p, dealii::Point<dim>& p_u){
+    ine_Delaunay_triangulation dt;
+    for (unsigned int i = 0; i < cell_coord.size(); ++i) {
+        dt.insert(ine_Point2(cell_coord[i][0], cell_coord[i][1]));
+    }
+    ine_Point2 pp(p[0], p[1]);
+    std::vector< std::pair< ine_Point2, ine_Coord_type > > coords;
+    ine_Coord_type norm = CGAL::natural_neighbor_coordinates_2(dt, pp, std::back_inserter(coords)).second;
+    std::cout << norm << std::endl;
+    return false;
+}
+*/
 
-// The original file has two more functions to add
 
 #endif // CGAL_FUNCTIONS_H

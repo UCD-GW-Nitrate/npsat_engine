@@ -221,6 +221,7 @@ void GWFLOW<dim>::assemble(){
         pcout << "Recharge multiplier: " << solver_param.rch_multiplier << std::endl;
     }
 
+
     double QRCH_TOT = 0;
     std::vector<double> QFLOW_TOT(Neumann.Nbnd(),0);
     typename DoFHandler<dim>::active_cell_iterator
