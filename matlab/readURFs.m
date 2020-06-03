@@ -22,6 +22,9 @@ function WellURF = readURFs(filename, opt)
         if isfield(opt, 'Lmin')
             topt.Lmin = opt.Lmin;
         end
+        if isfield(opt, 'Ttime')
+            topt.Ttime = opt.Ttime;
+        end
     end
 
     fid = fopen(filename,'r');

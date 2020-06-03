@@ -71,19 +71,19 @@ void print_cell_coords(typename dealii::DoFHandler<dim>::active_cell_iterator ce
 
 
 template <int dim>
-bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& punit,
+bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& p_unit,
                  typename dealii::DoFHandler<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
     bool mapping_done = false;
     //int count_try = 0;
     dealii::Point<dim> p_try = p;
     while (!mapping_done){
         try {
-            punit = mapping.transform_real_to_unit_cell(cell, p_try);
+            p_unit = mapping.transform_real_to_unit_cell(cell, p_try);
             mapping_done = true;
         } catch (...) {
-            punit = cell->real_to_unit_cell_affine_approximation(p_try);
+            p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
+            std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
             mapping_done = true;
-            break;
             //for (unsigned int idim = 0; idim < dim; ++idim)
             //    p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
             //++count_try;
@@ -112,8 +112,7 @@ bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
         catch(...){
             p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
             mapping_done = true;
-            std::cerr << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
-            break;
+            std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
             //for (unsigned int idim = 0; idim < dim; ++idim)
             //    p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(double(rand())/double(RAND_MAX)));
             //++count_try;
@@ -1052,6 +1051,11 @@ wellParticleDistributionType string2Enum_wellParticleDistributionType(std::strin
         std::cout << "invalid well particle distribution type switch to SPIRAL" << std::endl;
         return wellParticleDistributionType::SPIRAL;
     }
+}
+
+// https://stackoverflow.com/questions/2390912/checking-for-an-empty-file-in-c
+bool is_file_empty(std::ifstream& pFile){
+    return pFile.peek() == std::ifstream::traits_type::eof();
 }
 
 /*

@@ -187,6 +187,8 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                 std::cout << "Can't load the file " << filename << std::endl;
             }
             else{
+                if (is_file_empty(datafile))
+                    continue;
                 //std::cout << i_proc << " " << std::flush;
                 //std::cout << "Reading particles from processor " << i_proc << std::endl;
                 //typename std::map<int, std::map<int,  Gather_Data::Streamline<dim> > >::iterator well_it;
@@ -219,6 +221,7 @@ void gather_particles<dim>::gather_streamlines(std::string basename, int n_proc,
                         break;
                 }
             }
+            datafile.close();
         }
         //std::cout << std::endl;
     }

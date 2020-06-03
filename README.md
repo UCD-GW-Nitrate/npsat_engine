@@ -20,15 +20,17 @@ Deal library has quite a few options on how to compile. The easiest seems to be 
     (If you dont have more than 16 GB ram then use `-j 2` or even without `j`). 
     
 
-- [CGAL](https://www.cgal.org/).
-It is highly recommended to use version [4.11.3](https://github.com/CGAL/cgal/releases/tag/releases%2FCGAL-4.11.3)  as earlier or later compiled versions have failed to be compiled together with NPSAT. 
+- [CGAL](https://www.cgal.org/). A number of CGAL versions have been tested to work with npsat_engine. For example version [4.11.3](https://github.com/CGAL/cgal/releases/tag/releases%2FCGAL-4.11.3) or [4.13](https://github.com/CGAL/cgal/tree/releases/CGAL-4.13) work without issues. Some of the earlier versions have failed to be compiled together with npsat_engine. 
 If you already have a CGAL installation from sources (e.g.`sudo apt-get install libcgal-dev`) then it may work even if the installed version is not the specific one. 
 To find out about the compiled version compile and run this [program](https://gist.github.com/alecsphys/7398446).
 
-    If you follow the installation guide from the library then you will do the following
+    Since the CGAL libray has switch from compiled to header only it is always recomended to use a relatively newer version. CGAL comes with an INSTALL.md file that provides detail instructions. Here is a short summary to install the [4.14](https://github.com/CGAL/cgal/tree/releases/CGAL-4.14-branch):
+
     ```
-    cd /path/to/cgal-releases-CGAL-4.11.3
+    git clone -b releases/CGAL-4.14-branch  https://github.com/CGAL/cgal.git
+    cd cgal
     mkdir -p build/release
+    cd build/release
     cmake -DCMAKE_BUILD_TYPE=Release ../..
     make
     ```
@@ -42,14 +44,23 @@ To find out about the compiled version compile and run this [program](https://gi
     This will create a CMakeCache.txt file. Search for CGAL_DIR in that file.
 
     Last, dont forget to delete the foo folder `rm -r cgalfoo`
-- [Boost](https://www.boost.org) Nowadays almost every project needs boost. However the installation deall.ii takes care of that.
+
+- [gridInterp](https://github.com/giorgk/gridInterp) This is a header only library that is used for the interpolation of gridded formated data. There is also nothing to install. All you need is to clone the repository.
+
+    ```
+    git clone https://github.com/giorgk/gridInterp.git
+    ```
+
+- [Boost](https://www.boost.org) Nowadays almost every project needs boost. Luckily the deall.ii installation takes care of that.
 
 
 
 ## Build NPSAT
 To compile the NPSAT code run the following command from the directory where the npsat.cc file is.
 ```
-cmake -DDEAL_II_DIR=Path/to/candi/compiled/libs/deal.II-v9.0.0 -DCGAL_DIR:PATH=/path/to/cgal-releases-CGAL-4.11.3/build/release .
+cmake -DDEAL_II_DIR=Path/to/candi/compiled/libs/deal.II-v9.0.0 \
+-DCGAL_DIR:PATH=/path/to/cgal/build/release \
+-DGRID_INTERP=/path/to/gridInterp .
 make
 ```
 
@@ -138,7 +149,7 @@ Last, to import the project into the QT creator File->Open File or Project and s
 
 Although the simulation of non point source pollution is a 3D problem the code is designed to run 2D problems, where only a cross section of the domain is considered. 
 The NPSAT code can be compiled to run either 2D or 3D problem. 
-Inside the headers folder there is a header file *my_macros.h* which includes the definition of the dimension. Change this to 2 or 3 according to the problem being solved
+Inside the headers folder there is the *my_macros.h* header file which includes the definition of the dimension. Change this to 2 or 3 according to the problem being solved.
 
 ```
  #define _DIM 2
@@ -150,11 +161,11 @@ To run NPSAT you need to prepare a main parameter file. Then you can do:
 ```
 mpirun -n nproc path/to/executable/npsat -p parameter_file.npsat
 ```
-This is going to execute the problem described in the parameter file. using `nproc` processors. If the particle tracking is on, then most likely the particle trajectories have been written in several files per processor, where each file contains segments of the particle trajectories. To do anything useful with them you need first to gather them. You can do so by running the following
+This is going to execute the problem described in the parameter file using `nproc` processors. If the particle tracking is on, then most likely the particle trajectories have been written in several files per processor, where each file contains segments of the particle trajectories. To do anything useful with them you need first to gather them. You can do so by running the following
 ```
-path/to/executable/npsat -p parameter_file.npsat -g nproc nchunk
+path/to/executable/npsat -p parameter_file.npsat -g nproc nchunk -e nentities
 ```
-where `nproc` is the number of processors that where used during the simulation and `nchunk` is a number that is specified at the end of the simulation. 
+where `nproc` is the number of processors that where used during the simulation, `nchunk` is a number that is specified at the end of the simulation and `nentities` is the number of entities (i.e. the number of wells). 
 
 #### Compute URFs
 This gather step is going to generate one or more files with the suffix *.urfs. This contains the data in a suitable format for Unit Response Function calculation. 
@@ -231,23 +242,24 @@ If for any reason you need to kill the job, find the job id by running the squeu
 
 * **Transfer results from cluster**
 To transfer the result from the cluster to local machine the admins suggest the rsync over scp. For example to tranfer the *urfs files on the current folder do:
-```
-rsync -azvhe ssh name@aqua.lawr.ucdavis.edu:/path/of/the/results/*.urfs .
-```
-or for the farm cluster
-```
-rsync -e "ssh -p 2022" --archive name@farm.cse.ucdavis.edu:/path/of/the/results/*.urfs .
-```
+    ```
+    rsync -azvhe ssh name@aqua.lawr.ucdavis.edu:/path/of/the/results/*.urfs .
+    ```
+    or for the farm cluster
+    ```
+    rsync -e "ssh -p 2022" --archive name@farm.cse.ucdavis.edu:/path/of/the/results/*.urfs .
+    ```
 * **Delete many files**
 The simulation depending the number of processors and the number of particle tracking may create a large number of files. The command `rm -r` to delete all files let's say from the output folder may fail.
 An alternative command is ([see details](https://stackoverflow.com/questions/14731133/how-to-delete-all-files-older-than-3-days-when-argument-list-too-long?rq=1)):
-```
-find . -mtime +3 | xargs rm -Rf
-```
+    ```
+    find . -mtime +3 | xargs rm -Rf
+    ```
+* **Fine the number of files in a directory**
 It is also usefull to find the number of files in a directory. The following does that ([see more](https://askubuntu.com/questions/370697/how-to-count-number-of-files-in-a-directory-but-not-recursively)):
-```
-find -maxdepth 1 -type f | wc -l
-```
+    ```
+    find -maxdepth 1 -type f | wc -l
+    ```
 
     
     
