@@ -25,6 +25,9 @@ function WellURF = readURFs(filename, opt)
         if isfield(opt, 'Ttime')
             topt.Ttime = opt.Ttime;
         end
+        if isfield(opt, 'Agemin')
+            topt.Agemin = opt.Agemin;
+        end
     end
 
     fid = fopen(filename,'r');
@@ -62,7 +65,7 @@ function WellURF = readURFs(filename, opt)
         end
         %plot3(C(:,1),C(:,2),C(:,3),'.')
         if true_mode
-            urf = ComputeURF(C(:,1:3), C(:,4), topt);
+            [urf, v_eff] = ComputeURF(C(:,1:3), C(:,4), topt);
             WellURF(cnter,1).Eid = E_id;
             WellURF(cnter,1).Sid = S_id;
             WellURF(cnter,1).p_cds = C(1,1:3);
@@ -71,6 +74,9 @@ function WellURF = readURFs(filename, opt)
             WellURF(cnter,1).v_lnd = C(end,4);
             L = cumsum(sqrt(sum((C(2:end,1:3) - C(1:end-1,1:3)).^2,2)));
             WellURF(cnter,1).L = L(end);
+            WellURF(cnter,1).Age = sum(diff([0;L])./C(1:end-1,4))/365;
+            WellURF(cnter,1).v_eff = v_eff(1);
+            WellURF(cnter,1).v_m = v_eff(2);
             WellURF(cnter,1).URF = urf;
             cnter = cnter + 1;
             if cnter > size(WellURF,1)
@@ -119,3 +125,4 @@ function well = allocate_space(well)
         well(Nsize+cnt,1).URF = [];
     end
 end
+

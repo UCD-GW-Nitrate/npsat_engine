@@ -77,7 +77,9 @@ void Streamline<dim>::add_new_particle(int p_id, Gather_Data::particle<dim> part
     typename std::map<int, Gather_Data::particle<dim> >::iterator it = particles.find(p_id);
     if (it == particles.end()){
         particles[p_id] = part;
-        Out_code = out;
+        typename std::map<int, Gather_Data::particle<dim> >::reverse_iterator rit = particles.rbegin();
+        if (rit->first <= p_id )
+            Out_code = out;
     }
 }
 
@@ -445,14 +447,16 @@ void gather_particles<dim>::print_streamlines4URF(std::string basename, Particle
         for (; strm_it != well_it->second.end(); ++strm_it){
             file_strml << well_it->first << " "
                        << strm_it->first << " "
+                       << strm_it->second.Out_code << " "
                        << strm_it->second.particles.size() << std::endl;
             typename std::map<int, Gather_Data::particle<dim> >::iterator part_it = strm_it->second.particles.begin();
             for (; part_it != strm_it->second.particles.end(); ++part_it){
-                file_strml << std::setprecision(10)
+                file_strml << std::setprecision(3) << std::fixed
                            << part_it->second.P[0] << " "
                            << part_it->second.P[1] << " "
                            << part_it->second.P[2] << " "
-                           << part_it->second.V.norm() << std::endl;
+                           << std::setprecision(5) << std::fixed
+                           << part_it->second.V.norm()*1000000 << std::endl;
             }
             count_strmln++;
         }

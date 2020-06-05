@@ -28,7 +28,8 @@ enum class ParticleExit{
     MAX_STEPS, /**< Reach the maximum number of steps */
     STUCK, /**< The particle stuck for a given number of iterations */
     FAIL, /**< Transformation failed */
-    GHOST, /**< Attempt to compute velocity on artificial cell */
+    GHOST, /**< Attempt to compute velocity on ghost cell */
+    ARTIFICIAL, /**< Attempt to compute velocity on artificial cell */
     INIT_OUT, /**< The first point is outside the cell */
     DOF_NOT_FOUND, /**< A dof could not be found in the velocity map */
     UNKNOWN /**< The particle exits from the top */
@@ -161,14 +162,43 @@ private:
      * @param cell
      * @param streamline
      * @return
+     * - ParticleExit::UNKNOWN The reason to return this is pretty much unknown
+     * - ParticleExit::INIT_OUT THis is happens if this is the initial position of the streamline and the particle was not found inside this cell
      * - -99 Exit because the number of steps have exceeded the maximum allowable number defined by the user
      * - -88 For some reason the starting point if the streamline was not found inside the cell.
      * - -66 The particle has stuck in the flow field. After a certain amount of steps the bounding box
      * of the streamline has not been expanded
      */
-    int internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
-    int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell);
-    int find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell);
+    ParticleExit internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim> &streamline);
+
+    /**
+     * @brief compute_point_velocity returns the velocity v of the point p that is located in the cell.
+     * However the cell has been tested for the previous point and not this one. So we have to make sure that this point is located in this cell
+     * or in any adjacent  cell. it is also possible that the point is outside of the domain.
+     * @param p the new point to find the velocity
+     * @param v the returned velocity
+     * @param cell the cell that the previous point was contained
+     * @return the following list of possible outcomes
+     * - ParticleExit::UNKNOWN where we have no idea what's going on
+     * - ParticleExit::FAIL this occurs if the transformation has failed. This is no longer expected with the update of try_mapping
+     * - ParticleExit::TOP The particle exits the domain from the top
+     * - ParticleExit::BOT The particle exits the domain from the bottom
+     * - ParticleExit::SIDEX The particle exits the domain from the side along the X direction of the cell
+     * - ParticleExit::SIDEY The particle exits the domain from the side along the Y direction of the cell
+     * - ParticleExit::GHOST The particle has found inside a ghost cell
+     * - ParticleExit::ARTIFICIAL The particle has found inside an artificial cell
+     */
+    ParticleExit compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell);
+
+    /**
+     * @brief find_next_point performs one step using the user defined method
+     * @param streamline is the streamline to find its next point from the last one
+     * @param cell this is the cell where the last point was found in
+     * @return The reason for exiting or not the particle tracking. Possible outcomes area:
+     * - ParticleExit::UNKNOWN A generic exit unknown reason that we dont want to see in our results
+     *
+     */
+    ParticleExit find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell);
     void Send_receive_particles(std::vector<Streamline<dim>>    new_particles,
                                 std::vector<Streamline<dim>>	&streamlines);
 
@@ -208,17 +238,19 @@ private:
      * @param v
      * @param cell
      * @param check_point_status
-     * @return it returns the following values
-     *      - -99 if the cell is artificial.
-     *      - -88 if the mapping transformation has failed to compute the unit coordinates of the p point.
-     *      - 1 if the particle has exited the domain from the top face of the cell. This is the most common case
-     *      - -9 if the particle has exited the domain from the bottom face of the cell. if the bottom was supposed to be impermeable boundary that's very wrong
-     *      - 2 if the point has left the cell from the side. This is normal if the face is lateral flow boundary
-     *      - 0 if the computation of velocity was successful
-     *      - -101 If something else obviously wrong has happened
-     *
+     * @return it returns the following values:
+     *      - ParticleExit::ARTIFICIAL if the cell is artificial.
+     *      - ParticleExit::FAIL if the mapping transformation has failed to compute the unit coordinates of the p point. However this should never happens with the fix of try_mapping
+     *      - ParticleExit::TOP if the particle has exited the domain from the top face of the cell. This is the most common case
+     *      - ParticleExit::BOT if the particle has exited the domain from the bottom face of the cell. if the bottom was supposed to be impermeable boundary that's very wrong
+     *      - ParticleExit::SIDEX if the point has left the cell from the side along the x direction of the Cell. This is normal if the face is lateral flow boundary
+     *      - ParticleExit::SIDEY if the point has left the cell from the side along the y direction of the Cell. This is normal if the face is lateral flow boundary
+     *      - ParticleExit::NO_EXIT if the computation of velocity was successful
+     *      - ParticleExit::DOF_NOT_FOUND If any dof of this cell was not found in the velocityMap. THis should never happend
+     *      - ParticleExit::UNKNOWN If something else obviously wrong has happened but have no idea what
+     *      - ParticleExit::GHOST if the point is found in an adjucent cell that is ghost
      */
-    int compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller);
+    ParticleExit compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller);
 
     double calculate_step(typename DoFHandler<dim>::active_cell_iterator& cell, Point<dim>& p0, Point<dim>& Vel);
 
@@ -234,9 +266,9 @@ private:
      *      - 0  if the cell is locally owned
      *      - 55 if the cell is artificial or ghost
      */
-    int add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
+    ParticleExit add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
                              Streamline<dim> &streamline,
-                             Point<dim> p, Point<dim> vel, int return_value);
+                             Point<dim> p, Point<dim> vel, ParticleExit return_value);
 
     /**
      * @brief take_euler_step Computes the position and the velocity if possible of the next point
@@ -250,12 +282,12 @@ private:
      * @param V_next The velocity of the new point if its possible to calculate. Whether the velocity calculation was possible
      * is dictated by the return statement
      * @param count_nest This method can call it self if the step was too big so that it skipped two cells and found an artificial.
-     * It calles it self by reducing the step to half.
-     * @return This function returns an integer which can be any of the following
-     *  - -1 The method has called it self one or more times. This is very unsusuall by the way.
-     *  - The same list as the return codes of the #compute_point_velocity returns
+     * It calls it self by reducing the step to half.
+     * @return This function returns the following possible ParticleExit enumerations:
+     * - ParticleExit::UNKNOWN This is the value that is initialied and should always be overwritten
+     *  - The same list as the return values of the #compute_point_velocity returns
      */
-    int take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
+    ParticleExit take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
                         double step_weight, double step_length,
                         Point<dim> P_prev, Point<dim> V_prev,
                         Point<dim>& P_next, Point<dim>& V_next, int& count_nest);
@@ -282,8 +314,8 @@ private:
     void plot_point(Point<dim> p);
     void plot_segment(Point<dim> A, Point<dim> B);
     void print_Cell_var(typename DoFHandler<dim>::active_cell_iterator cell, int cell_type);
-    void print_point_var(Point<dim> p, int r);
-    void print_strm_exit_info(int r, int Eid, int Sid);
+    void print_point_var(Point<dim> p, ParticleExit r);
+    void print_strm_exit_info(ParticleExit r, int Eid, int Sid);
     int cell_type(typename DoFHandler<dim>::active_cell_iterator cell);
     void print_cell_velocity(std::vector<Point<dim>> p);
     void calculate_cell_velocity(typename DoFHandler<dim>::active_cell_iterator& cell,
@@ -311,6 +343,8 @@ private:
                                   double& H);
 
     void printAveragedVelocityField(std::string filename);
+
+    bool bContinueTracing(ParticleExit reason);
 
 
 
@@ -398,6 +432,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
     int trace_iter = 0;
     //int cnt_stuck_particles = 0;
     while (true){
+        std::cout << "trace_iter: " << trace_iter << std::endl;
         new_particles.clear();
 
         // make a Point Set for faster query of particles
@@ -451,33 +486,35 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                     bool is_particle_inside = cell->point_inside(streamlines[iprt].P[0]);
                     if (is_particle_inside){
                         //std::cout << iprt << " : " << streamlines[iprt].E_id << " : " << streamlines[iprt].S_id << std::endl;
-                        int outcome = internal_backward_tracking(cell, streamlines[iprt]);
-                        if (outcome == -88){// the transformation of the point has failed
-                            err_file << "transformation failed" << ",  \t"
-                                     << streamlines[iprt].E_id << ",  \t"
-                                     << streamlines[iprt].S_id << std::endl;
-                            continue;
-                        }
-                        if (outcome == -66){ // The particle has stuck
-                            err_file << "Particle stuck" << ",  \t"
-                                     << streamlines[iprt].E_id << ",  \t"
-                                     << streamlines[iprt].S_id << std::endl;
-                        }
+                        ParticleExit outcome = internal_backward_tracking(cell, streamlines[iprt]);
+                        //if (outcome == -88){// the transformation of the point has failed
+                        //    err_file << "transformation failed" << ",  \t"
+                        //             << streamlines[iprt].E_id << ",  \t"
+                        //             << streamlines[iprt].S_id << std::endl;
+                        //    continue;
+                        //}
+                        //if (outcome == -66){ // The particle has stuck
+                        //    err_file << "Particle stuck" << ",  \t"
+                        //             << streamlines[iprt].E_id << ",  \t"
+                        //             << streamlines[iprt].S_id << std::endl;
+                        //}
                         // Print the particle positions in the file
+
                         for (unsigned int i = 0; i < streamlines[iprt].V.size(); ++i){
                             log_file << streamlines[iprt].E_id << "  \t"
                                      << streamlines[iprt].S_id << "  \t"
-                                     << outcome << "  \t"
+                                     << static_cast<int>(outcome) << "  \t"
                                      << streamlines[iprt].p_id[i] << "  \t"
-                                     << std::setprecision(15);
+                                     << std::setprecision(3) << std::fixed;
                             for (unsigned int idim = 0; idim < dim; ++idim)
                                 log_file << streamlines[iprt].P[i][idim] << "  \t";
+                            log_file << std::setprecision(7) << std::fixed;
                             for (unsigned int idim = 0; idim < dim; ++idim)
                                 log_file << streamlines[iprt].V[i][idim] << "  \t";
                             log_file << std::endl;
                         }
 
-                        if (outcome == 55){
+                        if (outcome == ParticleExit::GHOST || outcome == ParticleExit::CHANGE_PROC || outcome == ParticleExit::ARTIFICIAL){
                             // this particle will continue to another processor
                             int n = streamlines[iprt].P.size()-1;
                             Streamline<dim> temp_strm(streamlines[iprt].E_id,
@@ -531,53 +568,63 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
 }
 
 template <int dim>
-int Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
+ParticleExit Particle_Tracking<dim>::internal_backward_tracking(typename DoFHandler<dim>::active_cell_iterator cell, Streamline<dim>& streamline){
     dbg_curr_Eid = streamline.E_id;
     dbg_curr_Sid = streamline.S_id;
     //std::cout << "Eid: " << streamline.E_id << ", Sid: " << streamline.S_id << std::endl;
 
-    // ++++++++++ CONVERT THIS TO ENUMERATION+++++++++++
-    int reason_to_exit= -99; //UNKNOWN
+
+    ParticleExit reason_to_exit = ParticleExit::UNKNOWN;
     int cnt_iter = 0;
     if (bprint_DBG){
         print_Cell_var(cell, cell_type(cell));
-        print_point_var(streamline.P[streamline.P.size()-1], 1000);
+        print_point_var(streamline.P[streamline.P.size()-1], ParticleExit::UNKNOWN);
     }
     while(true){
         if (cnt_iter == 0){ // If this is the starting point of the streamline we need to compute the velocity
+            // This will return 1 if the point is inside the cell
+            // 2 3 -3 if the point was found inside an adjacent locally owned, ghost, artifical cell respectively
+            // 0 if the point was not found in this cell nor on any of the neighbors
             int check_id = check_cell_point(cell, streamline.P[streamline.P.size()-1]);
             Point<dim> v;
             if (check_id == 1){
                 reason_to_exit = compute_point_velocity(streamline.P[streamline.P.size()-1], v, cell, check_id, 0);
             }
             else{
-                reason_to_exit = -88; //INIT_OUT
+                reason_to_exit = ParticleExit::INIT_OUT;
+                return reason_to_exit;
             }
-            if (reason_to_exit != 0){
-                if (bprint_DBG)
-                    print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
-                return  reason_to_exit;
-            }
-            else{
+
+            if (reason_to_exit == ParticleExit::NO_EXIT){
                 streamline.V.push_back(v);
-                //plot_cell(cell);
             }
+
+            //if (reason_to_exit != ParticleExit::INIT_OUT){
+            //    if (bprint_DBG)
+            //        print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
+            //    return  reason_to_exit;
+            //}
+            //else{
+            //    streamline.V.push_back(v);
+                //plot_cell(cell);
+            //}
         }
         // if this is not the starting point we already know the velocity at the current point
         // The following function returns both the position with velocity
         reason_to_exit = find_next_point(streamline, cell);
         if (streamline.times_not_expanded > param.Stuck_iter){
-            reason_to_exit = -66; //STUCK
+            reason_to_exit = ParticleExit::STUCK;
             if (bprint_DBG)
                 print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
             return reason_to_exit;
         }
 
-        if ( reason_to_exit != 0 )
+        if ( reason_to_exit != ParticleExit::NO_EXIT )
             break;
         cnt_iter++;
+        std::cout << "Inner Bckwrd cnt_iter: " << cnt_iter << std::endl;
         if (cnt_iter > param.streaml_iter){
-            reason_to_exit = 777; //MAX_STEPS
+            reason_to_exit = ParticleExit::MAX_STEPS;
         }
     }
     print_strm_exit_info(reason_to_exit, streamline.E_id, streamline.S_id);
@@ -617,6 +664,7 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
         cells_checked.push_back(cell->center());
         int nSearch = 0;
         while (nSearch < param.search_iter){
+            std::cout << "nSearch:" << nSearch << std::endl;
             for (unsigned int i = 0; i < tested_cells.size(); ++i){
                 // for each face of the tested cell check its neighbors
                 for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
@@ -716,24 +764,24 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
 }
 
 template <int dim>
-int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller){
-    int outcome = -101;
+ParticleExit Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator &cell, int check_point_status, int caller){
+    ParticleExit outcome = ParticleExit::UNKNOWN;
     if (check_point_status < 0 || cell->is_artificial()){
         std::cerr << "Proc " << dbg_my_rank << " attempts compute_point_velocity for point ("
                   << p[0] << "," << p[1] << "," << p[2]
                   << "), for Eid: " << dbg_curr_Eid << " and Sid: "
                   << dbg_curr_Sid
                   << " however the check_point_status is negative" << std::endl;
-        outcome = -99; //GHOST
+        outcome = ParticleExit::ARTIFICIAL;
         return outcome;
     }
 
     Point<dim> p_unit;
     const MappingQ1<dim> mapping;
     bool success = try_mapping(p, p_unit, cell, mapping);
-    if (!success){
+    if (!success){ // This the new version of try_mapping this should always be true
         std::cerr << "P fail v1:" << p << " caller: " << caller << std::endl;
-        outcome = -88; //FAIL
+        outcome = ParticleExit::FAIL;
         return outcome;
     }
 
@@ -741,21 +789,21 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
     if (check_point_status == 0){
         // no new cell has been found the particle possible has left the domain for ever
         if (p_unit[dim-1] > 1){ // the particle exits from the top face which is what we want
-            outcome = 1; //TOP
+            outcome = ParticleExit::TOP;
             return outcome;
         }
         else if (p_unit[dim-1] < 0){ // the particle exits from the bottom face (BAD BAD BAD!!!)
-            outcome = -9; //BOT
+            outcome = ParticleExit::BOT;
             return outcome;
         }
         else if(p_unit[0] < 0 || p_unit[0] > 1){ // the particle exits from either side in x direction (not ideal but its ok)
-            outcome = 2; //SIDEX
+            outcome = ParticleExit::SIDEX;
             return outcome;
         }
         else if (dim == 3){
             if (p_unit[1] < 0 || p_unit[1] > 1){ // same as above
-               outcome = 2;
-               return outcome; //SIDEY
+               outcome = ParticleExit::SIDEY;
+               return outcome;
             }
         }
 
@@ -800,13 +848,16 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
                         v[idim] += N * vel_it->second.av_vel[idim];
                 }
                 else {
-                    return -98;//DOF_NOT_FOUND
+                    return ParticleExit::DOF_NOT_FOUND;
                 }
             }
             for (unsigned int idim = 0; idim < dim; ++idim){
                 v[idim] = (HK[idim][idim]*v[idim])/por;
             }
-            return 0;//NO_EXIT
+            if (check_point_status == 1 || check_point_status == 2)
+                return ParticleExit::NO_EXIT;
+            else if (check_point_status == 3)
+                return ParticleExit::GHOST;
         }
         else {
             //The velocity is equal vx = - Kx*dHx/n
@@ -845,15 +896,15 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
             Tensor<1,dim> temp_v = HK_function.value(p)*dHead;
             for (int i_dim = 0; i_dim < dim; ++i_dim)
                 v[i_dim] = temp_v[i_dim];
-            return 0;//NO_EXIT
+            return ParticleExit::NO_EXIT;
         }
     }
     return outcome;
 }
 
 template <int dim>
-int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator& cell){
-    int outcome = 0;
+ParticleExit Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v, typename DoFHandler<dim>::active_cell_iterator& cell){
+    ParticleExit outcome = ParticleExit::UNKNOWN;
     Point<dim> p_unit;
     const MappingQ1<dim> mapping;
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
@@ -868,7 +919,9 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
         }
     }
     else{
+        outcome = ParticleExit::FAIL;
         std::cerr << "P fail v2:" << p << std::endl;
+        return outcome;
     }
 
     //First we have to make sure that the point is in the cell
@@ -885,6 +938,7 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
             cells_checked.push_back(cell->center());
             int nSearch = 0;
             while (nSearch < param.search_iter){
+                std::cout << "nSearch:" << nSearch << std::endl;
                 for (unsigned int i = 0; i < tested_cells.size(); ++i){
                     // for each face of the tested cell check its neighbors
                     for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
@@ -959,20 +1013,20 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
 
     if(!success){
         std::cerr << "P fail v3:" << p << std::endl;
-        outcome = -88;
+        outcome = ParticleExit::FAIL;
         return outcome;
     }
 
     if (!cell_found){
         if (p_unit[dim-1] > 1) // the particle exits from the top face which is what we want
-            outcome = 1;
+            outcome = ParticleExit::TOP;
         else if (p_unit[dim-1] < 0) // the particle exits from the bottom face (BAD BAD BAD!!!)
-            outcome = -9;
+            outcome = ParticleExit::BOT;
         else if(p_unit[0] < 0 || p_unit[0] > 1) // the particle exits from either side in x direction (not ideal but its ok)
-            outcome = 2;
+            outcome = ParticleExit::SIDEX;
         else if (dim == 3){
             if (p_unit[1] < 0 || p_unit[1] > 1) // same as above
-               outcome = 2;
+               outcome = ParticleExit::SIDEY;
         }
 
         if (dim == 2){
@@ -992,7 +1046,10 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
 
     if (cell_found){
         if (cell->is_ghost() || cell->is_artificial()){
-            outcome = 55;
+            if (cell->is_ghost())
+                outcome = ParticleExit::GHOST;
+            if (cell->is_artificial())
+                outcome = ParticleExit::ARTIFICIAL;
         }
         else{
             //The velocity is equal vx = - Kx*dHx/n
@@ -1037,8 +1094,8 @@ int Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point<dim>& v,
 
 
 template <int dim>
-int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
-    int outcome = -9999;//UNKNOWN
+ParticleExit Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typename DoFHandler<dim>::active_cell_iterator &cell){
+    ParticleExit outcome = ParticleExit::UNKNOWN;
     int last = streamline.P.size()-1; // this is the index of the last point in the streamline
 
     double step_lenght = time_step_multiplier(cell) *calculate_step(cell, streamline.P[last], streamline.V[last]);
@@ -1068,7 +1125,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
             temp_point[i] = streamline.P[last][i] + streamline.V[last][i]*step_time;
         // compute the velocity of this point
         outcome = compute_point_velocity(temp_point, temp_velocity, cell);
-        if (outcome == 0){
+        if (outcome == ParticleExit::NO_EXIT){
             // the final point will be computed as the average velocities
             Point<dim> av_vel;
             for (int i = 0; i < dim; ++i){
@@ -1094,22 +1151,22 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
         Point<dim> temp_point;
         int count_nest = 0;
         // First we compute a point by taking half step using the initial velocity
-        int out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[0], temp_point, temp_velocity, count_nest);
-        if (out != 0 ){
+        ParticleExit out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[0], temp_point, temp_velocity, count_nest);
+        if (!bContinueTracing(out)){
             return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
         }
         else{
             RK_steps.push_back(temp_velocity);
              //using the velocity of the mid point take another half step from the initial point
             out = take_euler_step(cell, 0.5, step_lenght, streamline.P[last], RK_steps[1], temp_point, temp_velocity, count_nest);
-            if (out !=0 ){
+            if (!bContinueTracing(out)){
                 return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
             }
             else{
                 RK_steps.push_back(temp_velocity);
                 // using the velocity of the second point take a full step
                 out = take_euler_step(cell, 1.0, step_lenght, streamline.P[last], RK_steps[2], temp_point, temp_velocity, count_nest);
-                if (out !=0){
+                if (!bContinueTracing(out)){
                     return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
                 }
                 else{
@@ -1121,6 +1178,7 @@ int Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline, typenam
                         }
                     }
                     out = take_euler_step(cell, 1.0, step_lenght, streamline.P[last], av_vel, temp_point, temp_velocity, count_nest);
+                    std::cout << temp_point[0] << "," << temp_point[1] << "," << temp_point[2] << std::endl;
                     return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
                 }
             }
@@ -1263,24 +1321,24 @@ double Particle_Tracking<dim>::calculate_step(typename DoFHandler<dim>::active_c
 }
 
 template <int dim>
-int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
+ParticleExit Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::active_cell_iterator &cell,
                                                  Streamline<dim> &streamline,
                                                  Point<dim> p, Point<dim> vel,
-                                                 int return_value){
+                                                 ParticleExit return_value){
 
     if (bprint_DBG){
         print_point_var(p,return_value);
     }
 
-    if (return_value == 0 || return_value == -1){ // Either the computation has been normal or with reduced step
+    if (bContinueTracing(return_value)){ // Either the computation has been normal or with reduced step
         if (cell->is_ghost() || cell->is_artificial()){
             streamline.add_point(p, cell->subdomain_id());
-            return 55; //CHANGE_PROC
+            return ParticleExit::CHANGE_PROC;
         }
         else if (cell->is_locally_owned()){
             //plot_segment(streamline.P[streamline.P.size()-1], p);
             streamline.add_point_vel(p, vel, cell->subdomain_id());
-            return 0; //NO_EXIT
+            return ParticleExit::NO_EXIT;
         }
     }
     else{
@@ -1292,14 +1350,14 @@ int Particle_Tracking<dim>::add_streamline_point(typename DoFHandler<dim>::activ
 }
 
 template <int dim>
-int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
+ParticleExit Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cell_iterator &cell,
                                             double step_weight, double step_length,
                                             Point<dim> P_prev, Point<dim> V_prev,
                                             Point<dim>& P_next, Point<dim>& V_next, int& count_nest){
-    if (std::abs(V_prev.norm()) < 0.00000001)
-        std::cout << "velocity is almost zero" << std::endl;
+    //if (std::abs(V_prev.norm()) < 0.00000001)
+    //    std::cout << "velocity is almost zero" << std::endl;
     double step_time = step_weight * step_length / V_prev.norm();
-    int outcome;
+    ParticleExit outcome = ParticleExit::UNKNOWN;
 
     for (int i = 0; i < dim; ++i){
         P_next[i] = P_prev[i] + V_prev[i] * step_time;
@@ -1320,15 +1378,16 @@ int Particle_Tracking<dim>::take_euler_step(typename DoFHandler<dim>::active_cel
         outcome = compute_point_velocity(P_next, V_next, cell, check_pnt, 1);
     }
 
-    if (count_nest == 0)
-        return outcome;
-    else{
-        if (outcome == 0)
-            return -1;
-        else
-            return outcome;
+    return outcome;
 
-    }
+    //if (count_nest == 0)
+    //    return outcome;
+    //else{
+    //    if (outcome == 0)
+    //        return -1;
+    //    else
+    //        return outcome;
+    //}
 }
 
 template <int dim>
@@ -1472,20 +1531,20 @@ void Particle_Tracking<dim>::print_Cell_var(typename DoFHandler<dim>::active_cel
 }
 
 template <int dim>
-void Particle_Tracking<dim>::print_point_var(Point<dim> p, int r){
+void Particle_Tracking<dim>::print_point_var(Point<dim> p, ParticleExit r){
     if (dim == 3)
         dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).XYZ = ["
                  << p[0] << " " << p[1] << " " << p[2] << "];" << std::endl;
     else if (dim == 2)
         dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).XYZ = ["
                  << p[0] << " " << p[1] << "];" << std::endl;
-    dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).type = " << r << ";" << std::endl;
+    dbg_file << "S(" << dbg_i_strm << ",1).P(" << dbg_i_step << ",1).type = " << static_cast<int>(r) << ";" << std::endl;
     dbg_i_step++;
 }
 
 template <int dim>
-void Particle_Tracking<dim>::print_strm_exit_info(int r, int Eid, int Sid){
-    dbg_file << "S(" << dbg_i_strm << ",1).Exit =" << r << ";" << std::endl;
+void Particle_Tracking<dim>::print_strm_exit_info(ParticleExit r, int Eid, int Sid){
+    dbg_file << "S(" << dbg_i_strm << ",1).Exit =" << static_cast<int>(r) << ";" << std::endl;
     dbg_file << "S(" << dbg_i_strm << ",1).Eid =" << Eid << ";" << std::endl;
     dbg_file << "S(" << dbg_i_strm << ",1).Sid =" << Sid << ";" << std::endl;
     dbg_i_strm++;
@@ -2671,6 +2730,15 @@ void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
         }
     }
     vel_file.close();
+}
+
+template <int dim>
+bool Particle_Tracking<dim>::bContinueTracing(ParticleExit reason){
+    if (reason == ParticleExit::NO_EXIT ||
+            reason == ParticleExit::GHOST)
+        return true;
+    else
+        return false;
 }
 
 #endif // PARTICLE_TRACKING_H
