@@ -432,7 +432,7 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
     int trace_iter = 0;
     //int cnt_stuck_particles = 0;
     while (true){
-        std::cout << "trace_iter: " << trace_iter << std::endl;
+        //std::cout << "trace_iter: " << trace_iter << std::endl;
         new_particles.clear();
 
         // make a Point Set for faster query of particles
@@ -622,7 +622,7 @@ ParticleExit Particle_Tracking<dim>::internal_backward_tracking(typename DoFHand
         if ( reason_to_exit != ParticleExit::NO_EXIT )
             break;
         cnt_iter++;
-        std::cout << "Inner Bckwrd cnt_iter: " << cnt_iter << std::endl;
+        //std::cout << "Inner Bckwrd cnt_iter: " << cnt_iter << std::endl;
         if (cnt_iter > param.streaml_iter){
             reason_to_exit = ParticleExit::MAX_STEPS;
         }
@@ -664,7 +664,7 @@ int Particle_Tracking<dim>::check_cell_point(typename DoFHandler<dim>::active_ce
         cells_checked.push_back(cell->center());
         int nSearch = 0;
         while (nSearch < param.search_iter){
-            std::cout << "nSearch:" << nSearch << std::endl;
+            //std::cout << "nSearch:" << nSearch << std::endl;
             for (unsigned int i = 0; i < tested_cells.size(); ++i){
                 // for each face of the tested cell check its neighbors
                 for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
@@ -938,7 +938,7 @@ ParticleExit Particle_Tracking<dim>::compute_point_velocity(Point<dim>& p, Point
             cells_checked.push_back(cell->center());
             int nSearch = 0;
             while (nSearch < param.search_iter){
-                std::cout << "nSearch:" << nSearch << std::endl;
+                //std::cout << "nSearch:" << nSearch << std::endl;
                 for (unsigned int i = 0; i < tested_cells.size(); ++i){
                     // for each face of the tested cell check its neighbors
                     for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
@@ -1178,7 +1178,7 @@ ParticleExit Particle_Tracking<dim>::find_next_point(Streamline<dim> &streamline
                         }
                     }
                     out = take_euler_step(cell, 1.0, step_lenght, streamline.P[last], av_vel, temp_point, temp_velocity, count_nest);
-                    std::cout << temp_point[0] << "," << temp_point[1] << "," << temp_point[2] << std::endl;
+                    //std::cout << temp_point[0] << "," << temp_point[1] << "," << temp_point[2] << std::endl;
                     return add_streamline_point(cell, streamline, temp_point, temp_velocity, out);
                 }
             }
