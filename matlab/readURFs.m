@@ -28,7 +28,9 @@ function WellURF = readURFs(filename, opt)
         if isfield(opt, 'Agemin')
             topt.Agemin = opt.Agemin;
         end
+        topt.mult = 1000000;
     end
+
 
     fid = fopen(filename,'r');
     if fid < 0
@@ -52,22 +54,31 @@ function WellURF = readURFs(filename, opt)
         if temp == -1
             break;
         end
-        C = textscan(temp,'%d',3);
+        C = textscan(temp,'%d',4);
         E_id = C{1}(1);
         S_id = C{1}(2);
+        ex_r = C{1}(3);
         fprintf('%d %d\n',[E_id S_id])
-        Np = C{1}(3);
+        Np = C{1}(4);
         C = fscanf(fid,'%f',Np*4);
         temp = fgetl(fid);
         C = reshape(C,4,Np)';
+        C(:,4) = C(:,4)./topt.mult;
         if Np == 1
             continue
         end
         %plot3(C(:,1),C(:,2),C(:,3),'.')
         if true_mode
-            [urf, v_eff] = ComputeURF(C(:,1:3), C(:,4), topt);
+            id_rmv = sqrt(sum(C(:,1:2).^2,2)) < 10;
+            C(id_rmv,:) = [];
+            %if sqrt(sum(C(:,1:3).^2)) < 0.1
+            %    C(1,:) = [];
+            %    warning('The first point of streamline is (0 0 0) and will be removed')
+            %end
+            [urf, ~] = ComputeURF(C(:,1:3), C(:,4), topt);
             WellURF(cnter,1).Eid = E_id;
             WellURF(cnter,1).Sid = S_id;
+            WellURF(cnter,1).Exit = ex_r;
             WellURF(cnter,1).p_cds = C(1,1:3);
             WellURF(cnter,1).v_cds = C(1,4);
             WellURF(cnter,1).p_lnd = C(end,1:3);
@@ -75,8 +86,8 @@ function WellURF = readURFs(filename, opt)
             L = cumsum(sqrt(sum((C(2:end,1:3) - C(1:end-1,1:3)).^2,2)));
             WellURF(cnter,1).L = L(end);
             WellURF(cnter,1).Age = sum(diff([0;L])./C(1:end-1,4))/365;
-            WellURF(cnter,1).v_eff = v_eff(1);
-            WellURF(cnter,1).v_m = v_eff(2);
+            % WellURF(cnter,1).v_eff = v_eff(1);
+            % WellURF(cnter,1).v_m = v_eff(2);
             WellURF(cnter,1).URF = urf;
             cnter = cnter + 1;
             if cnter > size(WellURF,1)
