@@ -343,8 +343,10 @@ template <int dim>
 void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
     pcout << "\t Solving system..." << std::endl << std::flush;
+    double solver_tolerance = solver_param.solver_tol*system_rhs.l2_norm();
+    pcout << "\t\t Relative Solver tolerance:" << solver_tolerance << std::endl;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
-    SolverControl solver_control (dof_handler.n_dofs(), solver_param.solver_tol, true, true);
+    SolverControl solver_control (dof_handler.n_dofs(), solver_tolerance, true, true);
     solver_control.log_result(true);
     solver_control.log_history(true);
     solver_control.log_frequency(1);
@@ -352,9 +354,9 @@ void GWFLOW<dim>::solve(){
 
 
 
-    //SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
+    SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
     //SolverBicgstab<TrilinosWrappers::MPI::Vector>  solver (solver_control);
-    SolverGMRES<TrilinosWrappers::MPI::Vector> solver (solver_control);
+    //SolverGMRES<TrilinosWrappers::MPI::Vector> solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
 
