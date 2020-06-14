@@ -9,9 +9,12 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/solver.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/solver_control.h>
 #include <deal.II/lac/trilinos_solver.h>
+//#include <deal.II/lac/solver_bicgstab.h>
+#include <deal.II/lac/solver_gmres.h>
 #include <deal.II/lac/trilinos_precondition.h>
 #include <deal.II/dofs/function_map.h>
 #include <deal.II/base/conditional_ostream.h>
@@ -31,6 +34,7 @@
 #include "cgal_functions.h"
 #include "dsimstructs.h"
 #include "dirichlet_boundary.h"
+
 
 struct SimPrintFlags{
 public:
@@ -120,6 +124,11 @@ private:
 
     void output_xyz_top(int iter, std::string output_file);
     void output_DBC(int iter, std::string output_file);
+    SolverControl::State writeSolverConverge(const unsigned int iteration, const double check_value, const TrilinosWrappers::MPI::Vector &current_iterate)const{
+        pcout << "\tIter:" << iteration << ": " << check_value << std::endl;
+        return SolverControl::success;
+    };
+
 };
 
 template <int dim>
@@ -335,25 +344,35 @@ void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
     pcout << "\t Solving system..." << std::endl << std::flush;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
-    SolverControl solver_control (dof_handler.n_dofs(), solver_param.solver_tol);
+    SolverControl solver_control (dof_handler.n_dofs(), solver_param.solver_tol, true, true);
     solver_control.log_result(true);
     solver_control.log_history(true);
-    solver_control.log_frequency(0);
+    solver_control.log_frequency(1);
+    //solver_control.enable_history_data();
 
-    SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
+
+
+    //SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
+    //SolverBicgstab<TrilinosWrappers::MPI::Vector>  solver (solver_control);
+    SolverGMRES<TrilinosWrappers::MPI::Vector> solver (solver_control);
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
 
     data.output_details = static_cast<bool>(solver_param.output_details);
     data.n_cycles = 1;
     data.w_cycle = false;
-    data.aggregation_threshold = 0.000001;
-    data.smoother_sweeps = 4;
+    data.aggregation_threshold = 0.0001;
+    data.smoother_sweeps = 2;
     data.smoother_overlap = 0;
     data.smoother_type = "Chebyshev";
     data.coarse_type = "Amesos-KLU";
 
+    //FEValuesExtractors::Scalar extractor(dim);
+    //DoFTools::extract_constant_modes(dof_handler, dof_handler.get_fe_collection().component_mask(extractor),data.constant_modes);
+
     preconditioner.initialize (system_matrix, data);
+
+    solver.connect(std::bind(&GWFLOW<dim>::writeSolverConverge, this, std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
 
     solver.solve (system_matrix,
                   completely_distributed_solution,
