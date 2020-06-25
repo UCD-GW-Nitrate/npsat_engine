@@ -465,7 +465,7 @@ void CL_arguments<dim>::declare_parameters(){
                           "Number of nonlinear iterations for solving the unconfined problem\n"
                           "The refinement will occur during the N Max refinements iterations.");
 
-        prm.declare_entry("b Solver tolerance", "1e-8", Patterns::Double(0,0.001),
+        prm.declare_entry("b Solver tolerance", "1e-8", Patterns::Double(0,5000),
                           "b----------------------------------\n"
                           "Tolerance of solver");
 
@@ -1071,6 +1071,7 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.print_solution_vtk = prm.get_integer("d Print solution vtk");
             AQprop.print_velocity_cloud = prm.get_integer("e Print velocity field cloud");
             AQprop.multiplier_velocity_print = prm.get_double("f Velocity multiplier");
+            AQprop.part_param.velocity_multiplier = AQprop.multiplier_velocity_print;
             AQprop.print_bnd_cond = prm.get_integer("g Print Boundary conditions");
             AQprop.print_Average_Velocity = prm.get_integer("h Print Average Velocity");
 

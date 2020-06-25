@@ -74,25 +74,25 @@ template <int dim>
 bool try_mapping(dealii::Point<dim>& p, dealii::Point<dim>& p_unit,
                  typename dealii::DoFHandler<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
     bool mapping_done = false;
-    //int count_try = 0;
+    int count_try = 0;
     dealii::Point<dim> p_try = p;
     while (!mapping_done){
         try {
             p_unit = mapping.transform_real_to_unit_cell(cell, p_try);
             mapping_done = true;
         } catch (...) {
-            p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
-            std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
-            mapping_done = true;
-            //for (unsigned int idim = 0; idim < dim; ++idim)
-            //    p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
-            //++count_try;
-            //if (count_try > 20){
-            //    std::cerr << "Transformation Failed for DofHandler cell " << cell->is_locally_owned() << std::endl;
-            //    print_cell_coords<dim>(cell);
-            //    std::cout << p << std::endl;
-            //    break;
-            //}
+            //p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
+            //std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
+            //mapping_done = true;
+            for (unsigned int idim = 0; idim < dim; ++idim)
+                p_try[idim] = p[idim] + 0.001*(-1.0 + 2.0*(static_cast<double>(rand())/static_cast<double>(RAND_MAX)));
+            ++count_try;
+            if (count_try > 100){
+                std::cerr << "Transformation Failed for DofHandler cell " << cell->is_locally_owned() << std::endl;
+                print_cell_coords<dim>(cell);
+                std::cout << p << std::endl;
+                break;
+            }
         }
     }
     return mapping_done;
@@ -102,7 +102,7 @@ template <int dim>
 bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
                  typename dealii::Triangulation<dim>::active_cell_iterator cell, dealii::MappingQ1<dim> mapping){
     bool mapping_done = false;
-    //int count_try = 0;
+    int count_try = 0;
     dealii::Point<dim> p_try = p;
     while (!mapping_done){
         try{
@@ -110,16 +110,16 @@ bool try_mapping(dealii::Point<dim> p, dealii::Point<dim> &p_unit,
             mapping_done = true;
         }
         catch(...){
-            p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
-            mapping_done = true;
-            std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
-            //for (unsigned int idim = 0; idim < dim; ++idim)
-            //    p_try[idim] = p[idim] + 0.0001*(-1.0 + 2.0*(double(rand())/double(RAND_MAX)));
-            //++count_try;
-            //if (count_try > 20){
-            //    break;
-            //    std::cerr << "transformation Failed for Triangulation cell" << std::endl;
-            //}
+            //p_unit = cell->real_to_unit_cell_affine_approximation(p_try);
+            //mapping_done = true;
+            //std::cout << "switch to affine: " << p_unit[0] << "," << p_unit[1] << "," << p_unit[2] << std::endl;
+            for (unsigned int idim = 0; idim < dim; ++idim)
+                p_try[idim] = p[idim] + 0.001*(-1.0 + 2.0*(double(rand())/double(RAND_MAX)));
+            ++count_try;
+            if (count_try > 100){
+                break;
+                std::cerr << "transformation Failed for Triangulation cell" << std::endl;
+            }
         }
     }
     return mapping_done;

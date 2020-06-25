@@ -1,4 +1,4 @@
-function WellURF = readURFs(filename, opt)
+function WellURF = readURFs_ichnos(filename, opt)
 % WellURF = readURFs(filename, opt)
 % This function reads the *.urfs files which is the result of the gather 
 % process of the NPSAT 
@@ -32,7 +32,6 @@ function WellURF = readURFs(filename, opt)
         if isfield(opt, 'mult')
             topt.mult = opt.mult;
         end
-        
     end
 
 
@@ -58,38 +57,50 @@ function WellURF = readURFs(filename, opt)
         if temp == -1
             break;
         end
-        C = textscan(temp,'%d',4);
-        E_id = C{1}(1);
-        S_id = C{1}(2);
-        ex_r = C{1}(3);
-        fprintf('%d %d\n',[E_id S_id])
-        Np = C{1}(4);
-        C = fscanf(fid,'%f',Np*4);
-        temp = fgetl(fid);
-        C = reshape(C,4,Np)';
-        C(:,4) = C(:,4)./topt.mult;
-        if Np == 1
-            continue
+        end_of_streamline = false;
+        pp = nan(5000,3);
+        vv = nan(5000,3);
+        cnt = 1;
+        while end_of_streamline == false
+            C = textscan(temp,'%f',9);
+            if C{1}(1) < 0
+                C = textscan(temp,'%f %f %f %s',1);
+                E_id = C{2};
+                S_id = C{3};
+                ex_r = parseExitReason(C{4});
+                break;
+            end
+            pp(cnt,:) = C{1}(4:6);
+            vv(cnt,:) = C{1}(7:9);
+            cnt = cnt + 1;
+            temp = fgetl(fid);
         end
+        pp(cnt:end,:) = [];
+        vv(cnt:end,:) = [];
+        fprintf('%d %d\n',[E_id S_id])
+        vv = vv./topt.mult;
+        
         %plot3(C(:,1),C(:,2),C(:,3),'.')
         if true_mode
-            id_rmv = sqrt(sum(C(:,1:2).^2,2)) < 10;
-            C(id_rmv,:) = [];
+            id_rmv = sqrt(sum(pp(:,1:2).^2,2)) < 10;
+            pp(id_rmv,:) = [];
+            vv(id_rmv,:) = [];
             %if sqrt(sum(C(:,1:3).^2)) < 0.1
             %    C(1,:) = [];
             %    warning('The first point of streamline is (0 0 0) and will be removed')
             %end
-            [urf, ~] = ComputeURF(C(:,1:3), C(:,4), topt);
+            vv  = sqrt(sum(vv.^2,2));
+            [urf, ~] = ComputeURF(pp, vv, topt);
             WellURF(cnter,1).Eid = E_id;
             WellURF(cnter,1).Sid = S_id;
             WellURF(cnter,1).Exit = ex_r;
-            WellURF(cnter,1).p_cds = C(1,1:3);
-            WellURF(cnter,1).v_cds = C(1,4);
-            WellURF(cnter,1).p_lnd = C(end,1:3);
-            WellURF(cnter,1).v_lnd = C(end,4);
-            L = cumsum(sqrt(sum((C(2:end,1:3) - C(1:end-1,1:3)).^2,2)));
+            WellURF(cnter,1).p_cds = pp(1,:);
+            WellURF(cnter,1).v_cds = vv(1);
+            WellURF(cnter,1).p_lnd = pp(end,:);
+            WellURF(cnter,1).v_lnd = vv(end);
+            L = cumsum(sqrt(sum((pp(2:end,:) - pp(1:end-1,:)).^2,2)));
             WellURF(cnter,1).L = L(end);
-            WellURF(cnter,1).Age = sum(diff([0;L])./C(1:end-1,4))/365;
+            WellURF(cnter,1).Age = sum(diff([0;L])./vv(1:end-1))/365;
             % WellURF(cnter,1).v_eff = v_eff(1);
             % WellURF(cnter,1).v_m = v_eff(2);
             WellURF(cnter,1).URF = urf;
@@ -98,11 +109,11 @@ function WellURF = readURFs(filename, opt)
                 WellURF = allocate_space(WellURF);
             end
         else
-            dst = sqrt(sum((C(1:end-1,1:3)-C(2:end,1:3)).^2, 2));
+            dst = sqrt(sum((pp(1:end-1,:)-pp(2:end,:)).^2, 2));
             cumsumdst = cumsum(dst);
-            v = sum(C(1:end-1,4)+C(2:end,4),2)/2;
+            v = sum(vv(1:end-1) + vv(2:end),2)/2;
             if cumsumdst(end) < 50
-                 WellURF(cnter,:) = [C(end,1:3)  sum(dst./v)]; % cumsumdst(end)
+                 WellURF(cnter,:) = [pp(end,:)  sum(dst./v)]; % cumsumdst(end)
                 %plot3(C(:,1), C(:,2), C(:,3),'.-')
                 %drawnow
                % stop = true;
@@ -139,5 +150,19 @@ function well = allocate_space(well)
         well(Nsize+cnt,1).v_lnd = [];
         well(Nsize+cnt,1).URF = [];
     end
+end
+
+function id = parseExitReason(er)
+    if strcmp(er,'EXIT_TOP')
+        id = 1;
+    elseif strcmp(er,'EXIT_BOTTOM')
+        id = 3;
+    elseif strcmp(er,'STUCK')
+        id = 9;
+    else
+        id = 0;
+       warning(['Uknown Exit Reason ', er]);
+    end
+
 end
 

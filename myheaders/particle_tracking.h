@@ -132,6 +132,9 @@ public:
     void print_all_cell_velocity();
 
     bool average_velocity_field();
+
+    // Despite its name this averages the head greadients not the final velocity
+    // It constructs a map with key the dofs of the cells and value the dH
     bool average_velocity_field1(int printit);
 
 private:
@@ -342,6 +345,8 @@ private:
                                   Point<dim>& dH,
                                   double& H);
 
+    // This prints the averaged velocity field on the mesh nodes
+    // The printed velocity is the term -K*dH THe porosity term is not included
     void printAveragedVelocityField(std::string filename);
 
     bool bContinueTracing(ParticleExit reason);
@@ -2683,7 +2688,7 @@ void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    double vel_mult = 1000.0;
+    double vel_mult = param.velocity_multiplier;
 
     std::vector<bool> printed(dof_handler.n_dofs(), false);
 
@@ -2695,7 +2700,7 @@ void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     for (; cell != endc; ++cell){
-        if (cell->is_locally_owned()){
+        if (cell->is_locally_owned() || cell->is_ghost()){
 
 
 
@@ -2706,19 +2711,30 @@ void Particle_Tracking<dim>::printAveragedVelocityField(std::string filename){
             for (unsigned int ii = 0; ii < local_dof_indices.size(); ++ii){
                 if (!printed[local_dof_indices[ii]]){
                     Point<dim> p = cell->vertex(ii);
+
+                    // Calculate hydraulic conductivity
+                    Tensor<2,dim> HK = HK_function.value(p);
+
                     it = VelocityMap.find(local_dof_indices[ii]);
                     if (it != VelocityMap.end()){
-                        vel_file << local_dof_indices[ii] << " " << std::fixed << std::setprecision(2)
+                        vel_file << std::fixed << std::setprecision(2)
                                  << p[0] << " "
                                  << p[1] << " ";
                         if (dim == 3){
                             vel_file << p[2] << " ";
                         }
-                        vel_file << std::fixed << std::setprecision(5) << it->second.av_vel[0]*vel_mult << " "
-                                 << it->second.av_vel[1]*vel_mult << " ";
-                        if (dim == 3){
-                            vel_file << it->second.av_vel[2]*vel_mult << " ";
+                        vel_file << std::fixed << std::setprecision(5);
+                        for(int jj = 0; jj < dim; ++jj){
+                            vel_file << -HK[jj][jj]*it->second.av_vel[jj]*vel_mult << " ";
                         }
+
+                        //vel_file << std::fixed << std::setprecision(5) << -HK[idim][idim]*it->second.av_vel[0]*vel_mult << " "
+                        //         << -HK[idim][idim]*it->second.av_vel[1]*vel_mult << " ";
+                        //if (dim == 3){
+                        //    vel_file << -HK[idim][idim]*it->second.av_vel[2]*vel_mult << " ";
+                        //}
+
+                        vel_file << cell->subdomain_id() << " " << local_dof_indices[ii] << " ";
                         vel_file << std::fixed << std::setprecision(4) << cell_head[ii] << std::endl;
                         printed[local_dof_indices[ii]] = true;
                     }

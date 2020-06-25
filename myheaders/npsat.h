@@ -198,6 +198,7 @@ void NPSAT<dim>::make_grid(){
 
     unsigned int count_refinements = 0;
     while (true){
+        pcout << "-------Refinement Iteration : " << count_refinements << std::endl;
         bool done_wells = false;
         bool done_streams = false;
         bool done_top = false;
@@ -713,7 +714,7 @@ void NPSAT<dim>::particle_tracking(){
     pcout << "Particle tracking ended at \n" << print_current_time() << std::endl;
     pcout << "To gather the streamlines use the following command: \n"
           << "npsat -p " << AQProps.main_param_file
-          << " -g " << n_proc << " " << particle_iter << " # of expected entities" << std::endl;
+          << " -g " << n_proc << " " << particle_iter << " -e # of expected entities" << std::endl;
 
 }
 
@@ -870,10 +871,14 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
     const std::string vel_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
                                       Utilities::int_to_string(my_rank,4) + ".vel");
 
+    pcout << "Printing velocity field in: " <<  (AQProps.Dirs.output + AQProps.sim_prefix + "xxxx.vel") << std::endl;
+
     std::ofstream vel_stream_file;
     vel_stream_file.open(vel_filename.c_str());
 
-    const QGauss<dim> quadrature_formula(2);
+    int n_quad_points = 1;
+
+    const QGauss<dim> quadrature_formula(n_quad_points);
     const unsigned int   n_q_points = quadrature_formula.size();
     FEValues<dim> fe_values (fe, quadrature_formula,
                              update_values    |  update_gradients |
@@ -919,14 +924,14 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << m*KdH[0] << " " << m*KdH[1] << " "
+                                    << -m*KdH[0] << " " << -m*KdH[1] << " "
                                     << cell->subdomain_id() << std::endl;
                 }
                 else if (dim == 3){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " " << p[2] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << m*KdH[0] << " " << m*KdH[1] << " " << m*KdH[2] << " "
+                                    << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " "
                                     << cell->subdomain_id() << std::endl;
                 }
             }

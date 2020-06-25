@@ -344,6 +344,12 @@ void GWFLOW<dim>::solve(){
     TimerOutput::Scope t(computing_timer, "solve");
     pcout << "\t Solving system..." << std::endl << std::flush;
     double solver_tolerance = solver_param.solver_tol*system_rhs.l2_norm();
+    //double solver_tolerance = 0.000000001*system_rhs.l2_norm(); // use this for CVHM
+    //pcout << "\t\t\t l2 norm: " << solver_tolerance << std::endl; // use this for CVHM
+    //if (solver_tolerance < solver_param.solver_tol){ // use this for CVHM
+    //    solver_tolerance = solver_param.solver_tol;
+    //}
+
     pcout << "\t\t Relative Solver tolerance:" << solver_tolerance << std::endl;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
     SolverControl solver_control (dof_handler.n_dofs(), solver_tolerance, true, true);
@@ -355,10 +361,12 @@ void GWFLOW<dim>::solve(){
 
 
     SolverCG<TrilinosWrappers::MPI::Vector>  solver (solver_control);
-    //SolverBicgstab<TrilinosWrappers::MPI::Vector>  solver (solver_control);
-    //SolverGMRES<TrilinosWrappers::MPI::Vector> solver (solver_control);
+    //SolverGMRES<TrilinosWrappers::MPI::Vector> solver (solver_control); // use this for CVHM
+
     TrilinosWrappers::PreconditionAMG       preconditioner;
     TrilinosWrappers::PreconditionAMG::AdditionalData data;
+    //TrilinosWrappers::PreconditionAMGMueLu  preconditioner; // use this for CVHM
+    //TrilinosWrappers::PreconditionAMGMueLu::AdditionalData data; // use this for CVHM
 
     data.output_details = static_cast<bool>(solver_param.output_details);
     data.n_cycles = 1;

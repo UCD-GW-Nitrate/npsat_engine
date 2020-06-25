@@ -137,6 +137,10 @@ struct ParticleParameters{
     //!
     //! Where N is the number of particles and ID X Y Z are repeated N times. ID is an integer identification for each particle
     std::string Particles_in_file;
+
+    // This is a number that the printed velocity is bieng multiplied to increase accuracy without adding many printed digits
+    // To use the printed velocity one has to multiply the velocity field with 1/velocity_multiplier
+    double velocity_multiplier;
 };
 
 
