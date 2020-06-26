@@ -899,6 +899,25 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
     double shape_value;
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned() || cell->is_ghost()){
+            double diameter = cell->diameter();
+            BoundingBox<dim> BB = cell->bounding_box();
+            // This pair containts the points of the Bounding Box. the first point of the pair is the lower corner
+            // and the second point is the upper corner of the box
+            std::pair<Point<dim>, Point<dim>> bb_points = BB.get_boundary_points();
+            double cell_ratio = 0;
+            if (dim == 3){
+                double dx_cell = bb_points.second[0] - bb_points.first[0];
+                double dy_cell = bb_points.second[1] - bb_points.first[1];
+                double dz_cell = bb_points.second[2] - bb_points.first[2];
+                cell_ratio = std::max(dx_cell, dy_cell)/dz_cell;
+            }
+            else if (dim == 2){
+                double dx_cell = bb_points.second[0] - bb_points.first[0];
+                double dy_cell = bb_points.second[1] - bb_points.first[1];
+                cell_ratio = dx_cell/dy_cell;
+            }
+
+
             //if (my_rank == 0 & cell->is_ghost())
             //  std::cout << cell->id() << " " << cell->subdomain_id() << std::endl;
             fe_values.reinit (cell);
@@ -924,16 +943,15 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << -m*KdH[0] << " " << -m*KdH[1] << " "
-                                    << cell->subdomain_id() << std::endl;
+                                    << -m*KdH[0] << " " << -m*KdH[1] << " ";
                 }
                 else if (dim == 3){
                     vel_stream_file << std::setprecision(2) << std::fixed
                                     << p[0] << " " << p[1] << " " << p[2] << " "
                                     << std::setprecision(6) << std::fixed
-                                    << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " "
-                                    << cell->subdomain_id() << std::endl;
+                                    << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
                 }
+                vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
             }
         }
     }
