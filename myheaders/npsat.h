@@ -335,6 +335,7 @@ void NPSAT<dim>::solve_refine(){
 
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
+            pcout << "      Updateting Mesh ..." <<std::endl;
             create_dim_1_grids();
             if (iter < AQProps.refine_param.MaxRefinement)
                 flag_cells_for_refinement();

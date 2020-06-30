@@ -4,11 +4,11 @@ subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set a Input directory  = ./examples/Tule/
+  set a Input directory  = .
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = ./examples/Tule/output/
+  set b Output directory = ./output/
 end
 
 
@@ -38,7 +38,7 @@ subsection B. Geometry  ========================================
     # If the geometry type is FILE specify the file name
     # that contains the initial mesh.
     # If the type is box this is ignored.
-    set a Input mesh file = Tule_init_mesh.npsat
+    set a Input mesh file = Tule_mod_mesh.npsat
   end
 
   subsection C. Common parameters =---=---=---=---=---=---=---
@@ -79,15 +79,15 @@ subsection C. Discretization ===================================
 
   # c----------------------------------
   # The number of initial refinements
-  set c Initial Refinement      = 0
+  set c Initial Refinement      = 1
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 1
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
-  set e Stream Refinement       = 1
+  set e Stream Refinement       = 2
 
   # f----------------------------------
   # The number of initial refinements on the top (water table)
@@ -171,11 +171,11 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 1
 
   # b----------------------------------
   # Tolerance of solver
-  set b Solver tolerance     = 1e-8
+  set b Solver tolerance     = 1e-10
 
   # c----------------------------------
   # Number of maximum solver iterations
@@ -261,13 +261,13 @@ subsection I. Particle tracking ================================
     # 
     # Nparticles
     # ID X Y Z
-    set a Particles from file       = wells_
+    set a Particles from file       = 
 
     # b----------------------------------
     # This option will generate initial paricles around the wells
     # using the options below, and trace them.
     # Set 0 to deactivate well tracing
-    set b Trace wells               = 1
+    set b Trace wells               = 0
 
     # c----------------------------------
     # The number of layers that the particles will be distributed around the
@@ -294,7 +294,7 @@ subsection I. Particle tracking ================================
     # Particles Prefix is a keyword that is used when printing the various
     # particle related output files. If this is empty it will use the default
     # prefix, which may overwrite existing files with the same name
-    set a Particles Prefix           = 
+    set a Particles Prefix           = temp_
 
     # b----------------------------------
     # Simplification threshold used for plotting
@@ -338,12 +338,12 @@ subsection J. Output Parameters ================================
     # d----------------------------------
     # Prints the solution every iteration
     # The file name is Prefix + ....*vtu
-    set d Print solution vtk         = 0
+    set d Print solution vtk         = 1
 
     # e----------------------------------
     # Prints the velocity field cloud
     # The file name is Prefix + proc.vel
-    set e Print velocity field cloud = 0
+    set e Print velocity field cloud = 1
 
     # f----------------------------------
     # Multiplier coefficient to increase the printed velocity precision
@@ -364,12 +364,12 @@ subsection J. Output Parameters ================================
     # a----------------------------------
     # Prints the initial mesh after refinement or after loading.
     # The file name is Prefix + _init_mesh.vtk
-    set a Print initial mesh             = 0
+    set a Print initial mesh             = 1
 
     # b----------------------------------
     # Prints the coordinates of the free surface vertices.
     # The file name is Prefix + top + iter + proc.xyz
-    set b Print free surface point cloud = 0
+    set b Print free surface point cloud = 1
 
     # c----------------------------------
     # This should be roughly equal to the maximum dimension
