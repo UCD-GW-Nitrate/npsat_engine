@@ -26,6 +26,7 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/grid/grid_out.h>
+#include <deal.II/lac/affine_constraints.h>
 
 #include "my_functions.h"
 #include "helper_functions.h"
@@ -65,10 +66,10 @@ public:
     GWFLOW(MPI_Comm&                            mpi_communicator_in,
            DoFHandler<dim>&                     dof_handler,
            const FE_Q<dim>&                     fe,
-           ConstraintMatrix&                    constraints,
+           AffineConstraints<double>&           constraints,
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            TrilinosWrappers::MPI::Vector&       system_rhs,
-           typename FunctionMap<dim>::type&     dirichlet_boundary,
+           std::map<types::boundary_id, const Function<dim>* >&     dirichlet_boundary,
            MyTensorFunction<dim>&               HK_function,
            MyFunction<dim,dim>&                 groundwater_recharge,
            BoundaryConditions::Neumann<dim>&    Neumann_conditions,
@@ -94,13 +95,13 @@ private:
     MPI_Comm                                    mpi_communicator;
     DoFHandler<dim>&                            dof_handler;
     const FE_Q<dim>&                            fe;
-    ConstraintMatrix&                          	constraints;
+    AffineConstraints<double>&                  constraints;
     IndexSet                                  	locally_owned_dofs;
     IndexSet                                  	locally_relevant_dofs;
     TrilinosWrappers::MPI::Vector& 				locally_relevant_solution;
     TrilinosWrappers::SparseMatrix 			  	system_matrix;
     TrilinosWrappers::MPI::Vector&       	  	system_rhs;
-    typename FunctionMap<dim>::type				dirichlet_boundary;
+    std::map<types::boundary_id, const Function<dim>* >&				dirichlet_boundary;
     MyTensorFunction<dim>	 					HK;
     MyFunction<dim,dim> 						GWRCH;
     BoundaryConditions::Neumann<dim>            Neumann;
@@ -124,7 +125,7 @@ private:
 
     void output_xyz_top(int iter, std::string output_file);
     void output_DBC(int iter, std::string output_file);
-    SolverControl::State writeSolverConverge(const unsigned int iteration, const double check_value, const TrilinosWrappers::MPI::Vector &current_iterate)const{
+    SolverControl::State writeSolverConverge(const unsigned int iteration, const double check_value, const TrilinosWrappers::MPI::Vector /*&current_iterate*/)const{
         pcout << "\tIter:" << iteration << ": " << check_value << std::endl;
         return SolverControl::success;
     };
@@ -135,10 +136,10 @@ template <int dim>
 GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
                     DoFHandler<dim>&                    dof_handler_in,
                     const FE_Q<dim>&                    fe_in,
-                    ConstraintMatrix&                   constraints_in,
+                    AffineConstraints<double>&          constraints_in,
                     TrilinosWrappers::MPI::Vector&      locally_relevant_solution_in,
                     TrilinosWrappers::MPI::Vector&      system_rhs_in,
-                    typename FunctionMap<dim>::type&    dirichlet_boundary_in,
+                    std::map<types::boundary_id, const Function<dim>* >&    dirichlet_boundary_in,
                     MyTensorFunction<dim>&              HK_function,
                     MyFunction<dim, dim>&               groundwater_recharge,
                     BoundaryConditions::Neumann<dim>&   Neumann_conditions,
@@ -519,7 +520,7 @@ void GWFLOW<dim>::refine(parallel::distributed::Triangulation<dim>& 	triangulati
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate (dof_handler,
                                           QGauss<dim-1>(fe.degree+2),
-                                          typename FunctionMap<dim>::type(),
+                                          {},
                                           locally_relevant_solution,
                                           estimated_error_per_cell);
 
@@ -626,7 +627,7 @@ void GWFLOW<dim>::output_DBC(int iter, std::string output_file){
     std::vector<Tensor<1, dim> >        normal_vectors(n_face_q_points);
     std::vector<Tensor<2,dim> >	 		hydraulic_conductivity_values(n_face_q_points);
 
-    typename FunctionMap<dim>::type::iterator itbc;
+    typename std::map<types::boundary_id, const Function<dim>* >::iterator itbc;
 
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),

@@ -16,6 +16,7 @@
 
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 
 #include <deal.II/numerics/error_estimator.h>
 
@@ -74,7 +75,7 @@ private:
     parallel::distributed::Triangulation<dim> 	triangulation;
     DoFHandler<dim>                             dof_handler;
     FE_Q<dim>                                 	fe;
-    ConstraintMatrix                          	Headconstraints;
+    AffineConstraints<double>                   Headconstraints;
 
     TrilinosWrappers::MPI::Vector               locally_relevant_solution;
     TrilinosWrappers::MPI::Vector               system_rhs;
@@ -88,7 +89,7 @@ private:
     TrilinosWrappers::MPI::Vector               distributed_mesh_Offset_vertices;
     IndexSet                                    mesh_locally_owned;
     IndexSet                                    mesh_locally_relevant;
-    ConstraintMatrix                            mesh_constraints;
+    AffineConstraints<double>                   mesh_constraints;
     mix_mesh<dim-1>                             top_grid;
     mix_mesh<dim-1>                             bottom_grid;
 
@@ -98,7 +99,7 @@ private:
     Mesh_struct<dim>                            mesh_struct;
 
     // Boundary Conditions
-    typename FunctionMap<dim>::type             dirichlet_boundary;
+    std::map<types::boundary_id, const Function<dim>* >             dirichlet_boundary;
     BoundaryConditions::Dirichlet<dim>          DirBC;
     std::vector<int>                            top_boundary_ids;
     std::vector<int>                            bottom_boundary_ids;
@@ -499,7 +500,7 @@ void NPSAT<dim>::flag_cells_for_refinement(){
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
                                      QGauss<dim-1>(fe.degree+2),
-                                     typename FunctionMap<dim>::type(),
+                                     {},
                                      locally_relevant_solution,
                                      estimated_error_per_cell);
 

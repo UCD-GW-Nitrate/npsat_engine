@@ -22,6 +22,14 @@ template <int dim>
 class Well{
 public:
     Well();
+    ~Well(){
+        Q_cell.clear();
+        L_cell.clear();
+        well_cells.clear();
+        K_cell.clear();
+        owned.clear();
+        mid_point.clear();
+    };
 
     //! This is the top point of the well screen.
     Point<dim> top;
@@ -168,7 +176,8 @@ public:
     Well_Set();
 
     //! A vector of SourceSinks::#Well wells which containt the well info
-    std::vector<Well<dim>> wells;
+    //std::vector<Well<dim>> wells;
+    std::map<int, Well<dim> > wells;
 
     //! The total number of wells
     int Nwells;
@@ -226,7 +235,7 @@ public:
     void add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             const DoFHandler<dim>& dof_handler,
                             const FE_Q<dim>& fe,
-                            const ConstraintMatrix& constraints,
+                            const AffineConstraints<double>& constraints,
                             const MyTensorFunction<dim>& hydraulic_conductivity,
                             MPI_Comm mpi_communicator);
 
@@ -313,7 +322,7 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
         datafile.getline(buffer,512);
         std::istringstream inp1(buffer);
         inp1 >> Nwells;
-        wells.resize(Nwells);
+        //wells.resize(Nwells);
         for (int i = 0; i < Nwells; i++){
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
@@ -342,11 +351,16 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
                 p_top[0] = Xcoord; p_top[1] = Ycoord; p_top[2] = top;
                 p_bot[0] = Xcoord; p_bot[1] = Ycoord; p_bot[2] = bot;
             }
-
-            wells[i].top = p_top;
-            wells[i].bottom = p_bot;
-            wells[i].Qtot = Q;
-            wells[i].well_id = i;
+            Well<dim> w;
+            w.top = p_top;
+            w.bottom = p_bot;
+            w.Qtot = Q;
+            w.well_id = i;
+            wells.insert(std::pair<int, Well<dim>>(i,w));
+            //wells[i].top = p_top;
+            //wells[i].bottom = p_bot;
+            //wells[i].Qtot = Q;
+            //wells[i].well_id = i;
         }
         WellsXY.insert(wellxy.begin(), wellxy.end());
         return true;
@@ -361,6 +375,7 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
     const MappingQ1<dim-1> mapping2D;
     Point<dim-1> well_point_2d;
 
+    typename std::map<int, Well<dim>>::iterator itw;
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
     endc = triangulation.end();
@@ -386,11 +401,13 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
             setup_cell(cell,tria);
             typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
 
+
             for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
-                int i = well_id_in_cell[iw];
-                well_point_2d[0] = wells[i].top[0];
+                itw = wells.find(well_id_in_cell[iw]);
+                //int i = well_id_in_cell[iw];
+                well_point_2d[0] = itw->second.top[0];
                 if (dim == 3)
-                    well_point_2d[1] = wells[i].top[1];
+                    well_point_2d[1] = itw->second.top[1];
 
                 Point<dim-1> p_unit2D;
                 bool mapping_done = try_mapping<dim-1>(well_point_2d, p_unit2D, cell2D, mapping2D);
@@ -412,8 +429,8 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
                     z_bot = z_bot +  GeometryInfo<dim>::d_linear_shape_function(p_unit_bot, j)*cell->vertex(j)[dim-1];
                 }
 
-                double well_TPF = wells[i].top[dim-1];
-                double well_BPF = wells[i].bottom[dim-1];
+                double well_TPF = itw->second.top[dim-1];
+                double well_BPF = itw->second.bottom[dim-1];
                 bool cell_flaged = false;
                 if  (well_BPF < z_bot && well_TPF > z_top){
                     cell->set_refine_flag ();
@@ -442,7 +459,7 @@ template <int dim>
 void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                       const DoFHandler<dim>& dof_handler,
                                       const FE_Q<dim>& fe,
-                                      const ConstraintMatrix& constraints,
+                                      const AffineConstraints<double>& constraints,
                                       const MyTensorFunction<dim>& hydraulic_conductivity,
                                       MPI_Comm mpi_communicator){
 
@@ -466,6 +483,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     double Qwell_total = 0;
 
     Point<dim-1> well_point_2d;
+    typename std::map<int, Well<dim>>::iterator itw;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -507,8 +525,9 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             setup_cell(cell,tria);
             typename Triangulation<dim-1>::active_cell_iterator cell2D = tria.begin_active();
 
-            for (unsigned int iw = 0; iw < well_id_in_cell.size(); ++iw){
-                int i = well_id_in_cell[iw];
+            for (unsigned int iw = 0; iw < well_id_in_cell.size(); iw++){
+                itw = wells.find(well_id_in_cell[iw]);
+                //int i = well_id_in_cell[iw];
                 /*
                 bool dgb_print = false;
                 if (i == 714){
@@ -522,13 +541,14 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 }
                 */
 
-                well_point_2d[0] = wells[i].top[0];
+                well_point_2d[0] = itw->second.top[0];
                 if (dim == 3)
-                    well_point_2d[1] = wells[i].top[1];
+                    well_point_2d[1] = itw->second.top[1];
 
                 bool is_in_cell = cell2D->point_inside(well_point_2d);
 
                 if (is_in_cell == true){
+                    std::cout << "Well id " << itw->first << std::endl;
                     // If the point is inside the cell find its unit coordinates
                     // and the top and bottom of the cell at the well point
                     Point<dim-1> p_unit2D;
@@ -549,18 +569,18 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         z_top = z_top +  GeometryInfo<dim>::d_linear_shape_function(p_unit_top, j)*cell->vertex(j)[dim-1];
                         z_bot = z_bot +  GeometryInfo<dim>::d_linear_shape_function(p_unit_bot, j)*cell->vertex(j)[dim-1];
                     }
-                    double well_TPF = wells[i].top[dim-1];
-                    double well_BPF = wells[i].bottom[dim-1];
+                    double well_TPF = itw->second.top[dim-1];
+                    double well_BPF = itw->second.bottom[dim-1];
                     bool add_this_cell = false;
                     double segment_length;
                     Point<dim> p_mid;
                     for (unsigned int ii = 0; ii < dim-1; ++ii)
-                        p_mid[ii] = well_point_2d[ii];
+                        p_mid(ii) = well_point_2d[ii];
                     double K;
                     // case 1
                     if  (well_BPF < z_bot && well_TPF > z_top){
                         // the well screen fully penetrates this cell.
-                        p_mid[dim-1] = (z_top - z_bot)/2.0 + z_bot;
+                        p_mid(dim-1) = (z_top - z_bot)/2.0 + z_bot;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - z_bot;
@@ -569,7 +589,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     //case 2
                     if  (well_BPF > z_bot && well_TPF < z_top){
                         // the well screen is all within this cell.
-                        p_mid[dim-1] = (well_TPF - well_BPF)/2.0 + well_BPF;
+                        p_mid(dim-1) = (well_TPF - well_BPF)/2.0 + well_BPF;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = well_TPF - well_BPF;
@@ -578,7 +598,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     //case 3
                     if (well_BPF < z_bot && well_TPF < z_top && well_TPF > z_bot){
                         // the bottom of the screen is below the cell and the top is in the cell
-                        p_mid[dim-1] = (well_TPF - z_bot)/2.0 + z_bot;
+                        p_mid(dim-1) = (well_TPF - z_bot)/2.0 + z_bot;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = well_TPF - z_bot;
@@ -587,7 +607,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     //case 4
                     if (well_BPF > z_bot && well_BPF < z_top && well_TPF > z_top){
                         // the bottom of the screen is in the cell and the top of the screen is above the cell
-                        p_mid[dim-1] = (z_top - well_BPF)/2.0 + well_BPF;
+                        p_mid(dim-1) = (z_top - well_BPF)/2.0 + well_BPF;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - well_BPF;
@@ -598,26 +618,29 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         // The well is above of the water table. Still we want the first layer to take out water
                         //std::cout << "Zt:" << z_top << ", Zb:" << z_bot << ", Wb:" << well_BPF << std::endl;
                         //std::cout << "The bottome of the well is above the top cell" << std::endl;
-                        p_mid[dim-1] = (z_top - z_bot)/2 + z_bot;
+                        p_mid(dim-1) = (z_top - z_bot)/2 + z_bot;
                         Tensor<2,dim> K_tensor = hydraulic_conductivity.value(p_mid);
                         K = K_tensor[0][0];
                         segment_length = z_top - z_bot;
                         add_this_cell = true;
                     }
                     if (add_this_cell){
-                        /*
-                        if (dgb_print){
-                            std::cout << wells[i].well_cells.size() << std::endl;
+                        //int nn = itw->second.well_cells.size() + 1;
+                        //if (dgb_print){
+                            std::cout << itw->second.well_cells.size() << std::endl;
                             std::cout << cell->center() << std::endl;
-                        }
-                        */
-                        wells[i].well_cells.push_back(cell);
-                        wells[i].mid_point.push_back(p_mid);
-                        wells[i].L_cell.push_back(segment_length);
-                        wells[i].K_cell.push_back(K);
-                        wells[i].owned.push_back(true);
+                        //}
 
-                        well_id[my_rank].push_back(i);
+                        std::cout << "Well id " << itw->first << std::endl;
+                        //wells[i].mid_point.resize(nn);
+                        //wells[i].mid_point[nn-1] = p_mid;
+                        itw->second.L_cell.push_back(segment_length);
+                        itw->second.K_cell.push_back(K);
+                        itw->second.owned.push_back(true);
+                        itw->second.mid_point.push_back(p_mid);
+                        itw->second.well_cells.push_back(cell);
+
+                        well_id[my_rank].push_back(itw->first);
                         cell_length[my_rank].push_back(segment_length);
                         cell_cond[my_rank].push_back(K);
                         /*
@@ -654,26 +677,28 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             continue;
 
         for (int j = 0; j < N_data[i]; ++j){
-            wells[well_id[i][j]].K_cell.push_back(cell_cond[i][j]);
-            wells[well_id[i][j]].L_cell.push_back(cell_length[i][j]);
-            wells[well_id[i][j]].owned.push_back(false);
+            itw = wells.find(well_id[i][j]);
+            itw->second.K_cell.push_back(cell_cond[i][j]);
+            itw->second.L_cell.push_back(cell_length[i][j]);
+            itw->second.owned.push_back(false);
             typename DoFHandler<dim>::active_cell_iterator dummy_cell;
-            wells[well_id[i][j]].well_cells.push_back(dummy_cell);
+            itw->second.well_cells.push_back(dummy_cell);
             Point<dim> dummy_point;
-            wells[well_id[i][j]].mid_point.push_back(dummy_point);
+            itw->second.mid_point.push_back(dummy_point);
         }
     }
     // Now each processor will loop though the wells.
     // if there are well with owned == true we will distribute the pumping rate to all cells
     // even to those that have owned == false but we will assign rates only to the owned == true
     //int Cnt_wellsQ = 0;
-    for (int i = 0; i < Nwells; ++i){
+    //for (int i = 0; i < Nwells; ++i){
+    for (itw = wells.begin(); itw != wells.end(); itw++){
         //double Qwell_temp = 0;
         //std::cout << "well-> i: " << i << " wid:  " << wells[i].well_id << " pnt: " << wells[i].bottom << std::endl;
         bool any_true = false;
-        int N_cells = wells[i].owned.size();
+        int N_cells = itw->second.owned.size();
         for (int j = 0; j < N_cells; ++j){
-            if (wells[i].owned[j] == true){
+            if (itw->second.owned[j] == true){
                 any_true = true;
                 break;
             }
@@ -685,8 +710,8 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             double sum_K, sum_L, sum_KL;
             sum_K = 0; sum_L = 0; sum_KL = 0;
             for (int j = 0; j < N_cells; ++j){
-                wK[j] = wells[i].K_cell[j];
-                wL[j] = wells[i].L_cell[j];
+                wK[j] = itw->second.K_cell[j];
+                wL[j] = itw->second.L_cell[j];
                 sum_K += wK[j];
                 sum_L += wL[j];
             }
@@ -695,18 +720,18 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 sum_KL += wKL[j];
             }
             for (int j = 0; j < N_cells; ++j){
-                if (wells[i].owned[j] == true){
+                if (itw->second.owned[j] == true){
                     cell_rhs_wells = 0;
                     // convert the mid point to unit point
                     Point<dim> p_unit_mid_point;
-                    bool mapping_done = try_mapping<dim>(wells[i].mid_point[j], p_unit_mid_point, wells[i].well_cells[j],mapping);
+                    bool mapping_done = try_mapping<dim>(itw->second.mid_point[j], p_unit_mid_point, itw->second.well_cells[j],mapping);
                     if (mapping_done){
                         Quadrature<dim> temp_quadrature(p_unit_mid_point);
                         FEValues<dim> fe_values_temp(fe, temp_quadrature, update_values | update_quadrature_points);
-                        fe_values_temp.reinit(wells[i].well_cells[j]);
+                        fe_values_temp.reinit(itw->second.well_cells[j]);
                         for (unsigned int q_point = 0; q_point < temp_quadrature.size(); ++q_point){
                             for (unsigned int ii = 0; ii < dofs_per_cell; ++ii){
-                                double Q_temp = (wKL[j]/sum_KL)*wells[i].Qtot*fe_values_temp.shape_value(ii,q_point);
+                                double Q_temp = (wKL[j]/sum_KL)*itw->second.Qtot*fe_values_temp.shape_value(ii,q_point);
                                 //std::cout << i << " : " << Q_temp << std::endl;
                                 cell_rhs_wells(ii) += Q_temp * well_multiplier;
                                 Qwell_total += Q_temp * well_multiplier;
@@ -714,7 +739,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             }
                         }
                         //std::cout << "Qtot: " << Qwell_total << ", iter: " << i << std::endl;
-                        wells[i].well_cells[j]->get_dof_indices (local_dof_indices);
+                        itw->second.well_cells[j]->get_dof_indices (local_dof_indices);
                         constraints.distribute_local_to_global(cell_rhs_wells,
                                                                local_dof_indices,
                                                                system_rhs);
@@ -737,13 +762,14 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     if (my_rank == 0)
         std::cout << "\t QWELLS: [" << Qwell_total << "]" << std::endl;
     MPI_Barrier(mpi_communicator);
-    for (int i = 0; i < Nwells; ++i){
-        wells[i].Q_cell.clear();
-        wells[i].L_cell.clear();
-        wells[i].K_cell.clear();
-        wells[i].owned.clear();
-        wells[i].mid_point.clear();
-        wells[i].well_cells.clear();
+    //for (int i = 0; i < Nwells; ++i){
+    for (itw = wells.begin(); itw != wells.end(); itw++){
+        itw->second.Q_cell.clear();
+        itw->second.L_cell.clear();
+        itw->second.K_cell.clear();
+        itw->second.owned.clear();
+        itw->second.mid_point.clear();
+        itw->second.well_cells.clear();
     }
 }
 
@@ -752,11 +778,12 @@ template <int dim>
 void Well_Set<dim>::distribute_particles(std::vector<Streamline<dim>> &Streamlines,
                                          int Nppl, int Nlay, double radius,
                                          wellParticleDistributionType partDirtibType){
-    for (int i = 0; i < Nwells; ++i){
+    typename std::map<int, Well<dim>>::iterator itw;
+    for (itw = wells.begin(); itw != wells.end(); itw++){
         std::vector<Point<dim>> particles;
-        wells[i].distribute_particles(particles, Nppl, Nlay, radius, partDirtibType);
+        itw->second.distribute_particles(particles, Nppl, Nlay, radius, partDirtibType);
         for (unsigned int j = 0; j < particles.size(); ++j){
-            Streamlines.push_back(Streamline<dim>(i,j,particles[j]));
+            Streamlines.push_back(Streamline<dim>(itw->first, j, particles[j]));
         }
     }
 }

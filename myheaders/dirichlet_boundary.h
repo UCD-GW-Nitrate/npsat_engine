@@ -156,7 +156,8 @@ public:
 
     //! This is a dealii structure that creates a map between face ids and boundaries and it is used
     //! during dirichlet boundary assignement
-    typename FunctionMap<dim>::type		function_map;
+    std::map<types::boundary_id, const Function<dim>* > function_map;
+    //typename FunctionMap<dim>::type		function_map;
 
     /*!
     * \brief assign_dirichlet_to_triangulation assignes the dirichlet boundary conditions.
@@ -186,9 +187,10 @@ public:
     * overlapping parts between the two segments.
     */
     void assign_dirichlet_to_triangulation(parallel::distributed::Triangulation<dim>& triangulation,
-                   typename FunctionMap<dim>::type&	dirichlet_boundary,
-                   std::vector<int>& top_boundary_ids,
-                   std::vector<int>& bottom_boundary_ids);
+                    std::map<types::boundary_id, const Function<dim>* >& dirichlet_boundary,
+                    /*typename FunctionMap<dim>::type&	dirichlet_boundary,*/
+                    std::vector<int>& top_boundary_ids,
+                    std::vector<int>& bottom_boundary_ids);
 
     /*!
      * \brief add_id Pushes the #id into the #id_list only if the #id is not already in the list
@@ -343,7 +345,8 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
 
 template <int dim>
 void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Triangulation<dim>& triangulation,
-                                                       typename FunctionMap<dim>::type&	dirichlet_boundary,
+                                                        std::map<types::boundary_id, const Function<dim>* >& dirichlet_boundary,
+                                                       /*typename FunctionMap<dim>::type&	dirichlet_boundary,*/
                                                        std::vector<int>& top_boundary_ids,
                                                        std::vector<int>& bottom_boundary_ids){
     top_boundary_ids.clear();

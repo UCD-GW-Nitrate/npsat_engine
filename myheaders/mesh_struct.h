@@ -12,6 +12,7 @@
 #include <deal.II/distributed/tria.h>
 #include <deal.II/distributed/solution_transfer.h>
 #include <deal.II/grid/grid_out.h>
+#include <deal.II/lac/affine_constraints.h>
 
 #include <algorithm>
 
@@ -135,7 +136,7 @@ public:
      */
     void updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                           FESystem<dim>& mesh_fe,
-                          ConstraintMatrix& mesh_constraints,
+                          AffineConstraints<double>& mesh_constraints,
                           IndexSet& mesh_locally_owned,
                           IndexSet& mesh_locally_relevant,
                           TrilinosWrappers::MPI::Vector& mesh_vertices,
@@ -151,7 +152,7 @@ public:
     //! This should be called whenever we need to update the mesh elevation
     void updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                              parallel::distributed::Triangulation<dim>& 	triangulation,
-                             ConstraintMatrix& mesh_constraints,
+                             AffineConstraints<double>& mesh_constraints,
                              TrilinosWrappers::MPI::Vector& mesh_vertices,
                              TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                              TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
@@ -288,7 +289,7 @@ int Mesh_struct<dim>::check_if_point_exists(Point<dim-1> p){
 template <int dim>
 void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                                        FESystem<dim>& mesh_fe,
-                                       ConstraintMatrix& mesh_constraints,
+                                       AffineConstraints<double>& mesh_constraints,
                                        IndexSet& mesh_locally_owned,
                                        IndexSet& mesh_locally_relevant,
                                        TrilinosWrappers::MPI::Vector& mesh_vertices,
@@ -919,7 +920,7 @@ void Mesh_struct<dim>::dbg_meshStructInfo3D(std::string name, unsigned int my_ra
 template<int dim>
 void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                                            parallel::distributed::Triangulation<dim>& 	triangulation,
-                                           ConstraintMatrix& mesh_constraints,
+                                           AffineConstraints<double>& mesh_constraints,
                                            TrilinosWrappers::MPI::Vector& mesh_vertices,
                                            TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
                                            TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,

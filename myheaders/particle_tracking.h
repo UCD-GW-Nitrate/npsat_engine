@@ -7,6 +7,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/bounding_box.h>
+#include <deal.II/lac/affine_constraints.h>
 
 #include "my_functions.h"
 #include "dsimstructs.h"
@@ -141,7 +142,7 @@ private:
     MPI_Comm                            mpi_communicator;
     DoFHandler<dim>&                    dof_handler;
     FE_Q<dim>&                          fe;
-    ConstraintMatrix&                   Headconstraints;
+    AffineConstraints<double>&                   Headconstraints;
     TrilinosWrappers::MPI::Vector       locally_relevant_solution;
     TrilinosWrappers::MPI::Vector       system_rhs;
     MyTensorFunction<dim>               HK_function;
@@ -359,7 +360,7 @@ template <int dim>
 Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
                                           DoFHandler<dim>& dof_handler_in,
                                           FE_Q<dim> &fe_in,
-                                          ConstraintMatrix& constraints_in,
+                                          AffineConstraints<double>& constraints_in,
                                           TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                                           TrilinosWrappers::MPI::Vector& 	system_rhs_in,
                                           MyTensorFunction<dim>& HK_function_in,

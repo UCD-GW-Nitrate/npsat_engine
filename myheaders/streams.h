@@ -168,7 +168,7 @@ public:
     void add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                            const DoFHandler<dim>& dof_handler,
                            const FE_Q<dim>& fe,
-                           const ConstraintMatrix& constraints,
+                           const AffineConstraints<double>& constraints,
                            std::vector<int> top_boundary_ids,
                            int my_rank, int n_proc, MPI_Comm mpi_communicator);
 
@@ -470,7 +470,7 @@ template <int dim>
 void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                      const DoFHandler<dim>& dof_handler,
                                      const FE_Q<dim>& fe,
-                                     const ConstraintMatrix& constraints,
+                                     const AffineConstraints<double>& constraints,
                                      std::vector<int> top_boundary_ids,
                                      int my_rank, int n_proc, MPI_Comm mpi_communicator){
     if (N_seg == 0)
