@@ -26,7 +26,7 @@ public:
 
     //! This overrides the value method. All it does is to call the InterpInterface#interpolate method
     virtual double value (const Point<griddim> &point,
-                          const unsigned int component = 0)const;
+                          const unsigned int component = 0)const override; 
 
 //     //! Overrides the value list which simply loops through the points and calls the value method
 //    virtual void value_list(const std::vector<Point<griddim> >	&points,
@@ -61,9 +61,9 @@ MyFunction<dim, griddim>::MyFunction(InterpInterface<griddim>& grid_in)
 
 template <int dim, int griddim>
 double MyFunction<dim, griddim>::value(const Point<griddim> &point,
-                          const unsigned int component)const{
+                          const unsigned int /*component*/)const{
     // a trick to remove -Wunused-parameter warning
-    (void)component;
+    // (void)component;
     //std::cout << point << std::endl;
     Point<griddim> v;
     for (unsigned int i = 0; i < griddim; ++i)
@@ -200,8 +200,8 @@ MyTensorFunction<dim>::MyTensorFunction(InterpInterface<dim>& KX_in,
 
 template<int dim>
 Tensor<2,dim> MyTensorFunction<dim>::value (const Point<dim> &point,
-                                            const unsigned int component)const{
-    (void)component; // does nothing. its just removes the warning
+                                            const unsigned int /*component*/)const{
+    //(void)component; // does nothing. its just removes the warning
 
     Tensor<2,dim> value;
     value[0][0] = KX.interpolate(point);
@@ -235,9 +235,9 @@ Tensor<2,dim> MyTensorFunction<dim>::value (const Point<dim> &point,
 template <int dim>
 void MyTensorFunction<dim>::value_list(const std::vector<Point<dim> >	&points,
                                        std::vector<Tensor<2,dim>>       &values,
-                                       const unsigned int               component) const{
+                                       const unsigned int               /*component*/) const{
 
-    (void)component; // does nothing. its just removes the warning
+    //(void)component; // does nothing. its just removes the warning
 
     for (unsigned int i=0; i<points.size(); ++i)
         values[i] = MyTensorFunction::value(points[i]);

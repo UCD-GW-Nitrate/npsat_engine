@@ -6,7 +6,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_q1.h>
-#include <deal.II/lac/constraint_matrix.h>
+//#include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/distributed/tria.h>

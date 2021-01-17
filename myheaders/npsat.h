@@ -15,7 +15,7 @@
 #include <deal.II/fe/fe_system.h>
 
 #include <deal.II/lac/trilinos_vector.h>
-#include <deal.II/lac/constraint_matrix.h>
+//#include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/affine_constraints.h>
 
 #include <deal.II/numerics/error_estimator.h>
@@ -759,13 +759,13 @@ void NPSAT<dim>::save(){
     std::vector<const TrilinosWrappers::MPI::Vector *> x_system(1);
     x_system[0] = &locally_relevant_solution;
     parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> sol_trans(dof_handler);
-    sol_trans.prepare_serialization (x_system);
+    sol_trans.prepare_for_serialization (x_system);
 
     // preparing the mesh vertices
     std::vector<const TrilinosWrappers::MPI::Vector *> x_fs_system (1);
     x_fs_system[0] = &mesh_vertices;
     parallel::distributed::SolutionTransfer<dim, TrilinosWrappers::MPI::Vector> msh_trans(mesh_dof_handler);
-    msh_trans.prepare_serialization(x_fs_system);
+    msh_trans.prepare_for_serialization(x_fs_system);
 
     const std::string filename = (AQProps.Dirs.output + AQProps.sim_prefix + AQProps.solution_suffix + ".npsat");
     triangulation.save(filename.c_str());

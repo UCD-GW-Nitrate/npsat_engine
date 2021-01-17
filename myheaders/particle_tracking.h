@@ -121,7 +121,7 @@ public:
     Particle_Tracking(MPI_Comm& mpi_communicator_in,
                       DoFHandler<dim>& dof_handler_in,
                       FE_Q<dim>& fe_in,
-                      ConstraintMatrix& constraints_in,
+                      AffineConstraints<double>& constraints_in,
                       TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                       TrilinosWrappers::MPI::Vector& 	system_rhs_in,
                       MyTensorFunction<dim>& HK_function_in,

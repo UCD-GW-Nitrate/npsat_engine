@@ -548,7 +548,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                 bool is_in_cell = cell2D->point_inside(well_point_2d);
 
                 if (is_in_cell == true){
-                    std::cout << "Well id " << itw->first << std::endl;
+                    //std::cout << "Well id " << itw->first << std::endl;
                     // If the point is inside the cell find its unit coordinates
                     // and the top and bottom of the cell at the well point
                     Point<dim-1> p_unit2D;

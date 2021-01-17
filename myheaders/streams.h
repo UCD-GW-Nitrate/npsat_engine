@@ -8,7 +8,8 @@
 #include <deal.II/lac/trilinos_vector.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_q.h>
-#include <deal.II/lac/constraint_matrix.h>
+//#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 
 //#include "my_functions.h"
 #include "cgal_functions.h"
