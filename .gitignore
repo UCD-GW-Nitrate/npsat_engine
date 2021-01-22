@@ -72,6 +72,8 @@
 !/examples
 # ignore all the content of the folder
 /examples/*
+# unignore the input template file
+!/examples/*.prm
 # unignore the box2D example ----------box2D-----------
 !/examples/box2D
 #ignore all the content of the folder
@@ -79,6 +81,7 @@
 #unignore the *.npsat files
 !/examples/box2D/*.npsat
 !/examples/box2D/*.png
+!/examples/box2D/*.prm
 # unignore the box3D example ----------box3D-----------
 !/examples/box3D
 #ignore all the content of the folder

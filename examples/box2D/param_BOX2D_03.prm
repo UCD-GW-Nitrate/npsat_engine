@@ -1,0 +1,379 @@
+# Listing of Parameters
+# ---------------------
+subsection A. Workspace directories ============================
+  # a----------------------------------
+  # The directory with all input data.
+  # All input data must be under the same directory.
+  set a Input directory  = /home/giorgk/Documents/CODES/npsat_engine/examples/box2D/
+
+  # b----------------------------------
+  # The directory where all output data will be saved.
+  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/box2D/output/
+end
+
+
+subsection B. Geometry  ========================================
+  # a----------------------------------
+  # Geometry Type. Valid entries are BOX and FILE
+  set a Geometry Type = BOX
+
+
+  subsection A. Case BOX =---=---=---=---=---=---=---=---=---=
+    # a----------------------------------
+    # The length of the aquifer along the X Y Z directions.
+    # In case of 2D the 3rd element is ignored but it should be present.
+    # This is valid for BOX geometry type
+    set a XYZ dimensions   = 48000,500,300
+
+    # b----------------------------------
+    # case BOX:
+    # The coordinates of the left lower point of the domain.
+    # In case of 2D the 3rd element is ignored but it should be present.
+    # This is valid for BOX geometry type
+    set b Left lower point = 271900,0,0
+  end
+
+  subsection B. Case FILE =---=---=---=---=---=---=---=---=---
+    # a----------------------------------
+    # If the geometry type is FILE specify the file name
+    # that contains the initial mesh.
+    # If the type is box this is ignored.
+    set a Input mesh file = 
+  end
+
+  subsection C. Common parameters =---=---=---=---=---=---=---
+    # a----------------------------------
+    # Top elevation function must be either a single value
+    # or the name of a file
+    set a Top elevation function    = Top_test03.npsat
+
+    # b----------------------------------
+    # Bottom elevation function must be either a single value
+    # or the name of a file
+    set b Bottom elevation function = Bot_test03.npsat
+
+    # c----------------------------------
+    # Threshold value along the horizontal plane
+    set c x-y threshold             = 0.01
+
+    # d----------------------------------
+    # Threshold value the vertical plane
+    set d z threshold               = 0.010
+  end
+
+end
+
+
+subsection C. Discretization ===================================
+  # a----------------------------------
+  # The number of cells along the x, y, z directions, in that order.
+  # In case of 2D the 3rd element is ignored but it should be present.
+  set a Nxyz                    = 25,5,3
+
+  # b----------------------------------
+  # A list of numbers between 0 and 1 that correspond
+  # to the vertical distribution of layers separated by (,).
+  # This parameter, if present, overrides the 3rd or 2nd element of the Nxyz
+  # in 3D or 2D respectively
+  set b Vertical discretization = 
+
+  # c----------------------------------
+  # The number of initial refinements
+  set c Initial Refinement      = 0
+
+  # d----------------------------------
+  # The number of initial refinements around the wells
+  set d Well Refinement         = 0
+
+  # e----------------------------------
+  # The number of initial refinements around the Streams
+  set e Stream Refinement       = 0
+
+  # f----------------------------------
+  # The number of initial refinements on the top (water table)
+  set f Top Refinement                  = 0
+
+  # g----------------------------------
+  # The number of initial refinements for the remaining boundaries
+  set g Remaining Boundaries Refinement = 0
+end
+
+
+subsection D. Boundary Conditions ==============================
+  # a----------------------------------
+  # The name file of multiple files separated by ;
+  # with the constant head boundary conditions
+  set a Dirichlet file name = Dirichlet_BC_box03.npsat
+end
+
+
+subsection E Aquifer Properties ================================
+  # a----------------------------------
+  # Hydraulic conductivity along the x direction.
+  # It must be either a single value or the name of a file
+  set a Hydraulic Conductivity KX = KX_box03.npsat
+
+  # b----------------------------------
+  # Hydraulic conductivity along the y direction.
+  # It must be either a single value or the name of a file
+  # If KY == KX leave this empty. In 2D this is ignored
+  set b Hydraulic Conductivity KY = 
+
+  # c----------------------------------
+  # Hydraulic conductivity along the z direction.
+  # It must be either a single value or the name of a file
+  # If KZ == KX leave this empty. In 2D this corresponds to the vertical K
+  set c Hydraulic Conductivity KZ = KZ_box03.npsat
+
+  # d----------------------------------
+  # Porosity. This is used during particle tracking
+  # A single value or the name of the file
+  set d Porosity                  = 0.15
+end
+
+
+subsection F. Sources & Sinks ==================================
+  # a----------------------------------
+  # Groundwater recharche function
+  # must be either a single value or the name of a file
+  set a Groundwater recharge = RCH_test03.npsat
+
+  # b----------------------------------
+  # Stream network
+  # The name of a file that defines the streams and the rates
+  set b Stream recharge      = 
+
+  # c----------------------------------
+  # Well network
+  # The name of a file with the well information
+  set c Wells                = wells_box2D_03_v1.npsat
+
+  # d----------------------------------
+  # Neumann Conditions
+  # The name of a file with additional boundary flows
+  set d Neumann Conditions   = 
+
+  # e----------------------------------
+  # Multiplier for groundwater recharge
+  set e Recharge multiplier  = 1
+
+  # f----------------------------------
+  # Multiplier for groundwater pumping
+  set f Well multiplier      = 1
+
+  # g----------------------------------
+  # Multiplier for stream leackage
+  set g Stream multiplier    = 1
+end
+
+
+subsection G. Solver parameters ================================
+  # a----------------------------------
+  # Number of nonlinear iterations for solving the unconfined problem
+  # The refinement will occur during the N Max refinements iterations.
+  set a Nonlinear iterations = 7
+
+  # b----------------------------------
+  # Tolerance of solver
+  set b Solver tolerance     = 1e-8
+
+  # c----------------------------------
+  # Number of maximum solver iterations
+  set c Max iterations       = 1000
+
+  # d----------------------------------
+  # If 1 displays details about the ML solver
+  set d Output details       = 0
+end
+
+
+subsection H. Refinement Parameters ============================
+  # a----------------------------------
+  # Number of maximum refinement cycles during a simulation
+  set a Max refinements iterations = 10
+
+  # b----------------------------------
+  # Top refinement fraction
+  # This defines the percentage of cells to be refined
+  set b Top fraction               = 0.3
+
+  # c----------------------------------
+  # Bottom refinement fraction
+  # This defines the percentage of cells to be coarsen
+  set c Bottom fraction            = 0.1
+
+  # d----------------------------------
+  # Minimum element size. Cells with lower diameter
+  # will not be further refined. This should be greater than the
+  # thresholds in the geometry subsection
+  set d Minimum element size       = 0.1
+end
+
+
+subsection I. Particle tracking ================================
+  # a----------------------------------
+  # Set to 0 to deactivate particle tracking. Default is 1
+  set a Enable particle tracking = 0
+
+
+  subsection A. Configuration =---=---=---=---=---=---=---=---=
+    # a----------------------------------
+    # 1-> Euler, 2->RK2, 3->RK4
+    set a Tracking method         = 3
+
+    # b----------------------------------
+    # The actual step size for each cell is calculated by dividing
+    # the diameter of each cell with this number.
+    # Essensially this number indicates the average number of steps
+    # of the algorithm within a cell
+    set b Step size               = 4
+
+    # c----------------------------------
+    # If the streamline has not been expanded for N consecutive
+    # iterations, then stop tracing this particle
+    set c Stuck iterations        = 50
+
+    # d----------------------------------
+    # The maximum number of steps per streamline
+    set d Streamline iterations   = 1000
+
+    # e----------------------------------
+    # The number of times that processors are allowed to exchange particles.
+    # This will prevent cases where a particle moves back and forth between
+    # processors
+    set e Outer iterations        = 100
+
+    # f----------------------------------
+    # How many neighbor to search for the next point if the point has left the
+    # current cell.The default is a good choice.
+    set f Search iterations       = 3
+
+    # g----------------------------------
+    # The maximum number of particles that is allowed to run in parallel
+    # Higher values will result more idle processing times
+    # Lower values generate more output files
+    set g N Particles in parallel = 5000
+  end
+
+  subsection B. Initial particle locations =---=---=---=---=---=
+    # a----------------------------------
+    # Read the initial particle locations from file with the following format.
+    # 
+    # Nparticles
+    # ID X Y Z
+    set a Particles from file       = 
+    
+    # b----------------------------------
+    # This option will generate initial paricles around the wells
+    # using the options below, and trace them.
+    # Set 0 to deactivate well tracing
+    set b Trace wells               = 0
+
+    # c----------------------------------
+    # The number of layers that the particles will be distributed around the
+    # well
+    set c Layers per well           = 25
+
+    # d----------------------------------
+    # The number of particles per layers for the wells
+    set d Particles per layer(well) = 4
+
+    # e----------------------------------
+    # The distance from well that the particles will be releazed
+    set e Distance from well        = 5.85
+  end
+
+  subsection C. Particle Output configuration =---=---=---=---=---=
+    # a----------------------------------
+    # Particles Prefix is a keyword that is used when printing the various
+    # particle related output files. If this is empty it will use the default
+    # prefix, which may overwrite existing files with the same name
+    set a Particles Prefix           = 
+
+    # b----------------------------------
+    # Simplification threshold used for plotting
+    set b Simplify threshold         = 5.5
+
+    # c----------------------------------
+    # This will print the streamlines every N Entities (e.g. every 10 wells)
+    set c Print entity frequency     = 1
+
+    # d----------------------------------
+    # For each Entity will print every N streamlines
+    set d Print streamline frequency = 1
+  end
+
+end
+
+
+subsection J. Output Parameters ================================
+  # a----------------------------------
+  # Prefix is a keyword that is used when printing the various
+  # output files
+  set a Prefix = box2D03_
+
+
+  subsection A. Load/Save options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Savix is a keyword that is appended to Prefix when
+    # Save or load solution option is enabled.
+    set a Savix         = sol
+
+    # b----------------------------------
+    # Saves the flow solution. The filename consists of
+    # The Prefix and the Savix + _sol.npsat
+    # This overwrites the load option
+    set b Save Solution = 0
+
+    # c----------------------------------
+    # Loads an existing flow solution.
+    set c Load Solution = 0
+
+    # d----------------------------------
+    # Prints the solution every iteration
+    # The file name is Prefix + ....*vtu
+    set d Print solution vtk         = 1
+
+    # e----------------------------------
+    # Prints the velocity field cloud
+    # The file name is Prefix + proc.vel
+    set e Print velocity field cloud = 0
+
+    # f----------------------------------
+    # Multiplier coefficient to increase the printed velocity precision
+    set f Velocity multiplier        = 10000
+
+    # g----------------------------------
+    # Prints the constant head boundary condition polygons
+    # The file name is Prefix + proc.vel
+    set g Print Boundary conditions  = 0
+
+    # h----------------------------------
+    # Prints the average velocity field
+    # The file name is Prefix + AvVelField + proc.vel
+    set h Print Average Velocity     = 0
+  end
+
+  subsection B. Debug options =---=---=---=---=---=---=
+    # a----------------------------------
+    # Prints the initial mesh after refinement or after loading.
+    # The file name is Prefix + _init_mesh.vtk
+    set a Print initial mesh             = 0
+
+    # b----------------------------------
+    # Prints the coordinates of the free surface vertices.
+    # The file name is Prefix + top + iter + proc.xyz
+    set b Print free surface point cloud = 0
+
+    # c----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the X Y. (This was used during early development).
+    set c Domain Scale X                 = 1
+
+    # d----------------------------------
+    # This should be roughly equal to the maximum dimension
+    # along the Z. (This was used during early development)
+    set d Domain Scale Z                 = 1
+  end
+
+end

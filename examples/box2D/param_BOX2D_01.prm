@@ -2,13 +2,13 @@
 # ---------------------
 subsection A. Workspace directories ============================
   # a----------------------------------
-  # The directory with all input data.
+  # The directory with all input data.  (Documents/test_npsat/topo) replace CODES
   # All input data must be under the same directory.
-  set a Input directory  = /home/giorgk/CODES/NPSAT/examples/box2D/
+  set a Input directory  = /home/giorgk/Documents/CODES/npsat_engine/examples/box2D/
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/CODES/NPSAT/examples/box2D/output/
+  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/box2D/output
 end
 
 
@@ -23,14 +23,14 @@ subsection B. Geometry  ========================================
     # The length of the aquifer along the X Y Z directions.
     # In case of 2D the 3rd element is ignored but it should be present.
     # This is valid for BOX geometry type
-    set a XYZ dimensions   = 9000,500,300
+    set a XYZ dimensions   = 5000,300,300
 
     # b----------------------------------
     # case BOX:
     # The coordinates of the left lower point of the domain.
     # In case of 2D the 3rd element is ignored but it should be present.
     # This is valid for BOX geometry type
-    set b Left lower point = 550,0,0
+    set b Left lower point = 0,0,0
   end
 
   subsection B. Case FILE =---=---=---=---=---=---=---=---=---
@@ -45,20 +45,20 @@ subsection B. Geometry  ========================================
     # a----------------------------------
     # Top elevation function must be either a single value
     # or the name of a file
-    set a Top elevation function    = Top_test02.npsat
+    set a Top elevation function    = 30
 
     # b----------------------------------
     # Bottom elevation function must be either a single value
     # or the name of a file
-    set b Bottom elevation function = Bottom_test02.npsat
+    set b Bottom elevation function = -270
 
     # c----------------------------------
     # Threshold value along the horizontal plane
-    set c x-y threshold             = 0.1
+    set c x-y threshold             = 0.001
 
     # d----------------------------------
     # Threshold value the vertical plane
-    set d z threshold               = 0.01
+    set d z threshold               = 0.001
   end
 
 end
@@ -68,7 +68,7 @@ subsection C. Discretization ===================================
   # a----------------------------------
   # The number of cells along the x, y, z directions, in that order.
   # In case of 2D the 3rd element is ignored but it should be present.
-  set a Nxyz                    = 20,3,1
+  set a Nxyz                    = 10,5,3
 
   # b----------------------------------
   # A list of numbers between 0 and 1 that correspond
@@ -88,6 +88,14 @@ subsection C. Discretization ===================================
   # e----------------------------------
   # The number of initial refinements around the Streams
   set e Stream Refinement       = 0
+
+  # f----------------------------------
+  # The number of initial refinements on the top (water table)
+  set f Top Refinement                  = 0
+
+  # g----------------------------------
+  # The number of initial refinements for the remaining boundaries
+  set g Remaining Boundaries Refinement = 0
 end
 
 
@@ -95,7 +103,7 @@ subsection D. Boundary Conditions ==============================
   # a----------------------------------
   # The name file of multiple files separated by ;
   # with the constant head boundary conditions
-  set a Dirichlet file name = Dirichlet_BC_box02.npsat
+  set a Dirichlet file name = Dirichlet_BC_box01.npsat
 end
 
 
@@ -103,7 +111,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = 13
+  set a Hydraulic Conductivity KX = 10
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.
@@ -128,7 +136,7 @@ subsection F. Sources & Sinks ==================================
   # a----------------------------------
   # Groundwater recharche function
   # must be either a single value or the name of a file
-  set a Groundwater recharge = 0.12
+  set a Groundwater recharge = 0.0004
 
   # b----------------------------------
   # Stream network
@@ -138,7 +146,24 @@ subsection F. Sources & Sinks ==================================
   # c----------------------------------
   # Well network
   # The name of a file with the well information
-  set c Wells                = wells_box2D_02.npsat
+  set c Wells                = wells_box2D_01.npsat
+
+  # d----------------------------------
+  # Neumann Conditions
+  # The name of a file with additional boundary flows
+  set d Neumann Conditions   = 
+
+  # e----------------------------------
+  # Multiplier for groundwater recharge
+  set e Recharge multiplier  = 1
+
+  # f----------------------------------
+  # Multiplier for groundwater pumping
+  set f Well multiplier      = 1
+
+  # g----------------------------------
+  # Multiplier for stream leackage
+  set g Stream multiplier    = 1
 end
 
 
@@ -146,7 +171,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 13
+  set a Nonlinear iterations = 15
 
   # b----------------------------------
   # Tolerance of solver
@@ -155,7 +180,7 @@ subsection G. Solver parameters ================================
   # c----------------------------------
   # Number of maximum solver iterations
   set c Max iterations       = 1000
-
+  
   # d----------------------------------
   # If 1 displays details about the ML solver
   set d Output details       = 0
@@ -170,12 +195,12 @@ subsection H. Refinement Parameters ============================
   # b----------------------------------
   # Top refinement fraction
   # This defines the percentage of cells to be refined
-  set b Top fraction               = 0.3
+  set b Top fraction               = 0.15
 
   # c----------------------------------
   # Bottom refinement fraction
   # This defines the percentage of cells to be coarsen
-  set c Bottom fraction            = 0.1
+  set c Bottom fraction            = 0.01
 
   # d----------------------------------
   # Minimum element size. Cells with lower diameter
@@ -201,7 +226,7 @@ subsection I. Particle tracking ================================
     # the diameter of each cell with this number.
     # Essensially this number indicates the average number of steps
     # of the algorithm within a cell
-    set b Step size               = 6
+    set b Step size               = 4
 
     # c----------------------------------
     # If the streamline has not been expanded for N consecutive
@@ -237,13 +262,13 @@ subsection I. Particle tracking ================================
     # Nparticles
     # ID X Y Z
     set a Particles from file       = 
-    
+
     # b----------------------------------
     # This option will generate initial paricles around the wells
     # using the options below, and trace them.
     # Set 0 to deactivate well tracing
     set b Trace wells               = 1
-
+    
     # c----------------------------------
     # The number of layers that the particles will be distributed around the
     # well
@@ -256,6 +281,11 @@ subsection I. Particle tracking ================================
     # e----------------------------------
     # The distance from well that the particles will be releazed
     set e Distance from well        = 5.85
+
+    # f----------------------------------
+    # This is one of the following:
+    # LAYERED SPIRAL LAYROT
+    set f Well Distribution type    = 
   end
 
   subsection C. Particle Output configuration =---=---=---=---=---=
@@ -285,7 +315,7 @@ subsection J. Output Parameters ================================
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix = box2D02_
+  set a Prefix = box2D01_
 
 
   subsection A. Load/Save options =---=---=---=---=---=---=
@@ -303,28 +333,52 @@ subsection J. Output Parameters ================================
     # c----------------------------------
     # Loads an existing flow solution.
     set c Load Solution = 0
+
+    # d----------------------------------
+    # Prints the solution every iteration
+    # The file name is Prefix + ....*vtu
+    set d Print solution vtk         = 1
+
+    # e----------------------------------
+    # Prints the velocity field cloud
+    # The file name is Prefix + proc.vel
+    set e Print velocity field cloud = 0
+
+    # f----------------------------------
+    # Multiplier coefficient to increase the printed velocity precision
+    set f Velocity multiplier        = 10000
+
+    # g----------------------------------
+    # Prints the constant head boundary condition polygons
+    # The file name is Prefix + proc.vel
+    set g Print Boundary conditions  = 0
+
+    # h----------------------------------
+    # Prints the average velocity field
+    # The file name is Prefix + AvVelField + proc.vel
+    set h Print Average Velocity     = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=
     # a----------------------------------
     # Prints the initial mesh after refinement or after loading.
     # The file name is Prefix + _init_mesh.vtk
-    set a Print initial mesh             = 0
+    set a Print initial mesh = 0
 
     # b----------------------------------
     # Prints the coordinates of the free surface vertices.
     # The file name is Prefix + top + iter + proc.xyz
     set b Print free surface point cloud = 0
-
+    
     # c----------------------------------
     # This should be roughly equal to the maximum dimension
     # along the X Y. (This was used during early development).
-    set c Domain Scale X                 = 1
+    set c Domain Scale X     = 1
 
     # d----------------------------------
     # This should be roughly equal to the maximum dimension
     # along the Z. (This was used during early development)
-    set d Domain Scale Z                 = 1
+    set d Domain Scale Z     = 1
   end
 
 end
