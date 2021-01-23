@@ -213,7 +213,7 @@ end
 subsection I. Particle tracking ================================
   # a----------------------------------
   # Set to 0 to deactivate particle tracking. Default is 1
-  set a Enable particle tracking = 1
+  set a Enable particle tracking = 0
 
 
   subsection A. Configuration =---=---=---=---=---=---=---=---=

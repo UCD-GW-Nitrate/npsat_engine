@@ -13,11 +13,11 @@ The purpose of this example is to test all the available boundary condition opti
 The format of the boundary condition file is the following:
 - Number of boundaries
 - TYPE N Value 
-- Repeat N times with the coordinates that describe the boundary
+- Repeat N times the coordinates that describe the boundary
 
 
-##### Test 1 (dir_bc01.npsat)
-* Top arial boundary. We will assume that there is a polygon area (e.g. lake) that has constant head equal to 30 m. The polygon consist of 7 vertices. Therefore the file has the following format
+# Test 1 (dir_bc01.npsat)
+* __Top boundary__. This type of boundary is a polygonal area aplied on top (e.g. lake) that has constant head equal to 30 m. In the example the polygon consist of 7 vertices. Therefore the file has the following format
 ```
 1
 TOP 7 30
@@ -25,8 +25,8 @@ x y  #repeat 7 times
 ```
 **It is very important that the orientation of the polygon is counter clockwise**
 
-##### Test 2 (dir_bc02.npsat)
-* The left side of the aquifer (x = 0) is set equal to 25 m. This value will be assigned to the entire depth.
+# Test 2 (dir_bc02.npsat)
+* __Side Boundaries__: The left side of the aquifer (x = 0) is set equal to 25 m. This value will be assigned to the entire depth.
 * The right side of the aquifer (x =5000) is set equal to 40 m. However this value will be assigned only on the top layer of that side.
 
 The file has the following format:
@@ -39,7 +39,7 @@ EDGETOP 2 40
 x1 y1
 x2 y2
 ``` 
-##### Test 3 (dir_bc03.npsat)
+# Test 3 (dir_bc03.npsat)
 For the third example we will use the same boundaries and change their values. Instead of using a uniform value along the boundary we will use a variable interpolation function.
 * For the left boundary the head will vary also with depth.
 * The the right boundary since only the top face is affected we will use a variable interpolation function along the x-y plane. All z nodes will have the same constant head value for the same x,y location
@@ -55,7 +55,7 @@ x1 y1
 x2 y2
 ```
 
-#### Test 4 (dir_bc04.npsat)
+# Test 4 (dir_bc04.npsat)
 A common case in groundwater hydrology is to assign specific values on vertices that correspond to domain outline and assume linear interpolation between the vertices. This can be handled using interpolation functions, however one would have to provide a different file for each segment.
 In this example we assume that the constant hydraulic head is defined for the segments (2500, 0)-(5000, 0)-(5000 2500)
 In this case instead creating two interpolation functions for each segment the file will have the following format:

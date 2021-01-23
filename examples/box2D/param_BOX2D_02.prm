@@ -281,6 +281,11 @@ subsection I. Particle tracking ================================
     # e----------------------------------
     # The distance from well that the particles will be releazed
     set e Distance from well        = 5.85
+
+    # f----------------------------------
+    # This is one of the following:
+    # LAYERED SPIRAL LAYROT
+    set f Well Distribution type    = 
   end
 
   subsection C. Particle Output configuration =---=---=---=---=---=
