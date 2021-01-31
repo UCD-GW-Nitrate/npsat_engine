@@ -2,7 +2,7 @@
 This example is primarily used for debugging and illustrating the various dirichlet boundary conditions that can be applied in a domain.
 
 #### Domain 
-The domain of the example is a box with dimensions 5x5 km and depth 300 m approximately. The bottom of the aquifer is set uniform and equal to -270 m. The initial approximation of the free surface is set to 30 m above msl.
+The domain of the example is a box with dimensions 5x5 km and depth 300 m approximately. The bottom of the aquifer is uniform and equal to -270 m. The initial approximation of the free surface is set to 30 m above msl.
 
 #### Stresses
 * Groundwater recharge is assumed uniform and equal to 0.0002 m/day, which results in a total incoming volume of water from recharge equal to  5000 m^3/day.
@@ -24,6 +24,19 @@ TOP 7 30
 x y  #repeat 7 times
 ```
 **It is very important that the orientation of the polygon is counter clockwise**
+
+## Test 1 with multipolugon recharge
+Using the same boundary conditions we will assign zone recharge. This is implemented using the `MULTIPOLY` keyword as follows
+```
+MULTIPOLY
+Npoly 
+Nverts CONST value
+x y
+.
+.
+.
+```
+Repeat `Npoly` times from Nverts. An example of the input file is the mult_const_rch.npsat
 
 # Test 2 (dir_bc02.npsat)
 * __Side Boundaries__: The left side of the aquifer (x = 0) is set equal to 25 m. This value will be assigned to the entire depth.

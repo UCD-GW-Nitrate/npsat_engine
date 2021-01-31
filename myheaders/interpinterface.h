@@ -10,8 +10,12 @@
 #include "scatterinterp.h"
 #include "boundaryinterp.h"
 #include <gridInterp.h>
+#include "boost_functions.h"
 
 using namespace dealii;
+
+template<int dim>
+class MultiPolyClass;
 
 //!The InterpInterface class is an umbrella of all available interface function
 template <int dim>
@@ -23,15 +27,16 @@ public:
     //!Copy constructor
     InterpInterface(const InterpInterface<dim>& Interp_in);
 
-    //!This is the core of the class that swithes to the right type and calls
+    //!This is the core of the class that switches to the right type and calls
     //! the respective function
     double interpolate(Point<dim>)const;
 
     //! reads the interpolation data from a file. Currently there are two available options
     //! -A scalar value as string. This option sets a constant value interpolation method
-    //! -A filename that containts the interpolation data. The first line of the file must be
-    //! SCATTERED or GRIDDED. The format of the remaining data is descibed in grid_interp#get_data_file
+    //! -A filename that contains the interpolation data. The first line of the file must be
+    //! SCATTERED or GRIDDED. The format of the remaining data is described in grid_interp#get_data_file
     //! or in ScatterInterp#get_data.
+    //! For the GRIDDED option we pass in the same line GRIDDED and name of input file for the GRIDDED
     void get_data(std::string namefile);
 
     void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
@@ -47,19 +52,39 @@ private:
     //! * 1 -> Scattered interpolation
     //! * 2 -> Boundary Line interpolation
     //! * 3 -> Gridded interpolation
+    //! * 4 -> Multi polygon
     unsigned int TYPE;
 
-     //! Constant interpolation function
-     ConstInterp<dim> CNI;
+    unsigned int Npoly;
 
-     //! Container for scattered interpolation data
-     ScatterInterp<dim> SCI;
+    //! Constant interpolation function
+    std::vector<ConstInterp<dim>> CNI;
 
-     //! Container for boundary line interpolation
-     BoundaryInterp<dim> BND_LINE;
+    //! Container for scattered interpolation data
+    std::vector<ScatterInterp<dim>> SCI;
 
-     //! Container for gridded interpolation
-     GRID_INTERP::interp<dim> GRD;
+    //! Container for boundary line interpolation
+    std::vector<BoundaryInterp<dim>> BND_LINE;
+
+    //! Container for gridded interpolation
+    std::vector<GRID_INTERP::interp<dim>> GRD;
+
+    std::vector<boost_polygon> polygons;
+
+    /**
+     * The length of the vector is Npoly.
+     * Each element of the vector is a pair between
+     * the interpolation type and the index in the corresponding vector
+     * Type ids:
+     * 0 -> Constant
+     * 1 -> Scattered
+     * 2 -> Gridded
+     *
+     */
+    std::vector<std::pair<int,int>> PolyInterpMap;
+
+
+
 };
 
 template <int dim>
@@ -68,11 +93,14 @@ InterpInterface<dim>::InterpInterface(){}
 template <int dim>
 InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
     :
-      TYPE(Interp_in.TYPE),
-      CNI(Interp_in.CNI),
-      SCI(Interp_in.SCI),
-      BND_LINE(Interp_in.BND_LINE),
-      GRD(Interp_in.GRD)
+    TYPE(Interp_in.TYPE),
+    Npoly(Interp_in.Npoly),
+    CNI(Interp_in.CNI),
+    SCI(Interp_in.SCI),
+    BND_LINE(Interp_in.BND_LINE),
+    GRD(Interp_in.GRD),
+    polygons(Interp_in.polygons),
+    PolyInterpMap(Interp_in.PolyInterpMap)
 {}
 
 
@@ -80,19 +108,17 @@ template <int dim>
 void InterpInterface<dim>::get_data(std::string namefile){
     if (is_input_a_scalar(namefile)){
         double value = dealii::Utilities::string_to_double(namefile);
-        CNI.set_value(value);
+        ConstInterp<dim> tmp;
+        tmp.set_value(value);
+        CNI.push_back(tmp);
         TYPE = 0;
+        Npoly = 0;
     }else{
         std::ifstream  datafile(namefile.c_str());
         if (!datafile.good()){
             std::cerr << "Can't open " << namefile << std::endl;
         }
         else{
-            {
-                //ConstInterp<dim> cni_temp;
-                CNI = ConstInterp<dim>();
-            }
-
             // read the first line to determine what type of interpolant is
             char buffer[512];
             datafile.getline(buffer,512);
@@ -101,17 +127,83 @@ void InterpInterface<dim>::get_data(std::string namefile){
             inp >> type_temp;
             if (type_temp == "SCATTERED"){
                 TYPE = 1;
-                SCI.get_data(namefile);
+                datafile.close();
+                ScatterInterp<dim> tmp;
+                tmp.get_data(namefile);
+                SCI.push_back(tmp);
             }
             else if(type_temp == "BOUNDARY_LINE"){
                 TYPE = 2;
-                BND_LINE.get_data(namefile);
+                datafile.close();
+                BoundaryInterp<dim> tmp;
+                tmp.get_data(namefile);
+                BND_LINE.push_back(tmp);
             }
             else if (type_temp.compare("GRIDDED") == 0 ){
                 TYPE = 3;
+                datafile.close();
                 std::string grid_namefile;
                 inp >> grid_namefile;
-                GRD.getDataFromFile(grid_namefile);
+                GRID_INTERP::interp<dim> tmp;
+                tmp.getDataFromFile(grid_namefile);
+                GRD.push_back(tmp);
+            }
+            else if (type_temp.compare("MULTIPOLY") == 0){
+                TYPE = 4;
+                std::string line;
+                getline(datafile, line);
+                {// Get the number of polygons
+                    std::istringstream inp(line.c_str());
+                    inp >> Npoly;
+                }
+                for(int ipoly = 0; ipoly < Npoly; ++ipoly){
+                    getline(datafile, line);
+                    std::istringstream inp(line.c_str());
+                    int N;
+                    std::string type;
+                    std::string func;
+                    inp >> N;
+                    inp >> type;
+                    inp >> func;
+                    std::vector<boost_point> pnts;
+                    for (int i = 0; i < N; ++i) {
+                        getline(datafile, line);
+                        std::istringstream inp1(line.c_str());
+                        float x, y;
+                        inp1 >> x;
+                        inp1 >> y;
+                        pnts.push_back(boost_point(x, y));
+                    }
+                    boost_polygon poly;
+                    boost::geometry::assign_points(poly, pnts);
+                    boost::geometry::correct(poly);
+                    polygons.push_back(poly);
+                    if (type.compare("CONST") == 0){
+                        double value = dealii::Utilities::string_to_double(func);
+                        ConstInterp<dim> tmp;
+                        tmp.set_value(value);
+                        PolyInterpMap.push_back(std::pair<int, int>(0,CNI.size()));
+                        CNI.push_back(tmp);
+                    }
+                    else if (type.compare("SCATTERED") == 0){
+                        ScatterInterp<dim> tmp;
+                        tmp.get_data(func);
+                        PolyInterpMap.push_back(std::pair<int, int>(1,SCI.size()));
+                        SCI.push_back(tmp);
+                    }
+                    else if (type.compare("BOUNDARY_LINE") == 0){
+                        std::cerr << "I cant think why one should split a boundary line" << std::endl;
+                    }
+                    else if (type.compare("GRIDDED") == 0){
+                        GRID_INTERP::interp<dim> tmp;
+                        tmp.getDataFromFile(func);
+                        PolyInterpMap.push_back(std::pair<int, int>(2,GRD.size()));
+                        GRD.push_back(tmp);
+                    }
+                    else{
+                        std::cerr << "Unknown interpolation method Under MULTIPOLYGON " << namefile << std::endl;
+                    }
+                }
             }
             else{
                 std::cerr << "Unknown interpolation method on " << namefile << std::endl;
@@ -122,23 +214,51 @@ void InterpInterface<dim>::get_data(std::string namefile){
 
 template <int dim>
 double InterpInterface<dim>::interpolate(Point<dim> p)const{
+
     if (TYPE == 0){
-        return CNI.interpolate(p);
+        return CNI[0].interpolate(p);
     }
     else if (TYPE == 1) {
-        return SCI.interpolate(p);
+        return SCI[0].interpolate(p);
     }
     else if (TYPE == 2){
-        return BND_LINE.interpolate(p);
+        return BND_LINE[0].interpolate(p);
     }
     else if (TYPE == 3) {
         if (dim == 1)
-           return GRD.interpolate(p[0]);
+           return GRD[0].interpolate(p[0]);
         else if (dim == 2)
-            return GRD.interpolate(p[0], p[1]);
+            return GRD[0].interpolate(p[0], p[1]);
         else if (dim == 3)
-            return GRD.interpolate(p[0], p[1], p[2]);
-    }else{
+            return GRD[0].interpolate(p[0], p[1], p[2]);
+    }
+    else if (TYPE == 4){
+        for (int i = 0; i < Npoly; ++i){
+            if (boost::geometry::within(boost_point(p[0], p[1]),polygons[i])){
+                // Find out the interpolation method that corresponds to this polygon
+                // and the index in the vector
+                if (PolyInterpMap[i].first == 0){
+                    return CNI[PolyInterpMap[i].second].interpolate(p);
+                }
+                else if (PolyInterpMap[i].first == 1){
+                    return SCI[PolyInterpMap[i].second].interpolate(p);
+                }
+                else if (PolyInterpMap[i].first == 2){
+                    if (dim == 1)
+                        return GRD[PolyInterpMap[i].second].interpolate(p[0]);
+                    else if (dim == 2)
+                        return GRD[PolyInterpMap[i].second].interpolate(p[0], p[1]);
+                    else if (dim == 3)
+                        return GRD[PolyInterpMap[i].second].interpolate(p[0], p[1], p[2]);
+                }
+                else{
+                    std::cerr << "Unknown method for MULTIPOLY interpolation" << std::endl;
+                }
+                break;
+            }
+        }
+    }
+    else{
         std::cerr << "Unknown interpolation method" << std::endl;
     }
     return 0;
@@ -146,7 +266,7 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
 
 template <int dim>
 void InterpInterface<dim>::set_SCI_EDGE_points(Point<dim> a, Point<dim> b){
-    SCI.set_edge_points(a,b);
+    SCI[0].set_edge_points(a,b);
 }
 
 template <int dim>
@@ -166,7 +286,7 @@ void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
 template <int dim>
 bool InterpInterface<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
     if (TYPE == 2){
-        return BND_LINE.is_face_part_of_BND(A, B);
+        return BND_LINE[0].is_face_part_of_BND(A, B);
     }
     else
         return false;

@@ -627,11 +627,11 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                     if (add_this_cell){
                         //int nn = itw->second.well_cells.size() + 1;
                         //if (dgb_print){
-                            std::cout << itw->second.well_cells.size() << std::endl;
-                            std::cout << cell->center() << std::endl;
+                            //std::cout << itw->second.well_cells.size() << std::endl;
+                            //std::cout << cell->center() << std::endl;
                         //}
 
-                        std::cout << "Well id " << itw->first << std::endl;
+                        //std::cout << "Well id " << itw->first << std::endl;
                         //wells[i].mid_point.resize(nn);
                         //wells[i].mid_point[nn-1] = p_mid;
                         itw->second.L_cell.push_back(segment_length);

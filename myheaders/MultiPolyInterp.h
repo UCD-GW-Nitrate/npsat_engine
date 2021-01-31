@@ -16,7 +16,7 @@ public:
     MultiPolyInterface();
 
     void get_data(std::string filename);
-    double interpolate(Point<dim> p)const;
+    double interpolate(Point<dim> p)const override;
 
 private:
     int Npoly;
@@ -30,9 +30,30 @@ MultiPolyInterface<dim>::MultiPolyInterface() {}
 template<int dim>
 void MultiPolyInterface<dim>::get_data(std::string filename) {
     std::ifstream datafile(filename.c_str());
-    if (!datafile.good()) {
-        std::cerr << "Can't open " << filename << std::endl;
+    if (!datafile.good()) {// Then it may be a scalar
+        // If not the error will be captured on the InterpInterface
+        Npoly = 0;
+        InterpInterface<dim> tmpInterp;
+        tmpInterp.get_data(filename);
+        interp_func.push_back(tmpInterp);
+        return;
     } else {
+        {// Is its a file but the file its not MULTIPOLY then
+            // switch to one polygon interpolation
+            char buffer[512];
+            datafile.getline(buffer,512);
+            std::istringstream inp(buffer);
+            std::string type_temp;
+            inp >> type_temp;
+            if (type_temp != "MULTIPOLY"){
+                Npoly = 0;
+                InterpInterface<dim> tmpInterp;
+                tmpInterp.get_data(filename);
+                interp_func.push_back(tmpInterp);
+                datafile.close();
+                return;
+            }
+        }
         std::string line;
         getline(datafile, line);
         {// Get the number of polygons
@@ -70,6 +91,9 @@ void MultiPolyInterface<dim>::get_data(std::string filename) {
 
 template<int dim>
 double MultiPolyInterface<dim>::interpolate(Point<dim> p) const {
+    if (Npoly == 0 && interp_func.size() > 0){
+        return interp_func[0].interpolate(p);
+    }
     for (int i = 0; i < Npoly; ++i) {
         if (boost::geometry::within(boost_point(),polygons[i])){
             return interp_func[i].interpolate(p);

@@ -6,7 +6,7 @@
 SET(TARGET "npsat")
 PROJECT(${TARGET} CXX)
 
-FILE(GLOB_RECURSE TARGET_INC  "myheaders/*.h")
+FILE(GLOB_RECURSE TARGET_INC  myheaders/*.h)
 SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
 
 # Declare all source files the target consists of. Here, this is only
@@ -21,7 +21,7 @@ SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
 # page of the documentation.
 SET(TARGET_SRC
   ${TARGET}.cc
-  )
+        )
 
 # Usually, you will not need to modify anything beyond this point...
 

@@ -114,5 +114,121 @@ fprintf(fid, 'BOUNDARY_LINE\n');
 fprintf(fid, '%d %d %f\n', [size(bc_pline,1) 1, 1.0]);
 fprintf(fid, '%f %f %f\n', bc_pline');
 fclose(fid);
+%% Write files for Multipolygon recharge
+% First split the domain
+plot([0 5000 5000 0 0], [0 0 5000 5000 0]);
 
+% make firts poly
+[x, y] = ginput;
+poly1 = [x y];
+hold on
+plot(poly1(:,1), poly1(:,2))
 
+% set two more points to define the second polygon
+[x, y] = ginput(2);
+poly2 = [poly1(1:2,:); [x y]; [-100 -100]];
+plot(poly2(:,1), poly2(:,2))
+% make the other polygon as the intersection 
+p1 = polyshape(poly1(:,1),poly1(:,2));
+p2 = polyshape(poly2(:,1),poly2(:,2));
+dom = polyshape([0 5000 5000 0 0], [0 0 5000 5000 0]);
+
+p3 = subtract(dom,p1);
+p3 = subtract(p3, p2);
+%%
+plot(p1)
+hold on
+plot(p2)
+plot(p3)
+plot([0 5000 5000 0 0], [0 0 5000 5000 0]);
+%% Create interpolation functions for each subdomain
+% The first will be scattered
+% scatter points on the bounding box
+xr = min(p1.Vertices(:,1)) + (max(p1.Vertices(:,1)) - min(p1.Vertices(:,1)))*rand(60,1);
+yr = min(p1.Vertices(:,2)) + (max(p1.Vertices(:,2)) - min(p1.Vertices(:,2)))*rand(60,1);
+R1 = 0.00001 + (0.0005 - 0.00001)*rand(60,1);
+writeScatteredData('p1_rch.npsat', struct('PDIM', 2, 'TYPE', 'HOR', 'MODE', 'SIMPLE'), [xr yr R1]);
+%% The second will be gridded with equal spacing and nearest interpolation
+xg = linspace(min(p2.Vertices(:,1)), max(p2.Vertices(:,1)), 10);
+yg = linspace(min(p2.Vertices(:,2)), max(p2.Vertices(:,2)), 7);
+fid = fopen('p2_Xaxis.npsat','w');
+fprintf(fid, 'CONST %d\n', length(xg));
+fprintf(fid, '%.2f %.2f\n',[xg(1) diff(xg(1:2))]);
+fclose(fid);
+
+fid = fopen('p2_Yaxis.npsat','w');
+fprintf(fid, 'CONST %d\n', length(yg));
+fprintf(fid, '%.2f %.2f\n',[yg(1) diff(yg(1:2))]);
+fclose(fid);
+
+fid = fopen('p_Zaxis.npsat','w');
+fprintf(fid, 'CONST %d\n', 1);
+fprintf(fid, '%.2f %.2f\n', [0 10]);
+fclose(fid);
+
+frmt = '%.5f';
+for ii = 1:(length(xg)-1)
+    frmt = [frmt ' %.5f'];
+end
+frmt = [frmt '\n'];
+
+p2_data = 0.00001 + (0.001 - 0.00001)*rand(10,7);
+
+fid = fopen('p2_rch.npsat','w');
+fprintf(fid,'NEAREST %d %d %d\n', [length(xg), length(yg) 1]);
+fprintf(fid,'p2_Xaxis.npsat p2_Yaxis.npsat p_Zaxis.npsat\n');
+fprintf(fid, frmt, p2_data');
+fclose(fid);
+%% The third will be a gridded with linear interpolation with variable step
+xgv = min(p3.Vertices(:,1));
+while xgv(end) < max(p3.Vertices(:,1))
+    dx = 100 + (800 - 100)*rand;
+    xgv = [xgv xgv(end) + dx];
+end
+
+ygv = min(p3.Vertices(:,2));
+while ygv(end) < max(p3.Vertices(:,2))
+    dy = 100 + (800 - 100)*rand;
+    ygv = [ygv ygv(end) + dy];
+end
+
+fid = fopen('p3_Xaxis.npsat','w');
+fprintf(fid, 'VAR %d\n', length(xgv));
+fprintf(fid, '%.2f\n',xgv);
+fclose(fid);
+
+fid = fopen('p3_Yaxis.npsat','w');
+fprintf(fid, 'VAR %d\n', length(ygv));
+fprintf(fid, '%.2f\n',ygv);
+fclose(fid);
+
+pp = peaks(max(length(xgv), length(ygv)));
+pp = (pp - min(pp,[],'all'))/(max(pp,[],'all') - min(pp,[],'all'))*0.001;
+
+p3_data = pp(1:7,:)';
+
+frmt = '%.5f';
+for ii = 1:(length(xgv)-1)
+    frmt = [frmt ' %.5f'];
+end
+frmt = [frmt '\n'];
+
+fid = fopen('p3_rch.npsat','w');
+fprintf(fid,'LINEAR %d %d %d\n', [length(xgv), length(ygv), 1]);
+fprintf(fid,'p3_Xaxis.npsat p3_Yaxis.npsat p_Zaxis.npsat\n');
+fprintf(fid, frmt, p3_data');
+fclose(fid);
+%% Print the main recharge file
+fid = fopen('mult_var_rch.npsat','w');
+fprintf(fid, 'MULTIPOLY\n');
+fprintf(fid, '%d\n', 3); %Number of polygons
+% poly1
+fprintf(fid, '%d %s %s\n', size(p1.Vertices,1), 'SCATTERED', 'p1_rch.npsat');
+fprintf(fid, '%.2f %.2f\n', p1.Vertices');
+% poly2
+fprintf(fid, '%d %s %s\n', size(p2.Vertices,1), 'GRIDDED', 'p2_rch.npsat');
+fprintf(fid, '%.2f %.2f\n', p2.Vertices');
+% poly3
+fprintf(fid, '%d %s %s\n', size(p3.Vertices,1), 'GRIDDED', 'p3_rch.npsat');
+fprintf(fid, '%.2f %.2f\n', p3.Vertices');
+fclose(fid);

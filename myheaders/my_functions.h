@@ -5,6 +5,7 @@
 #include <deal.II/base/tensor_function.h>
 
 #include "interpinterface.h"
+#include "MultiPolyInterp.h"
 
 using namespace dealii;
 

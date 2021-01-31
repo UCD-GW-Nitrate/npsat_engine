@@ -68,6 +68,8 @@ public:
 
     void printVelocityField(MyTensorFunction<dim> &HK_function);
 
+    void printGWrecharge(MyFunction<dim, dim> &RCH_function);
+
 
 
 private:
@@ -373,6 +375,10 @@ void NPSAT<dim>::solve_refine(){
         save();
     if (AQProps.print_velocity_cloud > 0)
         printVelocityField(HK_function[0]);
+
+    if (AQProps.print_GW_rch > 0)
+        printGWrecharge(GR_funct);
+
 
     pcout << "Simulation ended at \n" << print_current_time() << std::endl;
 
@@ -880,15 +886,24 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
 
     int n_quad_points = 1;
 
-    const QGauss<dim> quadrature_formula(n_quad_points);
-    const unsigned int   n_q_points = quadrature_formula.size();
-    FEValues<dim> fe_values (fe, quadrature_formula,
+    const QGauss<dim> quadrature_formula1(1);
+    const QGauss<dim> quadrature_formula2(2);
+    const QGauss<dim-1> face_quadrature_formula(2);
+    const unsigned int   n_q_points1 = quadrature_formula1.size();
+    const unsigned int   n_q_points2 = quadrature_formula2.size();
+    FEValues<dim> fe_values1 (fe, quadrature_formula1,
                              update_values    |  update_gradients |
                              update_quadrature_points |
                              update_JxW_values);
+    FEValues<dim> fe_values2 (fe, quadrature_formula2,
+                              update_values    |  update_gradients |
+                              update_quadrature_points |
+                              update_JxW_values);
 
-    std::vector<Tensor<2,dim> > hydraulic_conductivity_values(n_q_points);
-    std::vector<Tensor<1, dim> > hgrad(n_q_points);
+    std::vector<Tensor<2,dim> > hydraulic_conductivity_values1(n_q_points1);
+    std::vector<Tensor<1, dim> > hgrad1(n_q_points1);
+    std::vector<Tensor<2,dim> > hydraulic_conductivity_values2(n_q_points2);
+    std::vector<Tensor<1, dim> > hgrad2(n_q_points2);
     Tensor<1,dim> KdH;
 
     std::vector<Point<dim>> cell_vertices(GeometryInfo<dim>::vertices_per_cell);
@@ -900,7 +915,7 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
     endc = dof_handler.end();
     double shape_value;
     for (; cell!=endc; ++cell){
-        if (cell->is_locally_owned() || cell->is_ghost()){
+        if (cell->is_locally_owned()){
             double diameter = cell->diameter();
             BoundingBox<dim> BB = cell->bounding_box();
             // This pair containts the points of the Bounding Box. the first point of the pair is the lower corner
@@ -919,45 +934,128 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                 cell_ratio = dx_cell/dy_cell;
             }
 
-
-            //if (my_rank == 0 & cell->is_ghost())
-            //  std::cout << cell->id() << " " << cell->subdomain_id() << std::endl;
-            fe_values.reinit (cell);
-            fe_values.get_function_gradients(locally_relevant_solution, hgrad);
-            HK_function.value_list(fe_values.get_quadrature_points(), hydraulic_conductivity_values);
-
-            for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
-                cell_vertices[i] = cell->vertex(i);
+            bool is_cell_top = false;
+            if (dim == 3){
+                if (cell->face(5)->at_boundary())
+                    is_cell_top = true;
+            }
+            else if (dim == 2){
+                if (cell->face(3)->at_boundary())
+                    is_cell_top = true;
             }
 
-            for (unsigned int q_point=0; q_point < n_q_points; ++q_point){
-                KdH = hydraulic_conductivity_values[q_point]*hgrad[q_point];
-                Point<dim> p;
+            if (is_cell_top){
+                // For the top layer use higher order values
+                fe_values2.reinit (cell);
+                fe_values2.get_function_gradients(locally_relevant_solution, hgrad2);
+                HK_function.value_list(fe_values2.get_quadrature_points(), hydraulic_conductivity_values2);
                 for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
-                    shape_value = fe_values.shape_value(i,q_point);
-                    for (unsigned int idim = 0; idim < dim; ++idim){
-                        p[idim] = p[idim] + shape_value*cell_vertices[i](idim);
+                    cell_vertices[i] = cell->vertex(i);
+                }
+                for (unsigned int q_point=0; q_point < n_q_points2; ++q_point){
+                    KdH = hydraulic_conductivity_values2[q_point]*hgrad2[q_point];
+                    Point<dim> p;
+                    for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
+                        shape_value = fe_values2.shape_value(i,q_point);
+                        for (unsigned int idim = 0; idim < dim; ++idim){
+                            p[idim] = p[idim] + shape_value*cell_vertices[i](idim);
+                        }
                     }
+                    if (dim == 2){
+                        vel_stream_file << std::setprecision(2) << std::fixed
+                                        << p[0] << " " << p[1] << " "
+                                        << std::setprecision(6) << std::fixed
+                                        << -m*KdH[0] << " " << -m*KdH[1] << " ";
+                    }
+                    else if (dim == 3){
+                        vel_stream_file << std::setprecision(2) << std::fixed
+                                        << p[0] << " " << p[1] << " " << p[2] << " "
+                                        << std::setprecision(6) << std::fixed
+                                        << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
+                    }
+                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
                 }
 
 
-                if (dim == 2){
-                    vel_stream_file << std::setprecision(2) << std::fixed
-                                    << p[0] << " " << p[1] << " "
-                                    << std::setprecision(6) << std::fixed
-                                    << -m*KdH[0] << " " << -m*KdH[1] << " ";
+            }
+            else{
+                fe_values1.reinit (cell);
+                fe_values1.get_function_gradients(locally_relevant_solution, hgrad1);
+                HK_function.value_list(fe_values1.get_quadrature_points(), hydraulic_conductivity_values1);
+                for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
+                    cell_vertices[i] = cell->vertex(i);
                 }
-                else if (dim == 3){
-                    vel_stream_file << std::setprecision(2) << std::fixed
-                                    << p[0] << " " << p[1] << " " << p[2] << " "
-                                    << std::setprecision(6) << std::fixed
-                                    << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
+                for (unsigned int q_point=0; q_point < n_q_points1; ++q_point){
+                    KdH = hydraulic_conductivity_values1[q_point]*hgrad1[q_point];
+                    Point<dim> p;
+                    for (unsigned int i = 0; i < GeometryInfo<dim>::vertices_per_cell; ++i){
+                        shape_value = fe_values1.shape_value(i,q_point);
+                        for (unsigned int idim = 0; idim < dim; ++idim){
+                            p[idim] = p[idim] + shape_value*cell_vertices[i](idim);
+                        }
+                    }
+
+                    if (dim == 2){
+                        vel_stream_file << std::setprecision(2) << std::fixed
+                                        << p[0] << " " << p[1] << " "
+                                        << std::setprecision(6) << std::fixed
+                                        << -m*KdH[0] << " " << -m*KdH[1] << " ";
+                    }
+                    else if (dim == 3){
+                        vel_stream_file << std::setprecision(2) << std::fixed
+                                        << p[0] << " " << p[1] << " " << p[2] << " "
+                                        << std::setprecision(6) << std::fixed
+                                        << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
+                    }
+                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
                 }
-                vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
             }
         }
     }
     vel_stream_file.close();
+}
+
+template <int dim>
+void NPSAT<dim>::printGWrecharge(MyFunction<dim, dim> &RCH_function) {
+    if (dim != 3 ){
+        pcout << "Printing recharge in other than 3D is not supported yet" << std::endl;
+        return;
+    }
+    const std::string rch_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
+                                      Utilities::int_to_string(my_rank,4) + ".rch");
+    pcout << "Printing Groundwater recharge in: " <<  (AQProps.Dirs.output + AQProps.sim_prefix + "xxxx.vel") << std::endl;
+    std::ofstream rch_stream;
+    rch_stream.open(rch_filename);
+
+    const QGauss<dim-1> face_quadrature_formula(2);
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+    FEFaceValues<dim> fe_face_values (fe, face_quadrature_formula,
+                                      update_values         | update_quadrature_points  | update_jacobians |
+                                      update_normal_vectors | update_JxW_values);
+    std::vector<double>			 		recharge_values(n_face_q_points);
+    std::vector<Point<dim>> quad_points;
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
+                if(cell->face(i_face)->at_boundary()){
+                    if ((cell->face(i_face)->boundary_id() == 5 && dim == 3) ||
+                        (cell->face(i_face)->boundary_id() == 3 && dim == 2)){
+                        fe_face_values.reinit (cell, i_face);
+                        quad_points = fe_face_values.get_quadrature_points();
+                        RCH_function.value_list(quad_points, recharge_values);
+                        for (int i = 0; i < recharge_values.size(); ++i){
+                            rch_stream << quad_points[i] << " " << recharge_values[i]*1000 << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    rch_stream.close();
 }
 
 #endif // NPSAT_H

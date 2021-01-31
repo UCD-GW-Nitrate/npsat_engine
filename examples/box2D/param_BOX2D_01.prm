@@ -357,6 +357,11 @@ subsection J. Output Parameters ================================
     # Prints the average velocity field
     # The file name is Prefix + AvVelField + proc.vel
     set h Print Average Velocity     = 0
+
+    # i----------------------------------
+    # Prints the groundwater recharge as point cloud
+    # The file name is Prefix + proc.rch
+    set i Print GW Recharge          = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=

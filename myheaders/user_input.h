@@ -663,6 +663,11 @@ void CL_arguments<dim>::declare_parameters(){
                               "h----------------------------------\n"
                               "Prints the average velocity field\n"
                               "The file name is Prefix + AvVelField + proc.vel");
+
+            prm.declare_entry("i Print GW Recharge", "0", Patterns::Integer(0,2),
+                              "i----------------------------------\n"
+                              "Prints the groundwater recharge as point cloud\n"
+                              "The file name is Prefix + proc.rch");
         }
         prm.leave_subsection();
 
@@ -1074,7 +1079,7 @@ bool CL_arguments<dim>::read_param_file(){
             AQprop.part_param.velocity_multiplier = AQprop.multiplier_velocity_print;
             AQprop.print_bnd_cond = prm.get_integer("g Print Boundary conditions");
             AQprop.print_Average_Velocity = prm.get_integer("h Print Average Velocity");
-
+            AQprop.print_GW_rch = prm.get_integer("i Print GW Recharge");
         }
         prm.leave_subsection ();
 

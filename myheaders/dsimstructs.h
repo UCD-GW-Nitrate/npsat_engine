@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "interpinterface.h"
+#include "MultiPolyInterp.h"
 #include "wells.h"
 #include "streams.h"
 #include "my_functions.h"
@@ -251,6 +252,9 @@ public:
 
     //! Print boundary conditions
     int                                 print_bnd_cond;
+
+    //! Print groundwater recharge
+    int                                 print_GW_rch;
 
     //! this is a constant number that the velocity is multiplied before printed.
     //! The purpose of this is to increase the accuracy of the printed velocity without
