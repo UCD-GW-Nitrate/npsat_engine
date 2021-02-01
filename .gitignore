@@ -113,6 +113,13 @@
 /examples/Tule/*
 #unignore the *.npsat files
 !/examples/Tule/*.npsat
+!/examples/Tule/*.hipnc
+!/examples/Tule/*.ich
+!/examples/Tule/*.ini
+!/examples/Tule/*.md
+!/examples/Tule/*.dat
+!/examples/Tule/*.png
+!/examples/Tule/*.prm
 # unignore the Modesto example ---------Modesto----------
 !/examples/Modesto
 #ignore all the content of the folder
