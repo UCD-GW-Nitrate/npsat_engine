@@ -1077,7 +1077,7 @@ void NPSAT<dim>::printGWrecharge(MyFunction<dim, dim> &RCH_function) {
                 fe_face_values.reinit (cell, _TOPFACEID);
                 quad_points = fe_face_values.get_quadrature_points();
                 RCH_function.value_list(quad_points, recharge_values);
-                for (int i = 0; i < recharge_values.size(); ++i){
+                for (unsigned int i = 0; i < recharge_values.size(); ++i){
                     rch_stream << quad_points[i] << " " << recharge_values[i]*1000 << std::endl;
                 }
             }

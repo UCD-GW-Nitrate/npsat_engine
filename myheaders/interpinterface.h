@@ -15,6 +15,15 @@
 using namespace dealii;
 
 template<int dim>
+struct RectPoly{
+    Point<dim> minP;
+    Point<dim> maxP;
+    bool isPointIn(double x, double y) const{
+         return x >= minP[0] && x <= maxP[0] && y >= minP[1] && y <= maxP[1];
+    }
+};
+
+template<int dim>
 class MultiPolyClass;
 
 //!The InterpInterface class is an umbrella of all available interface function
@@ -53,6 +62,7 @@ private:
     //! * 2 -> Boundary Line interpolation
     //! * 3 -> Gridded interpolation
     //! * 4 -> Multi polygon
+    //! * 5 -> Multi Rectangle
     unsigned int TYPE;
 
     unsigned int Npoly;
@@ -70,6 +80,8 @@ private:
     std::vector<GRID_INTERP::interp<dim>> GRD;
 
     std::vector<boost_polygon> polygons;
+
+    std::vector<RectPoly<dim> > rectpolys;
 
     /**
      * The length of the vector is Npoly.
@@ -100,6 +112,7 @@ InterpInterface<dim>::InterpInterface(const InterpInterface<dim>& Interp_in)
     BND_LINE(Interp_in.BND_LINE),
     GRD(Interp_in.GRD),
     polygons(Interp_in.polygons),
+    rectpolys(Interp_in.rectpolys),
     PolyInterpMap(Interp_in.PolyInterpMap)
 {}
 
@@ -148,36 +161,62 @@ void InterpInterface<dim>::get_data(std::string namefile){
                 tmp.getDataFromFile(grid_namefile);
                 GRD.push_back(tmp);
             }
-            else if (type_temp.compare("MULTIPOLY") == 0){
-                TYPE = 4;
+            else if (type_temp.compare("MULTIPOLY") == 0 || type_temp.compare("MULTIRECT") == 0){
+                if (type_temp.compare("MULTIPOLY") == 0)
+                    TYPE = 4;
+                else if (type_temp.compare("MULTIRECT") == 0)
+                    TYPE = 5;
+
                 std::string line;
                 getline(datafile, line);
                 {// Get the number of polygons
                     std::istringstream inp(line.c_str());
                     inp >> Npoly;
                 }
-                for(int ipoly = 0; ipoly < Npoly; ++ipoly){
+                for(unsigned int ipoly = 0; ipoly < Npoly; ++ipoly){
                     getline(datafile, line);
                     std::istringstream inp(line.c_str());
-                    int N;
+                    int N = 0;
                     std::string type;
                     std::string func;
-                    inp >> N;
+                    if (TYPE == 4)
+                        inp >> N;
+                    else if (TYPE == 5)
+                        N = 1;
                     inp >> type;
                     inp >> func;
-                    std::vector<boost_point> pnts;
-                    for (int i = 0; i < N; ++i) {
+                    if (TYPE == 4){
+                        std::vector<boost_point> pnts;
+                        for (int i = 0; i < N; ++i) {
+                            getline(datafile, line);
+                            std::istringstream inp1(line.c_str());
+                            float x, y;
+                            inp1 >> x;
+                            inp1 >> y;
+                            pnts.push_back(boost_point(x, y));
+                        }
+                        boost_polygon poly;
+                        boost::geometry::assign_points(poly, pnts);
+                        boost::geometry::correct(poly);
+                        polygons.push_back(poly);
+                    }
+                    else if (TYPE == 5){
                         getline(datafile, line);
                         std::istringstream inp1(line.c_str());
-                        float x, y;
-                        inp1 >> x;
-                        inp1 >> y;
-                        pnts.push_back(boost_point(x, y));
+                        RectPoly<dim> rp;
+                        double x1,y1,x2,y2;
+                        Point<dim> p1, p2;
+                        inp1 >> x1;
+                        inp1 >> y1;
+                        inp1 >> x2;
+                        inp1 >> y2;
+                        rp.minP[0] = x1;
+                        rp.minP[1] = y1;
+                        rp.maxP[0] = x2;
+                        rp.maxP[1] = y2;
+                        rectpolys.push_back(rp);
                     }
-                    boost_polygon poly;
-                    boost::geometry::assign_points(poly, pnts);
-                    boost::geometry::correct(poly);
-                    polygons.push_back(poly);
+
                     if (type.compare("CONST") == 0){
                         double value = dealii::Utilities::string_to_double(func);
                         ConstInterp<dim> tmp;
@@ -232,9 +271,20 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
         else if (dim == 3)
             return GRD[0].interpolate(p[0], p[1], p[2]);
     }
-    else if (TYPE == 4){
-        for (int i = 0; i < Npoly; ++i){
-            if (boost::geometry::within(boost_point(p[0], p[1]),polygons[i])){
+    else if (TYPE == 4 || TYPE == 5){
+        for (unsigned int i = 0; i < Npoly; ++i){
+            // Find the polygon or rectangle that containt the interpolation point
+            bool point_found = false;
+            if (TYPE == 4){
+                if (boost::geometry::within(boost_point(p[0], p[1]),polygons[i]))
+                    point_found = true;
+            }
+            else if (TYPE == 5){
+                if (rectpolys[i].isPointIn(p[0], p[1]))
+                    point_found = true;
+            }
+
+            if (point_found){
                 // Find out the interpolation method that corresponds to this polygon
                 // and the index in the vector
                 if (PolyInterpMap[i].first == 0){

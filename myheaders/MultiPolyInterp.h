@@ -22,6 +22,7 @@ private:
     int Npoly;
     std::vector<boost_polygon> polygons;
     std::vector<InterpInterface<dim> > interp_func;
+    std::vector<std::vector<Point<dim> > > RectBound;
 };
 
 template<int dim>
@@ -38,14 +39,14 @@ void MultiPolyInterface<dim>::get_data(std::string filename) {
         interp_func.push_back(tmpInterp);
         return;
     } else {
-        {// Is its a file but the file its not MULTIPOLY then
+        std::string Interpolation_type;
+        {// Is its a file but the file its not MULTIPOLY or MULTIRECT then
             // switch to one polygon interpolation
             char buffer[512];
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
-            std::string type_temp;
-            inp >> type_temp;
-            if (type_temp != "MULTIPOLY"){
+            inp >> Interpolation_type;
+            if (!(Interpolation_type == "MULTIPOLY"  || Interpolation_type == "MULTIRECT")){
                 Npoly = 0;
                 InterpInterface<dim> tmpInterp;
                 tmpInterp.get_data(filename);
@@ -61,7 +62,7 @@ void MultiPolyInterface<dim>::get_data(std::string filename) {
             inp >> Npoly;
         }
         getline(datafile, line);
-        {// Read the polygon information and the interpolation function
+        if (Interpolation_type == "MULTIPOLY"){// Read the polygon information and the interpolation function
             std::istringstream inp(line.c_str());
             int N;
             std::string func;
@@ -84,6 +85,9 @@ void MultiPolyInterface<dim>::get_data(std::string filename) {
             InterpInterface<dim> tmpInterp;
             tmpInterp.get_data(func);
             interp_func.push_back(tmpInterp);
+        }
+        else if (Interpolation_type == "MULTIRECT"){
+
         }
         datafile.close();
     }
