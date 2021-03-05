@@ -13,6 +13,7 @@
 
 //#include "my_functions.h"
 #include "cgal_functions.h"
+#include "nanoflann_structures.h"
 #include "helper_functions.h"
 #include "boost_functions.h"
 #include "mpi_help.h"
@@ -179,6 +180,11 @@ public:
     double stream_multiplier = 1.0;
 
 private:
+    PointIdCloud StreamCenterAsCloud;
+    std::shared_ptr<pointid_kd_tree> streamIndex;
+
+
+
     //! a temporary 1-cell triangulation which is used as way to access methods that operate in 2 dimensions
     //Triangulation<dim-1> tria;
     //! a temporary 1-cell triangulation which is used as way to access method that operate in 2 dimensions
@@ -246,6 +252,7 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
 
             double x, y, q, w;
             for (unsigned int i = 0; i < N_seg; ++i){
+                PointId stream_point;
                 unsigned int N_points;
                 {
                     datafile.getline(buffer,512);
@@ -297,11 +304,16 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                         yy.push_back(y);
                     }
                 }
+
+                double xbcstream = 0;
+                double ybcstream = 0;
                 Xpoly[i] = xx;
                 Ypoly[i] = yy;
                 Xmin[i] = 100000000; Xmax[i] = -100000000;
                 Ymin[i] = 100000000; Ymax[i] = -100000000;
                 for (unsigned j = 0; j < xx.size(); ++j){
+                    xbcstream = xbcstream + xx[j];
+                    ybcstream = ybcstream + yy[j];
                     if (xx[j] > Xmax[i])
                         Xmax[i] = xx[j];
                     if (xx[j] < Xmin[i])
@@ -311,6 +323,12 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                     if (yy[j] < Ymin[i])
                         Ymin[i] = yy[j];
                 }
+                xbcstream = xbcstream/static_cast<double>(xx.size());
+                ybcstream = ybcstream/static_cast<double>(xx.size());
+                stream_point.x = xbcstream;
+                stream_point.y = ybcstream;
+                stream_point.id = i;
+                StreamCenterAsCloud.pts.push_back(stream_point);
 
                 stream_triangles.push_back(ine_Triangle(ine_Point3(xx[0], yy[0], 0.0),
                                                         ine_Point3(xx[1], yy[1], 0.0),
@@ -330,6 +348,9 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 }
             }
         }
+        streamIndex = std::unique_ptr<pointid_kd_tree>(new pointid_kd_tree(
+                2, StreamCenterAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
+        streamIndex->buildIndex();
         //stream_tree->insert(stream_triangles.begin(), stream_triangles.end());
         return true;
     }

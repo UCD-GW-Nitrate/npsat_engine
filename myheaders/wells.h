@@ -7,7 +7,8 @@
 #include <deal.II/grid/tria_iterator.h>
 
 #include "helper_functions.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
+#include "nanoflann_structures.h"
 #include "my_functions.h"
 #include "mpi_help.h"
 #include "streamlines.h"
@@ -188,10 +189,13 @@ public:
 
     //! This is a structure that contains the XY locations of the wells into a structure provided by CGAL.
     //! It is used for fast searching
-    PointSet2 WellsXY;
+    // PointSet2 WellsXY;
 
     //! This is a structure that is used by CGAL during fast searching and it is used to obtain the id of the included wells
-    std::vector< std::pair<ine_Point2,int> > wellxy;
+    // std::vector< std::pair<ine_Point2,int> > wellxy;
+
+    PointIdCloud WellsAsCloud;
+    std::shared_ptr<pointid_kd_tree> wellIndex;
 
     //! Given a 3D cell sets up the 2D Well_Set::#tria cell.
     void setup_cell(typename DoFHandler<dim>::active_cell_iterator Cell3D, Triangulation<dim-1> &tria);
@@ -266,6 +270,9 @@ public:
 
     //! well multiplier
     double well_multiplier = 1.0;
+
+    bool search4NearbyWells(double x, double y, double searchRadius,
+                            std::vector<int>& ids);
 };
 
 template <int dim>
@@ -324,15 +331,22 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
         inp1 >> Nwells;
         //wells.resize(Nwells);
         for (int i = 0; i < Nwells; i++){
+            PointId wp;
             datafile.getline(buffer,512);
             std::istringstream inp(buffer);
             inp >> Xcoord;
-            if (dim == 2)
+            wp.x = Xcoord;
+            wp.id = i;
+            if (dim == 2){
                 Ycoord = 0;
-            else if (dim == 3)
+                wp.y = 0;
+            }
+            else if (dim == 3){
                 inp >> Ycoord;
+                wp.y = Ycoord;
+            }
+            WellsAsCloud.pts.push_back(wp);
 
-            wellxy.push_back(std::make_pair(ine_Point2(Xcoord, Ycoord), i) );
             inp >> top;
             inp >> bot;
             inp >> Q;
@@ -362,7 +376,9 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
             //wells[i].Qtot = Q;
             //wells[i].well_id = i;
         }
-        WellsXY.insert(wellxy.begin(), wellxy.end());
+        wellIndex = std::unique_ptr<pointid_kd_tree>(new pointid_kd_tree(
+                2, WellsAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
+        wellIndex->buildIndex();
         return true;
     }
 }
@@ -393,7 +409,9 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
                 xp.push_back(cell->face(4)->vertex(3)[0]); yp.push_back(cell->face(4)->vertex(3)[1]);
                 xp.push_back(cell->face(4)->vertex(2)[0]); yp.push_back(cell->face(4)->vertex(2)[1]);
             }
-            bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
+            //bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
+            Point<dim> bc = cell->barycenter();
+            bool are_wells = search4NearbyWells(bc[0], bc[1], cell->diameter(), well_id_in_cell);
 
             if (!are_wells)
                 continue;
@@ -517,8 +535,11 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             //    int a = 0;
             //    dummy_function(true,a);
             //}
+            Point<dim> bc = cell->barycenter();
 
-            bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
+            bool are_wells = search4NearbyWells(bc[0], bc[1], cell->diameter(), well_id_in_cell);
+
+            //bool are_wells = get_point_ids_in_set(WellsXY, xp, yp, well_id_in_cell);
             if (!are_wells)
                 continue;
 
@@ -786,6 +807,23 @@ void Well_Set<dim>::distribute_particles(std::vector<Streamline<dim>> &Streamlin
             Streamlines.push_back(Streamline<dim>(itw->first, j, particles[j]));
         }
     }
+}
+
+template<int dim>
+bool Well_Set<dim>::search4NearbyWells(double x, double y, double searchRadius,
+                                       std::vector<int>& ids){
+    const double query_pt[2] = {x, y};
+    std::vector<std::pair<size_t,double> > ret_matches;
+    nanoflann::SearchParams params;
+    params.sorted = false;
+    const int nMatches = wellIndex->radiusSearch(&query_pt[0], searchRadius, ret_matches, params);
+    for (int i = 0; i < nMatches; ++i){
+        ids.push_back(ret_matches[i].first);
+    }
+    if (ids.size() > 0)
+        return true;
+    else
+        return false;
 }
 
 
