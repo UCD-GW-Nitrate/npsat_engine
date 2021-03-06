@@ -7,7 +7,7 @@
 
 #include "interpinterface.h"
 #include "my_functions.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
 #include "helper_functions.h"
 #include "boost_functions.h"
 
@@ -317,6 +317,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                         interp_funct[i].get_data(boundary_parts[i].value);
 
                         if (interp_funct[i].get_type() == 1){
+                            std::cout << "Debug why the set_SCI_EDGE_points was used in the first place" << std::endl;
                             Point<dim> a,b;
                             a[0] = boundary_parts[i].Xcoords[0];
                             a[1] = boundary_parts[i].Ycoords[0];
@@ -324,7 +325,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                             b[0] = boundary_parts[i].Xcoords[1];
                             b[1] = boundary_parts[i].Ycoords[1];
                             b[2] = 0;
-                            interp_funct[i].set_SCI_EDGE_points(a,b);
+                            //interp_funct[i].set_SCI_EDGE_points(a,b);
                         }
                         //MyFunction<dim,dim> tempfnc(interp_funct[i]);
                         DirFunctions[i].set_interpolant(interp_funct[i]);
@@ -463,7 +464,7 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                     continue;
 
                                 double cx3,cy3,cx4,cy4; // variables for storing the cell face coordinates
-                                //double cz3, cz4;// z variables are used only fo debuging
+                                //double cz3, cz4;// z variables are used only for debugging
                                 cx3 = cell->face(iface)->vertex(0)[0]; cy3 = cell->face(iface)->vertex(0)[1]; //cz3 = cell->face(iface)->vertex(0)[2];
                                 cx4 = cell->face(iface)->vertex(1)[0]; cy4 = cell->face(iface)->vertex(1)[1]; //cz4 = cell->face(iface)->vertex(1)[2];
 
@@ -496,10 +497,10 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
 
                                     // The cell face is collinear with the boundary line if the distances is very close to zero
                                     // and one of the two distances is positive.
-                                    bool are_colinear = false;
+                                    bool are_collinear = false;
                                     if (std::abs(dst1) < 20 && std::abs(dst2) < 20){
                                         if ( !(dst1 < 0) || !(dst2 < 0)){
-                                            are_colinear = true;
+                                            are_collinear = true;
                                         }
                                         else{ // It maybe possible due to numerical errors that the distances are both negative
                                             // This can happen under two circumstances.
@@ -514,19 +515,19 @@ void Dirichlet<dim>::assign_dirichlet_to_triangulation(parallel::distributed::Tr
                                                 double min_dst1 = std::min(distance_2_points(cx3,cy3,lx1,ly1),distance_2_points(cx3,cy3,lx2,ly2));
                                                 double min_dst2 = std::min(distance_2_points(cx4,cy4,lx1,ly1),distance_2_points(cx4,cy4,lx2,ly2));
                                                 if (min_dst1 < 0.1 && min_dst2 < 0.1){
-                                                    are_colinear = true;
+                                                    are_collinear = true;
                                                 }
                                             }
                                         }
-                                        if (are_colinear){
+                                        if (are_collinear){
                                             // the face is colinear with the boundary however we will do an extra check using cgal methods
-                                            CGAL::Segment_2< exa_Kernel > segm(exa_Point2(lx1,ly1),exa_Point2(lx2,ly2));
-                                            if (segm.collinear_has_on(exa_Point2(cx3,cy3)) || segm.collinear_has_on(exa_Point2(cx4,cy4))){
-                                                cell->face(iface)->set_all_boundary_ids(JJ+i);
-                                                cell->face(iface)->set_user_index(1);
-                                                //print_cell_face_matlab<dim>(cell,iface);
-                                                break;
-                                            }
+                                            //CGAL::Segment_2< exa_Kernel > segm(exa_Point2(lx1,ly1),exa_Point2(lx2,ly2));
+                                            //if (segm.collinear_has_on(exa_Point2(cx3,cy3)) || segm.collinear_has_on(exa_Point2(cx4,cy4))){
+                                            cell->face(iface)->set_all_boundary_ids(JJ+i);
+                                            cell->face(iface)->set_user_index(1);
+                                            //print_cell_face_matlab<dim>(cell,iface);
+                                            break;
+                                            //}
                                         }
                                     }
                                 }

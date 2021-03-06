@@ -5,8 +5,8 @@
 
 #include <deal.II/base/point.h>
 
-#include "helper_functions.h"
-#include "scatterinterp.h"
+//#include "helper_functions.h"
+//#include "scatterinterp.h"
 
 using namespace dealii;
 

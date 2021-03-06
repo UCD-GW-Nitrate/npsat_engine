@@ -11,7 +11,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_q1.h>
-#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/trilinos_vector.h>
 
 #include "dsimstructs.h"
@@ -1056,6 +1056,48 @@ wellParticleDistributionType string2Enum_wellParticleDistributionType(std::strin
 // https://stackoverflow.com/questions/2390912/checking-for-an-empty-file-in-c
 bool is_file_empty(std::ifstream& pFile){
     return pFile.peek() == std::ifstream::traits_type::eof();
+}
+
+double IDWinterp(std::vector<double> values,
+                 std::vector<double> distances,
+                 double power,
+                 double threshold){
+    double sumW = 0;
+    double sumWV = 0;
+    double w;
+    for (unsigned int i = 0; i < values.size(); ++i) {
+        if (distances[i] < threshold){
+            return values[i];
+        }
+        w = 1/pow(distances[i], power);
+        sumW += w;
+        sumWV += w*values[i];
+    }
+    return sumWV/sumW;
+}
+
+std::vector<double> IDWinterp(std::vector<std::vector<double>> values,
+                 std::vector<double> distances,
+                 double power,
+                 double threshold){
+    double sumW = 0;
+    std::vector<double> sumWV;
+    sumWV.resize(values[0].size(), 0);
+    double w;
+    for (unsigned int i = 0; i < values.size(); ++i){
+        if (distances[i] < threshold){
+            return values[i];
+        }
+        w = 1/pow(distances[i], power);
+        sumW += w;
+        for (unsigned int j = 0; j < sumWV.size(); ++j){
+            sumWV[j] = sumWV[j] + values[i][j]*w;
+        }
+    }
+    for (unsigned int j = 0; j < sumWV.size(); ++j){
+        sumWV[j] = sumWV[j]/sumW;
+    }
+    return sumWV;
 }
 
 /*

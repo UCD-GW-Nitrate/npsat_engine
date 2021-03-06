@@ -12,7 +12,7 @@
 #include <deal.II/lac/affine_constraints.h>
 
 //#include "my_functions.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
 #include "nanoflann_structures.h"
 #include "helper_functions.h"
 #include "boost_functions.h"
@@ -23,7 +23,7 @@ using namespace dealii;
 /*!
  * \brief The Streams class provides the required functionality to deal with stream sources.
  *
- * Although the class is templated it make sence to use it only in 3D. In fact the code is not designed for other than 3D.
+ * Although the class is templated it make sense to use it only in 3D. In fact the code is not designed for other than 3D.
  *
  * Streams are assumed to be polygon entities that exist on the top of the aquifer.
  * The user defines the streams as line segments where each segment is associated with a stream rate and width.
@@ -63,47 +63,62 @@ public:
      * .        .
      *
      */
-
     bool read_streams(std::string namefile);
+
     //! A list with the coordinates of the starting points of the stream.
     //! Note that it is not important which end is set as starting or ending pooint
     //std::vector<Point<dim-1>>    A;
+
     //! A list with the coordinates of the ending points of the stream.
     //std::vector<Point<dim-1> >    B;
+
     //! A list of the recharge or discharge rates
     std::vector<double>         Q_rate;
+
     //! A list of the stream line lenghts. These calculated by the program
     std::vector<double>         length;
+
     //! A list of the stream line widths.
     //std::vector<double>         width;
+
     //! A list of triangles
-    ineTriangle_list            stream_triangles;
+    //ineTriangle_list            stream_triangles;
+
     //! A list of stream ids. The stream id depends by the order they are listed in the input file. It set by the program
-    std::vector<int>            stream_ids;
+    //std::vector<int>            stream_ids;
+
     //! A tree structures which holds the streams.
     //! (This is a pointer because I was getting compile errors due to calling a private constructor of class.
     //! Setting this as a point and adding a construction code on the class constructor made the code at least to compile
+
     //ine_Tree*                    stream_tree;
+
     //! The number of line segments
     unsigned int N_seg;
+
     //! A list of stream outlines. Each stream outline consists of a number of points which define the shape of the stream.
     //! Currently 4-point outlines is used i.e.
     //! Future version may allow users to define the shape of the rivers as polygons
     //std::vector<std::vector<Point<dim-1>>> river_BBox;
     //std::vector<std::vector<Point<dim-1>>> river_outline;
+
     //! This is a list of the maximum x point of each stream outline.
     //! It is used to define a bounding box for each stream segment to avoid unecessary computations.
     std::vector<double> Xmax;
+
     //! A list of minimum x point of each stream outline
     std::vector<double> Xmin;
+
     //! A list of minimum y point of each stream outline
     std::vector<double> Ymin;
+
     //! A list of maximum y point of each stream outline
     std::vector<double> Ymax;
 
     //! A list of the X coordinates of the stream outlines
     //! std::vector<std::vector<double> > Xoutline;
     std::vector<std::vector<double> > Xpoly;
+
     //! A list of the Y coordinates of the stream outlines
     //std::vector<std::vector<double> > Youtline;
     std::vector<std::vector<double> > Ypoly;
@@ -145,9 +160,9 @@ public:
     bool get_stream_recharge(std::vector<double>& xc,
                              std::vector<double>& yc,
                              std::vector<double>& Q,
-                             std::vector<double> xp,
-                             std::vector<double> yp,
-                             ine_Tree &stream_tree,
+                             std::vector<double> cellX,
+                             std::vector<double> cellY,
+                             Point<dim> barycenter,
                              double& ar);
 
     /*! Calculate the contributions to the Right Hand side vector from the streams
@@ -182,6 +197,7 @@ public:
 private:
     PointIdCloud StreamCenterAsCloud;
     std::shared_ptr<pointid_kd_tree> streamIndex;
+    double diameter_search = 0;
 
 
 
@@ -323,6 +339,10 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                     if (yy[j] < Ymin[i])
                         Ymin[i] = yy[j];
                 }
+                double river_diameter = std::sqrt((Xmax[i] - Xmin[i])*(Xmax[i] - Xmin[i]) + (Ymax[i] - Ymin[i])*(Ymax[i] - Ymin[i]));
+                if (river_diameter > diameter_search)
+                    diameter_search = river_diameter;
+
                 xbcstream = xbcstream/static_cast<double>(xx.size());
                 ybcstream = ybcstream/static_cast<double>(xx.size());
                 stream_point.x = xbcstream;
@@ -330,25 +350,25 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 stream_point.id = i;
                 StreamCenterAsCloud.pts.push_back(stream_point);
 
-                stream_triangles.push_back(ine_Triangle(ine_Point3(xx[0], yy[0], 0.0),
-                                                        ine_Point3(xx[1], yy[1], 0.0),
-                                                        ine_Point3(xx[2], yy[2], 0.0)));
+                //stream_triangles.push_back(ine_Triangle(ine_Point3(xx[0], yy[0], 0.0),
+                //                                        ine_Point3(xx[1], yy[1], 0.0),
+                //                                        ine_Point3(xx[2], yy[2], 0.0)));
                 //std::cout << "plot([" << xx[0] << " " << xx[1] << " " << xx[2] << " " <<xx[0] << "],[";
                 //std::cout << yy[0] << " " << yy[1] << " " << yy[2] << " " << yy[0] << "])" << std::endl;
 
 
-                stream_ids.push_back(i);
-                if (N_points  == 4){
-                    stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
-                                               ine_Point3(xx[3], yy[3], 0.0),
-                                               ine_Point3(xx[0], yy[0], 0.0)));
+                //stream_ids.push_back(i);
+                //if (N_points  == 4){
+                //    stream_triangles.push_back(ine_Triangle(ine_Point3(xx[2], yy[2], 0.0),
+                //                               ine_Point3(xx[3], yy[3], 0.0),
+                //                               ine_Point3(xx[0], yy[0], 0.0)));
                     //std::cout << "plot([" << xx[2] << " " << xx[3] << " " << xx[0] << " " <<xx[2] << "],[";
                     //std::cout << yy[2] << " " << yy[3] << " " << yy[0] << " " << yy[2] << "])" << std::endl;
-                    stream_ids.push_back(i);
-                }
+                //    stream_ids.push_back(i);
+                //}
             }
         }
-        streamIndex = std::unique_ptr<pointid_kd_tree>(new pointid_kd_tree(
+        streamIndex = std::shared_ptr<pointid_kd_tree>(new pointid_kd_tree(
                 2, StreamCenterAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
         streamIndex->buildIndex();
         //stream_tree->insert(stream_triangles.begin(), stream_triangles.end());
@@ -439,31 +459,34 @@ void Streams<dim>::create_river_outline(std::vector<double>& xx,
 }
 
 template <int dim>
-bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<double>& yc, std::vector<double> &Q,
-                                       std::vector<double> xp,
-                                       std::vector<double> yp,
-                                       ine_Tree& stream_tree,
+bool Streams<dim>::get_stream_recharge(std::vector<double>& xc,
+                                       std::vector<double>& yc,
+                                       std::vector<double> &Q,
+                                       std::vector<double> cellX,
+                                       std::vector<double> cellY,
+                                       Point<dim> barycenter,
                                        double& ar){
     std::vector<int> ids;
     xc.clear();
     yc.clear();
     Q.clear();
 
-    bool tf = find_intersection_in_AABB_TREE(stream_tree,
-                                             stream_triangles,
-                                             xp, yp, ids);
+    // Search for river segments near this cell
+    const double query_pt[2] = {barycenter[0], barycenter[1]};
+    std::vector<std::pair<size_t,double> > ret_matches;
+    nanoflann::SearchParams params;
+    const int nMatches = streamIndex->radiusSearch(
+            &query_pt[0], diameter_search, ret_matches, params);
+
     ar = 0;
-    if (tf){
-        std::map<int,int> unique_ids;
-        // make a unique list of river segment ids
-        for (unsigned int i = 0; i < ids.size(); ++i){
-            unique_ids[stream_ids[ids[i]]] = stream_ids[ids[i]];
-        }
-        std::map<int,int>::iterator it = unique_ids.begin();
-        for (; it != unique_ids.end(); ++it){
+    if (nMatches > 0){
+        for (int i = 0; i < nMatches; ++i){
             double d_xc, d_yc;
             try {
-                double area = polyXpoly(xp, yp, Xpoly[it->first], Ypoly[it->first], d_xc, d_yc);
+                double area = polyXpoly(cellX, cellY,
+                                        Xpoly[ret_matches[i].first],
+                                        Ypoly[ret_matches[i].first],
+                                        d_xc, d_yc);
                 ar +=area;
                 //std::cout << "Cell: ";
                 //print_poly_matlab(xp,yp);
@@ -478,13 +501,13 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc, std::vector<doub
                 }
                 xc.push_back(d_xc);
                 yc.push_back(d_yc);
-                Q.push_back(area * Q_rate[it->first]);
+                Q.push_back(area * Q_rate[ret_matches[i].first]);
             } catch (...) {
                 std::cout << "Boost failed to find intersection" << std::endl;
             }
         }
     }
-    return tf;
+    return nMatches > 0;
 }
 
 
@@ -512,8 +535,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 
     Triangulation<dim-1> tria;
     initTria<dim>(tria);
-    ine_Tree stream_tree;
-    stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
+    //ine_Tree stream_tree;
+    //stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
 
 
 
@@ -551,11 +574,15 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                             xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
                             yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
                         }
+                        Point<dim> cell_barycenter = cell->barycenter();
 
                         //print_poly_matlab(xface,yface);
                         //std::cout << dbg_coounter++ << std::endl;
                         double ar;
-                        bool tf = get_stream_recharge(xc,yc,Qface,xface,yface, stream_tree, ar);
+                        bool tf = get_stream_recharge(xc,yc,Qface,
+                                                      xface, yface,
+                                                      cell_barycenter,
+                                                      ar);
                         SUMA_AREA += ar;
                         if (tf){ // if this cell intersects a stream
                             cell_rhs_streams = 0;
@@ -600,8 +627,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
 template <int dim>
 void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulation<dim>& triangulation){
 
-    ine_Tree stream_tree;
-    stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
+    //ine_Tree stream_tree;
+    //stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
 
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
@@ -617,10 +644,32 @@ void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulatio
                         yface[jj] = cell->face(i_face)->vertex(jj)[1];
                     }
 
-                    std::vector<int> ids;
-                    bool tf = find_intersection_in_AABB_TREE(stream_tree,
-                                                             stream_triangles,
-                                                             xface, yface, ids);
+                    Point<dim> cell_barycenter = cell->barycenter();
+                    // Search for river segments near this cell
+                    const double query_pt[2] = {cell_barycenter[0], cell_barycenter[1]};
+                    std::vector<std::pair<size_t,double> > ret_matches;
+                    nanoflann::SearchParams params;
+                    const int nMatches = streamIndex->radiusSearch(
+                            &query_pt[0], diameter_search, ret_matches, params);
+                    bool tf = false;
+                    if (nMatches > 0){
+                        for (int i = 0; i < nMatches; ++i){
+                            double d_xc, d_yc;
+                            try {
+                                double area = polyXpoly(xface, yface,
+                                                        Xpoly[ret_matches[i].first],
+                                                        Ypoly[ret_matches[i].first],
+                                                        d_xc, d_yc);
+                                if (area > 0.1){
+                                    tf = true;
+                                    break;
+                                }
+                            } catch (...){
+                                std::cout << "Boost failed to find intersection" << std::endl;
+                            }
+                        }
+                    }
+
                     if (tf){
                         cell->set_refine_flag ();
                     }

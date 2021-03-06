@@ -27,7 +27,7 @@ public:
     * Since this is initialization it first clears the Zlist before adding this point
     * This should not be used for update
     */
-    PntsInfo(Point<dim-1> p, Zinfo zinfo);
+    PntsInfo(Point<dim> p, Zinfo zinfo);
 
     //! Adds a z node in the existing #PNT of dim-1 point. If the point exists we update the
     //! #Zinfo::dof, #Zinfo::constr, #Zinfo::hanging and #Zinfo::dof_conn.
@@ -40,7 +40,7 @@ public:
     void reset();
 
     //! A point with dimensions dim-1 to hold the x and/or y coordinates
-    Point<dim-1> PNT;
+    Point<dim> PNT;
 
     //! an array that hold the z coordinates with the same X and y
     std::vector<Zinfo > Zlist;
@@ -103,8 +103,8 @@ public:
 
 template <int dim>
 PntsInfo<dim>::PntsInfo(){
-    PNT = Point<dim-1>();
-    for (unsigned int d = 0; d < dim-1; ++d)
+    PNT = Point<dim>();
+    for (unsigned int d = 0; d < dim; ++d)
         PNT[d] = -9999.0;
     T = -9999.0;
     B = -9999.0;
@@ -115,7 +115,7 @@ PntsInfo<dim>::PntsInfo(){
 }
 
 template <int dim>
-PntsInfo<dim>::PntsInfo(Point<dim-1> p, Zinfo zinfo){
+PntsInfo<dim>::PntsInfo(Point<dim> p, Zinfo zinfo){
     PNT = p;
     Zlist.clear();
     Zlist.push_back(zinfo);

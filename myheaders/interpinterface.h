@@ -48,7 +48,7 @@ public:
     //! For the GRIDDED option we pass in the same line GRIDDED and name of input file for the GRIDDED
     void get_data(std::string namefile);
 
-    void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
+    //void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
 
     void copy_from(InterpInterface<dim> interp_in);
 
@@ -314,10 +314,10 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
     return 0;
 }
 
-template <int dim>
-void InterpInterface<dim>::set_SCI_EDGE_points(Point<dim> a, Point<dim> b){
-    SCI[0].set_edge_points(a,b);
-}
+//template <int dim>
+//void InterpInterface<dim>::set_SCI_EDGE_points(Point<dim> a, Point<dim> b){
+//    SCI[0].set_edge_points(a,b);
+//}
 
 template <int dim>
 void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){

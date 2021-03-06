@@ -18,7 +18,8 @@
 
 #include "zinfo.h"
 #include "pnt_info.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
+#include "nanoflann_structures.h"
 #include "my_functions.h"
 #include "mpi_help.h"
 #include "helper_functions.h"
@@ -99,17 +100,19 @@ public:
 
     //! this is a cgal container of the points of this class stored in an optimized way for spatial queries
     //! based on CGAL classes
-    PointSet2 CGALset;
+    //PointSet2 CGALset;
+    PointIdCloud XYPointsCloud;
+    std::shared_ptr<pointIdDynamic_kd_tree> XYPointSetIndex;
 
     Graph MeshGraph;
 
     //! Adds a new point in the structure. If the point exists adds the z coordinate only.
-    void add_new_point(Point<dim-1>, Zinfo zinfo);
+    void add_new_point(Point<dim>, Zinfo zinfo);
 
     //! Checks if the x-y point already exists in the mesh structure
     //! If the point exists it returns the id of the point in the #CGALset
     //! otherwise returns -9;
-    int check_if_point_exists(Point<dim-1> p);
+    int check_if_point_exists(Point<dim> p);
 
     /*!
      * \brief updateMeshstruct method is one of  two methods that they are the heart of this class. This method should be called every time
@@ -226,10 +229,14 @@ Mesh_struct<dim>::Mesh_struct(double xy_thr, double z_thr){
     _counter = 0;
     dbg_scale_x = 100;
     dbg_scale_z = 20;
+    XYPointSetIndex = std::shared_ptr<pointIdDynamic_kd_tree>(
+            new pointIdDynamic_kd_tree(
+                    2, XYPointsCloud,
+                    nanoflann::KDTreeSingleIndexAdaptorParams(10)));
 }
 
 template <int dim>
-void Mesh_struct<dim>::add_new_point(Point<dim-1>p, Zinfo zinfo){
+void Mesh_struct<dim>::add_new_point(Point<dim>p, Zinfo zinfo){
 
     // First search for the XY location in the structure
     int id = check_if_point_exists(p);
@@ -241,17 +248,22 @@ void Mesh_struct<dim>::add_new_point(Point<dim-1>p, Zinfo zinfo){
         PointsMap[_counter] = tempPnt;
 
         //... to the Cgal structure
-        std::vector< std::pair<ine_Point2,unsigned> > pair_point_id;
+        //std::vector< std::pair<ine_Point2,unsigned> > pair_point_id;
         double x,y;
+        x = p[0];
         if (dim == 2){
-            x = p[0];
             y = 0;
         }else if (dim == 3){
-            x = p[0];
             y = p[1];
         }
-        pair_point_id.push_back(std::make_pair(ine_Point2(x, y), _counter));
-        CGALset.insert(pair_point_id.begin(), pair_point_id.end());
+        PointId pid;
+        pid.x = x;
+        pid.y = y;
+        pid.id = _counter;
+        XYPointsCloud.pts.push_back(pid);
+        XYPointSetIndex->addPoints(_counter,_counter);
+        //pair_point_id.push_back(std::make_pair(ine_Point2(x, y), _counter));
+        //CGALset.insert(pair_point_id.begin(), pair_point_id.end());
         _counter++;
     }else if (id >= 0){
         typename std::map<int, PntsInfo<dim> >::iterator it = PointsMap.find(id);
@@ -260,23 +272,30 @@ void Mesh_struct<dim>::add_new_point(Point<dim-1>p, Zinfo zinfo){
 }
 
 template <int dim>
-int Mesh_struct<dim>::check_if_point_exists(Point<dim-1> p){
+int Mesh_struct<dim>::check_if_point_exists(Point<dim> p){
+    if (_counter == 0)
+        return -9;
     int out = -9;
     double x,y;
+    double query_pt[2];
+    query_pt[0] = p[0];
     if (dim == 2){
-        x = p[0];
-        y = 0;
+        query_pt[1] = 0;
     }else if (dim == 3){
-        x = p[0];
-        y = p[1];
+        query_pt[1] = p[1];
     }
 
-    std::vector<int> ids = circle_search_in_2DSet(CGALset, ine_Point3(x, y, 0.0) , xy_thres);
+    const double radius = 1;
+    std::vector<std::pair<size_t, double> > indices_dists;
+    nanoflann::RadiusResultSet<double, size_t> resultSet(radius, indices_dists);
+    XYPointSetIndex->findNeighbors(resultSet, query_pt, nanoflann::SearchParams());
 
-    if (ids.size() > 1)
+    //std::vector<int> ids = circle_search_in_2DSet(CGALset, ine_Point3(x, y, 0.0) , xy_thres);
+
+    if (resultSet.size() > 1)
         std::cerr << "More than one points around x: " << x << ", y: " << y << "found within the specified tolerance" << std::endl;
-    else if(ids.size() == 1) {
-         out = ids[0];
+    else if(resultSet.size() == 1) {
+         out = resultSet.worst_item().first;
     }
     else{
          out = -9;
@@ -444,7 +463,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                 zinfo.is_local = it->second.islocal;
 
                 // and a point
-                Point<dim-1> ptemp;
+                Point<dim> ptemp;
                 for (unsigned int d = 0; d < dim-1; ++d)
                     ptemp[d] = it->second.pnt[d];
 
@@ -728,9 +747,13 @@ void Mesh_struct<dim>::reset(){
     _counter = 0;
     PointsMap.clear();
     dof_ij.clear();
-    CGALset.clear();
+    //CGALset.clear();
     local_dof.clear();
     MeshGraph.clear();
+    XYPointsCloud.pts.clear();
+    XYPointSetIndex.reset(new pointIdDynamic_kd_tree(
+            2, XYPointsCloud,
+            nanoflann::KDTreeSingleIndexAdaptorParams(10)));
 }
 
 template <int dim>

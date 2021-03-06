@@ -6,6 +6,7 @@
 #include <deal.II/base/point.h>
 
 #include "cgal_functions.h"
+#include "nanoflann_structures.h"
 #include "helper_functions.h"
 
 /*!
@@ -20,7 +21,8 @@
  * - VERT is defined in 3D problems and it is an interpolation across an a vertical plane which is defined by 2
  * points.
  */
-enum SCI_TYPE { FULL, HOR, VERT };
+enum SCI_TYPE { DIM3, DIM2, VERT };
+enum SCI_METHOD{LINEAR, NEAREST};
 
 using namespace dealii;
 
@@ -50,8 +52,10 @@ public:
      * that follow data correspond to scattered interpolation
      *
      * The second line is one of the three keywords FULL, HOR, VERT
+     * Change the keywords to make more sense 3D 2D, VERT
      *
-     * The third line is the keyward STRATIFIED or SIMPLE
+     * The third line is the keyword STRATIFIED or SIMPLE
+     * Change the keywords to LINEAR, NEAREST
      *
      * The fourth line provides two numbers #Npnts and #Ndata.
      *
@@ -94,15 +98,18 @@ public:
      * \param a is the first point of the line
      * \param b is the last point of the line
      */
-    void set_edge_points(Point<dim> a, Point<dim> b);
+    //void set_edge_points(Point<dim> a, Point<dim> b);
 
 private:
 
     //! this is a container to hold the triangulation of the 2D scattered data
-    ine_Delaunay_triangulation T;
+    //ine_Delaunay_triangulation T;
+    PointVectorCloud interpCloud;
+    std::shared_ptr<pointVector_kd_tree> interpIndex;
+
 
     //! This is a map between the triangulation and the values that correspond to each 2D point
-    std::vector<std::map<ine_Point2, ine_Coord_type, ine_Kernel::Less_xy_2> > function_values;
+    //std::vector<std::map<ine_Point2, ine_Coord_type, ine_Kernel::Less_xy_2> > function_values;
 
     //! Ndata is the number of values for interpolation. For the STRATIFIED option this number must be equal to (Nlay-1)*2 +1
     unsigned int Ndata;
@@ -117,9 +124,14 @@ private:
     //! It make sense to define more than one data for stratified hydraulic conductivity in 2D. See the discussion above.
     std::vector<std::vector<double>> V_1D;
 
-    bool Stratified;
+    //bool Stratified;
 
-    bool interpolated;
+    //bool interpolated;
+    size_t NinterpPoints;
+
+    int Nlayers;
+    double power = 2.0;
+    double threshold = 0.1;
 
     /*!
      * \brief sci_type gets
@@ -127,14 +139,17 @@ private:
      * * 1 -> HOR
      * * 2 -> VERT
      */
-    unsigned sci_type;
-    Point<dim> P1;
-    Point<dim> P2;
-    bool points_known;
+    SCI_TYPE sci_type;
+    SCI_METHOD sci_method;
+    //Point<dim> P1;
+    //Point<dim> P2;
+    //bool points_known;
 
-    void interp_X1D(double x, int &ind, double &t)const;
-    double interp_V1D(int ind, double t)const;
-    double interp_V1D_stratified(double z, double t, int ind)const;
+    //void interp_X1D(double x, int &ind, double &t)const;
+    //double interp_V1D(int ind, double t)const;
+    //double interp_V1D_stratified(double z, double t, int ind)const;
+
+    //double interp3D(Point<dim> p)const;
 
 };
 
@@ -142,9 +157,10 @@ template<int dim>
 ScatterInterp<dim>::ScatterInterp(){
     Ndata = 0;
     Npnts = 0;
-    points_known = false;
+    //points_known = false;
 }
 
+/*
 template <int dim>
 void ScatterInterp<dim>::set_edge_points(Point<dim> a, Point<dim> b){
     if (sci_type == 2){
@@ -156,6 +172,7 @@ void ScatterInterp<dim>::set_edge_points(Point<dim> a, Point<dim> b){
         std::cerr << "You tried to assign points on SCI_TYPE " << sci_type << " and not stratified " << std::endl;
     }
 }
+*/
 
 template <int dim>
 void ScatterInterp<dim>::get_data(std::string filename){
@@ -177,37 +194,35 @@ void ScatterInterp<dim>::get_data(std::string filename){
             }
         }
 
-        {// Read SCI_TYPE
+        {// Read Interpolation type
             datafile.getline(buffer, 512);
             std::istringstream inp(buffer);
             std::string temp;
             inp >> temp;
-            if (temp == "FULL")
-                sci_type = 0;
-            else if (temp == "HOR")
-                sci_type = 1;
+            if (temp == "3D")
+                sci_type = SCI_TYPE::DIM3;
+            else if (temp == "2D")
+                sci_type = SCI_TYPE::DIM2;
             else if (temp == "VERT")
-                sci_type = 2;
+                sci_type = SCI_TYPE::VERT;
             else
                 std::cout << "Unkown interpolation type. Valid options are FULL, HOR, VERT" << std::endl;
         }
 
-        {// Read interpolation style
+        {// Read interpolation method
             datafile.getline(buffer, 512);
             std::istringstream inp(buffer);
             std::string temp;
             inp >> temp;
-            if (temp == "STRATIFIED"){
-                Stratified = true;
-                interpolated = false;
+            if (temp == "LINEAR"){
+                sci_method = SCI_METHOD::LINEAR;
+                //Stratified = true;
+                //interpolated = false;
             }
-            else if (temp == "SIMPLE"){
-                Stratified = false;
-                interpolated = false;
-            }
-            else if (temp == "INTERPOLATED"){
-                Stratified = false;
-                interpolated = true;
+            else if (temp == "NEAREST"){
+                sci_method = SCI_METHOD::NEAREST;
+                //Stratified = false;
+                //interpolated = false;
             }
             else
                 std::cout << "Unknown interpolation style. Valid options are STRATIFIED or SIMPLE" << std::endl;
@@ -219,14 +234,15 @@ void ScatterInterp<dim>::get_data(std::string filename){
             std::istringstream inp(buffer);
             inp >> Npnts;
             inp >> Ndata;
-            function_values.resize(Ndata);
+            interpCloud.pts.resize(Npnts);
         }
         {// Read the actual data
             double x, y, v;
             for (unsigned int i = 0; i < Npnts; ++i){
+                PointVector pv;
                 datafile.getline(buffer, 512);
                 std::istringstream inp(buffer);
-                if ((dim == 2 && sci_type == 1) || // 2D horizontal interpolation
+                /*if ((dim == 2 && sci_type == 1) || // 2D horizontal interpolation
                     (dim == 2 && (Stratified || interpolated)  ) || // 2D stratified interpolation
                     (dim == 3 && sci_type == 2) //3D vertical interpolation
                     )
@@ -240,31 +256,45 @@ void ScatterInterp<dim>::get_data(std::string filename){
                     }
                     // Here we need to store the values
                     V_1D.push_back(temp);
+                }*/
+                //else{
+                inp >> x;
+                pv.x = x;
+                if (dim == 3){
+                    inp >> y;
+                    pv.y = y;
                 }
                 else{
-                    inp >> x;
-                    inp >> y;
-                    ine_Point2 p(x, y);
-                    T.insert(p);
-                    for (unsigned int j = 0; j < Ndata; ++j){
-                        inp >> v;
-                        ine_Coord_type ct(v);
-                        function_values[j].insert(std::make_pair(p,ct));
-                    }
+                    pv.y = 0;
                 }
+                pv.values.resize(Ndata);
+                //ine_Point2 p(x, y);
+                //T.insert(p);
+                for (unsigned int j = 0; j < Ndata; ++j){
+                    inp >> v;
+                    pv.values[j] = 0;
+                    //ine_Coord_type ct(v);
+                    //function_values[j].insert(std::make_pair(p,ct));
+                }
+                //}
             }
 
-            if ((dim == 2 && Stratified) || (dim == 3 && sci_type == 2)){
-                function_values.clear();
-            }
+            //if ((dim == 2 && Stratified) || (dim == 3 && sci_type == 2)){
+            //    function_values.clear();
+            //}
         }// Read data block
-
+        interpIndex = std::shared_ptr<pointVector_kd_tree>(
+                new pointVector_kd_tree(2, interpCloud,
+                                        nanoflann::KDTreeSingleIndexAdaptorParams(10))
+                );
+        interpIndex->buildIndex();
     }
 }
-
+/*
 template <int dim>
 double ScatterInterp<dim>::interpolate(Point<dim> point)const{    
     if (dim == 3){
+        return interp3D(point);
         if (sci_type == 0){// FULL 3D INTERPOLATION
             Point<3> pp;
             pp[0] = point[0];
@@ -394,6 +424,80 @@ double ScatterInterp<dim>::interp_V1D_stratified(double z, double t, int ind)con
         }
     }
     return 0;
+}*/
+
+template<int dim>
+double ScatterInterp<dim>::interpolate(Point<dim> p)const{
+
+    double query_pt[2];
+    query_pt[0] = p[0];
+    if (dim == 3){
+        query_pt[1] = p[1];
+    }
+    else if(dim == 2){
+        query_pt[1] = 0;
+    }
+    std::vector<std::pair<size_t,double> > ret_matches;
+    nanoflann::SearchParams params;
+    params.sorted = false;
+
+    std::vector<size_t>   ret_index(NinterpPoints);
+    std::vector<double> out_dist_sqr(NinterpPoints);
+    size_t num_results = interpIndex->knnSearch(&query_pt[0],
+                                             NinterpPoints,
+                                             &ret_index[0],
+                                             &out_dist_sqr[0]);
+
+
+    if (Nlayers == 1){
+        if (sci_method == SCI_METHOD::NEAREST){
+            return interpCloud.pts[ret_index[0]].values[0];
+        }
+        else{
+            std::vector<double> values, distances;
+            for(size_t i = 0; i < num_results; ++i){
+                values.push_back(interpCloud.pts[ret_index[i]].values[0]);
+                distances.push_back(out_dist_sqr[i]);
+            }
+            return IDWinterp(values, distances, power, threshold);
+        }
+    }
+    else{
+        std::vector< std::vector<double> > values;
+        std::vector<double> distances, interpRes;
+        for(size_t i = 0; i < num_results; ++i){
+            values.push_back(interpCloud.pts[ret_index[i]].values);
+            distances.push_back(out_dist_sqr[i]);
+        }
+        interpRes = IDWinterp(values,distances,power,threshold);
+        int vidx = 0;
+        int lidx = 1;
+        //double v1, l1;
+        for (int i = 0; i < Nlayers; ++i) {
+            //l1 = interpRes[lidx];
+            if (i == 0 && p[2] <= interpRes[lidx]){
+                return interpRes[vidx];
+            }
+            else if (i == Nlayers - 1 && p[2] >= interpRes[lidx]){
+                if (sci_method == SCI_METHOD::LINEAR)
+                    return interpRes[vidx];
+                else
+                    return interpRes[vidx+1];
+            }
+            else if (p[2] >= interpRes[lidx] && p[2] <= interpRes[lidx+1] ){
+                if (sci_method == SCI_METHOD::LINEAR){
+                    double t = (p[2] - interpRes[lidx+1])/(interpRes[lidx] - interpRes[lidx+1]);
+                    std::cout << "This is not checked" << std::endl;
+                    return t*interpRes[lidx] + (1-t)*interpRes[lidx+1];
+                }
+                else{
+                    return interpRes[vidx];
+                }
+            }
+            vidx = vidx + 2;
+            lidx = lidx + 2;
+        }
+    }
 }
 
 #endif // SCATTERINTERP_H

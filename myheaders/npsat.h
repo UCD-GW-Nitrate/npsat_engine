@@ -30,6 +30,7 @@
 #include "dirichlet_boundary.h"
 #include "steady_state.h"
 #include "mix_mesh.h"
+#include "nanoflann_structures.h"
 #include "particle_tracking.h"
 #include "streamlines.h"
 
@@ -96,6 +97,8 @@ private:
     mix_mesh<dim-1>                             bottom_grid;
 
 
+
+
     AquiferProperties<dim>                      AQProps;
 
     Mesh_struct<dim>                            mesh_struct;
@@ -111,6 +114,7 @@ private:
 
     void make_grid();
     void create_dim_1_grids();
+    void create_top_bot_functions();
     void flag_cells_for_refinement();
     void print_mesh();
     void save();
@@ -500,6 +504,40 @@ void NPSAT<dim>::create_dim_1_grids(){
     //    std::cout << "R( " << my_rank << "): " << top_grid.P[i] << " -> " << top_grid.data_point[i][0] << std::endl;
     //}
 }
+
+template<int dim>
+void NPSAT<dim>::create_top_bot_functions(){
+    std::vector<double> xtop;
+    std::vector<double> ytop;
+    std::vector<double> ztop;
+    std::vector<double> xbot;
+    std::vector<double> ybot;
+    std::vector<double> zbot;
+
+    QTrapez<dim-1> face_trapez_formula;
+    FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
+    std::vector< double > values(face_trapez_formula.size());
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+    for (; cell!=endc; ++cell){
+        if (cell->is_locally_owned()){
+            if(cell->face(GeometryInfo<dim>::faces_per_cell-1)->at_boundary()){
+                // This is top face
+                fe_face_values.reinit (cell, GeometryInfo<dim>::faces_per_cell-1);
+                fe_face_values.get_function_values(locally_relevant_solution, values);
+
+            }
+            if(cell->face(GeometryInfo<dim>::faces_per_cell-2)->at_boundary()){
+                // This is bottom face
+                fe_face_values.reinit (cell, GeometryInfo<dim>::faces_per_cell-1);
+                fe_face_values.get_function_values(locally_relevant_solution, values);
+
+            }
+        }
+    }
+}
+
 
 template <int dim>
 void NPSAT<dim>::flag_cells_for_refinement(){

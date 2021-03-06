@@ -376,7 +376,7 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
             //wells[i].Qtot = Q;
             //wells[i].well_id = i;
         }
-        wellIndex = std::unique_ptr<pointid_kd_tree>(new pointid_kd_tree(
+        wellIndex = std::shared_ptr<pointid_kd_tree>(new pointid_kd_tree(
                 2, WellsAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
         wellIndex->buildIndex();
         return true;
