@@ -507,35 +507,96 @@ void NPSAT<dim>::create_dim_1_grids(){
 
 template<int dim>
 void NPSAT<dim>::create_top_bot_functions(){
-    std::vector<double> xtop;
-    std::vector<double> ytop;
-    std::vector<double> ztop;
-    std::vector<double> xbot;
-    std::vector<double> ybot;
-    std::vector<double> zbot;
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    std::map<int,std::pair<Point<dim>, double> > topPoints;
+    std::map<int,Point<dim> > botPoints;
+    typename std::map<int,std::pair<Point<dim>, double> >::iterator itTop;
+    typename std::map<int,Point<dim> >::iterator itBot;
 
     QTrapez<dim-1> face_trapez_formula;
     FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
     std::vector< double > values(face_trapez_formula.size());
+    std::vector<unsigned int> face_dof_indices(fe.dofs_per_face);
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
-            if(cell->face(GeometryInfo<dim>::faces_per_cell-1)->at_boundary()){
+            unsigned int iface = GeometryInfo<dim>::faces_per_cell-1;
+            if(cell->face(iface)->at_boundary()){
                 // This is top face
-                fe_face_values.reinit (cell, GeometryInfo<dim>::faces_per_cell-1);
+                fe_face_values.reinit (cell, iface);
+                cell->face(iface)->get_dof_indices(face_dof_indices);
                 fe_face_values.get_function_values(locally_relevant_solution, values);
-
+                for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                    itTop = topPoints.find(face_dof_indices[ii]);
+                    if (itTop == topPoints.end()){
+                        Point<dim> temp_point_dim = cell->face(iface)->vertex(ii);
+                        topPoints.insert(std::pair<int, std::pair<Point<dim>, double> >
+                                                 (face_dof_indices[ii],
+                                                 std::pair<Point<dim>, double>(temp_point_dim, values[ii])));
+                    }
+                }
             }
-            if(cell->face(GeometryInfo<dim>::faces_per_cell-2)->at_boundary()){
+            iface = GeometryInfo<dim>::faces_per_cell-2;
+            if(cell->face(iface)->at_boundary()){
                 // This is bottom face
-                fe_face_values.reinit (cell, GeometryInfo<dim>::faces_per_cell-1);
+                cell->face(iface)->get_dof_indices(face_dof_indices);
+                fe_face_values.reinit (cell, iface);
                 fe_face_values.get_function_values(locally_relevant_solution, values);
-
+                for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                    itBot = botPoints.find(face_dof_indices[ii]);
+                    if (itBot == botPoints.end()){
+                        Point<dim> temp_point_dim = cell->face(iface)->vertex(ii);
+                        botPoints.insert(std::pair<int, Point<dim>>(face_dof_indices[ii], temp_point_dim));
+                    }
+                }
             }
         }
     }
+    MPI_Barrier(mpi_communicator);
+    // Next we have to send the points to every other processor
+    std::vector<int> top_size_send;
+    std::vector<int> bot_size_send;
+    std::vector<std::vector<int>> doftop(n_proc);
+    std::vector<std::vector<double>> xtop(n_proc);
+    std::vector<std::vector<double>> ytop(n_proc);
+    std::vector<std::vector<double>> zold(n_proc);
+    std::vector<std::vector<double>> znew(n_proc);
+    for (itTop = topPoints.begin(); itTop != topPoints.end(); ++itTop){
+        doftop[my_rank].push_back(itTop->first);
+        xtop[my_rank].push_back(itTop->second.first[0]);
+        if (dim == 3){
+            ytop[my_rank].push_back(itTop->second.first[1]);
+            zold[my_rank].push_back(itTop->second.first[2]);
+        }
+        else if (dim == 2){
+            zold[my_rank].push_back(itTop->second.first[1]);
+        }
+        znew[my_rank].push_back(itTop->second.second);
+    }
+
+    std::vector<std::vector<int>> dofbot(n_proc);
+    std::vector<std::vector<double>> xbot(n_proc);
+    std::vector<std::vector<double>> ybot(n_proc);
+    std::vector<std::vector<double>> zbot(n_proc);
+    for(itBot = botPoints.begin(); itBot != botPoints.end(); ++itBot){
+        dofbot[my_rank].push_back(itBot->first);
+        xbot[my_rank].push_back(itBot->second[0]);
+        if (dim == 3){
+            ybot[my_rank].push_back(itBot->second[1]);
+            zbot[my_rank].push_back(itBot->second[2]);
+        }
+        else if (dim == 2){
+            zbot[my_rank].push_back(itBot->second[1]);
+        }
+    }
+
+    //Send_receive_size(static_cast<unsigned int>(top_send[my_rank].size()), n_proc, top_size_send, mpi_communicator);
+
+
 }
 
 
