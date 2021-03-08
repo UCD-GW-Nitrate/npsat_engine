@@ -4,7 +4,7 @@
 
 # Set the name of the project and target:
 SET(TARGET "npsat")
-PROJECT(${TARGET} CXX)
+PROJECT(${TARGET})
 
 FILE(GLOB_RECURSE TARGET_INC  myheaders/*.h)
 SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
