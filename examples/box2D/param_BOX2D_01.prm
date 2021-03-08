@@ -59,6 +59,23 @@ subsection B. Geometry  ========================================
     # d----------------------------------
     # Threshold value the vertical plane
     set d z threshold               = 0.001
+
+    # e----------------------------------
+    # Power parameter for top IDW interpolation
+    set e Power for top             = 3
+
+    # f----------------------------------
+    # Radius parameter for top IDW interpolation
+    set f Radius for top            = 600
+
+    # g----------------------------------
+    # Power parameter for bottom IDW interpolation
+    set g Power for bottom          = 3
+
+    # h----------------------------------
+    # Radius parameter for bottom IDW interpolation
+    set h Radius for bottom         = 600
+
   end
 
 end

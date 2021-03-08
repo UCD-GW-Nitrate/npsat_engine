@@ -2,6 +2,7 @@
 #define NANOFLANN_STRUCTURES_H(args)
 
 #include <nanoflann.hpp>
+#include "helper_functions.h"
 
 struct PointId{
     double x;
@@ -72,5 +73,25 @@ struct PointVectorCloud{
 typedef nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Adaptor<double, PointVectorCloud>,
         PointVectorCloud,2> pointVector_kd_tree;
+
+void interpolateVectorCloud(PointVectorCloud& cloud,
+                            std::shared_ptr<pointVector_kd_tree>& index,
+                            double power, double radius, double thres,
+                            double x, double y,
+                            std::vector<double>& out){
+    const double query_pt[2] = {x, y};
+    std::vector<std::pair<size_t,double> > ret_matches;
+    nanoflann::SearchParams params;
+    params.sorted = false;
+    std::vector< std::vector<double> > values;
+    std::vector<double> distances;
+    out.clear();
+    const int nMatches = index->radiusSearch(&query_pt[0], radius, ret_matches, params);
+    for (int i = 0; i < nMatches; ++i) {
+        values.push_back(cloud.pts[ret_matches[i].first].values);
+        distances.push_back(std::sqrt(ret_matches[i].second));
+    }
+    out = IDWinterp(values,distances,power,thres);
+}
 
 #endif //NANOFLANN_STRUCTURES_H

@@ -29,7 +29,7 @@
 #include "mesh_struct.h"
 #include "dirichlet_boundary.h"
 #include "steady_state.h"
-#include "mix_mesh.h"
+//#include "mix_mesh.h"
 #include "nanoflann_structures.h"
 #include "particle_tracking.h"
 #include "streamlines.h"
@@ -93,8 +93,13 @@ private:
     IndexSet                                    mesh_locally_owned;
     IndexSet                                    mesh_locally_relevant;
     AffineConstraints<double>                   mesh_constraints;
-    mix_mesh<dim-1>                             top_grid;
-    mix_mesh<dim-1>                             bottom_grid;
+    //mix_mesh<dim-1>                             top_grid;
+    //mix_mesh<dim-1>                             bottom_grid;
+    PointVectorCloud                            topCloud;
+    std::shared_ptr<pointVector_kd_tree>        topCloudIndex;
+    PointVectorCloud                            botCloud;
+    std::shared_ptr<pointVector_kd_tree>        botCloudIndex;
+
 
 
 
@@ -113,7 +118,7 @@ private:
     int                                         my_rank;
 
     void make_grid();
-    void create_dim_1_grids();
+    //void create_dim_1_grids();
     void create_top_bot_functions();
     void flag_cells_for_refinement();
     void print_mesh();
@@ -343,7 +348,8 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             pcout << "      Updateting Mesh ..." <<std::endl;
-            create_dim_1_grids();
+            create_top_bot_functions();
+            //create_dim_1_grids();
             if (iter < AQProps.refine_param.MaxRefinement)
                 flag_cells_for_refinement();
             do_refinement1();
@@ -360,7 +366,16 @@ void NPSAT<dim>::solve_refine(){
                                          distributed_mesh_Offset_vertices,
                                          mpi_communicator, pcout);
 
-            mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
+            //mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
+            mesh_struct.assign_top_bottom(topCloud, topCloudIndex,
+                                          AQProps.top_cloud_param.Power,
+                                          AQProps.top_cloud_param.Radius,
+                                          botCloud, botCloudIndex,
+                                          AQProps.bot_cloud_param.Power,
+                                          AQProps.bot_cloud_param.Radius,
+                                          AQProps.top_cloud_param.Threshold,
+                                          pcout, mpi_communicator);
+
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
                                             mesh_constraints,
@@ -388,6 +403,7 @@ void NPSAT<dim>::solve_refine(){
 
 }
 
+/*
 template <int dim>
 void NPSAT<dim>::create_dim_1_grids(){
     pcout << "Create 2D grids..." << std::endl << std::flush;
@@ -504,6 +520,7 @@ void NPSAT<dim>::create_dim_1_grids(){
     //    std::cout << "R( " << my_rank << "): " << top_grid.P[i] << " -> " << top_grid.data_point[i][0] << std::endl;
     //}
 }
+*/
 
 template<int dim>
 void NPSAT<dim>::create_top_bot_functions(){
@@ -556,47 +573,145 @@ void NPSAT<dim>::create_top_bot_functions(){
             }
         }
     }
-    MPI_Barrier(mpi_communicator);
-    // Next we have to send the points to every other processor
-    std::vector<int> top_size_send;
-    std::vector<int> bot_size_send;
-    std::vector<std::vector<int>> doftop(n_proc);
-    std::vector<std::vector<double>> xtop(n_proc);
-    std::vector<std::vector<double>> ytop(n_proc);
-    std::vector<std::vector<double>> zold(n_proc);
-    std::vector<std::vector<double>> znew(n_proc);
+    if (n_proc > 1){
+        MPI_Barrier(mpi_communicator);
+        // Next we have to send the points to every other processor
+        std::vector<int> top_Number_Points;
+        std::vector<std::vector<int>> doftop(n_proc);
+        std::vector<std::vector<double>> xtop(n_proc);
+        std::vector<std::vector<double>> ytop(n_proc);
+        std::vector<std::vector<double>> zold(n_proc);
+        std::vector<std::vector<double>> znew(n_proc);
+        for (itTop = topPoints.begin(); itTop != topPoints.end(); ++itTop){
+            doftop[my_rank].push_back(itTop->first);
+            xtop[my_rank].push_back(itTop->second.first[0]);
+            if (dim == 3){
+                ytop[my_rank].push_back(itTop->second.first[1]);
+                zold[my_rank].push_back(itTop->second.first[2]);
+            }
+            else if (dim == 2){
+                zold[my_rank].push_back(itTop->second.first[1]);
+            }
+            znew[my_rank].push_back(itTop->second.second);
+        }
+
+        std::vector<int> bot_Number_Points;
+        std::vector<std::vector<int>> dofbot(n_proc);
+        std::vector<std::vector<double>> xbot(n_proc);
+        std::vector<std::vector<double>> ybot(n_proc);
+        std::vector<std::vector<double>> zbot(n_proc);
+        for(itBot = botPoints.begin(); itBot != botPoints.end(); ++itBot){
+            dofbot[my_rank].push_back(itBot->first);
+            xbot[my_rank].push_back(itBot->second[0]);
+            if (dim == 3){
+                ybot[my_rank].push_back(itBot->second[1]);
+                zbot[my_rank].push_back(itBot->second[2]);
+            }
+            else if (dim == 2){
+                zbot[my_rank].push_back(itBot->second[1]);
+            }
+        }
+        MPI_Barrier(mpi_communicator);
+
+        // Send receive data for the top
+        Send_receive_size(static_cast<unsigned int>(doftop[my_rank].size()), n_proc, top_Number_Points, mpi_communicator);
+        Sent_receive_data<int>(dofbot, top_Number_Points, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(xtop, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(ytop, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(zold, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(znew, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // Send receive data for the bot
+        Send_receive_size(static_cast<unsigned int>(dofbot[my_rank].size()), n_proc, bot_Number_Points, mpi_communicator);
+        Sent_receive_data<double>(xbot, bot_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(ybot, bot_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(zbot, bot_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // Each processors will loop through the data sent from the other processors and get the ones
+        // that is missing
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (i_proc == my_rank)
+                continue;
+            for (unsigned int i = 0; i < doftop[i_proc].size(); ++i){
+                itTop = topPoints.find(doftop[i_proc][i]);
+                if (itTop == topPoints.end()){
+                    Point<dim> temp_point_dim;
+                    temp_point_dim[0] = xtop[i_proc][i];
+                    if (dim == 3){
+                        temp_point_dim[1] = ytop[i_proc][i];
+                        temp_point_dim[2] = zold[i_proc][i];
+                    }
+                    else if (dim == 2){
+                        temp_point_dim[1] = zold[i_proc][i];
+                    }
+                    topPoints.insert(std::pair<int, std::pair<Point<dim>, double> >
+                                             (doftop[i_proc][i],
+                                              std::pair<Point<dim>, double>(
+                                                      temp_point_dim, znew[i_proc][i])));
+                }
+            }
+
+            for (unsigned int i = 0; i < dofbot[i_proc].size(); ++i){
+                itBot = botPoints.find(dofbot[i_proc][i]);
+                if (itBot == botPoints.end()){
+                    Point<dim> temp_point_dim;
+                    temp_point_dim[0] = xbot[i_proc][i];
+                    if (dim == 3){
+                        temp_point_dim[1] = ybot[i_proc][i];
+                        temp_point_dim[2] = zbot[i_proc][i];
+                    }
+                    else if (dim == 2){
+                        temp_point_dim[1] = zbot[i_proc][i];
+                        botPoints.insert(std::pair<int, Point<dim>>(dofbot[i_proc][i], temp_point_dim));
+                    }
+                }
+            }
+        }
+    }
+    // ALl processors must have a complete set of top and bottom points to create
+    // the top and bottom interpolation function
+    topCloud.pts.clear();
+    botCloud.pts.clear();
+    topCloudIndex.reset(new pointVector_kd_tree(
+            2, topCloud,
+            nanoflann::KDTreeSingleIndexAdaptorParams(10)) );
+    botCloudIndex.reset(new pointVector_kd_tree(
+            2, botCloud,
+            nanoflann::KDTreeSingleIndexAdaptorParams(10)) );
+
+
     for (itTop = topPoints.begin(); itTop != topPoints.end(); ++itTop){
-        doftop[my_rank].push_back(itTop->first);
-        xtop[my_rank].push_back(itTop->second.first[0]);
+        PointVector pid;
+        pid.x = itTop->second.first[0];
         if (dim == 3){
-            ytop[my_rank].push_back(itTop->second.first[1]);
-            zold[my_rank].push_back(itTop->second.first[2]);
+            pid.y = itTop->second.first[1];
+            pid.values.push_back(itTop->second.first[2]);
         }
         else if (dim == 2){
-            zold[my_rank].push_back(itTop->second.first[1]);
+            pid.y = 0;
+            pid.values.push_back(itTop->second.first[1]);
         }
-        znew[my_rank].push_back(itTop->second.second);
+        pid.values.push_back(itTop->second.second);
+        topCloud.pts.push_back(pid);
     }
+    topCloudIndex->buildIndex();
 
-    std::vector<std::vector<int>> dofbot(n_proc);
-    std::vector<std::vector<double>> xbot(n_proc);
-    std::vector<std::vector<double>> ybot(n_proc);
-    std::vector<std::vector<double>> zbot(n_proc);
-    for(itBot = botPoints.begin(); itBot != botPoints.end(); ++itBot){
-        dofbot[my_rank].push_back(itBot->first);
-        xbot[my_rank].push_back(itBot->second[0]);
+    for (itBot = botPoints.begin(); itBot != botPoints.end(); ++itBot){
+        PointVector pid;
+        pid.x = itBot->second[0];
         if (dim == 3){
-            ybot[my_rank].push_back(itBot->second[1]);
-            zbot[my_rank].push_back(itBot->second[2]);
+            pid.y = itBot->second[1];
+            pid.values.push_back(itBot->second[2]);
         }
         else if (dim == 2){
-            zbot[my_rank].push_back(itBot->second[1]);
+            pid.y = 0;
+            pid.values.push_back(itBot->second[1]);
         }
+        botCloud.pts.push_back(pid);
     }
-
-    //Send_receive_size(static_cast<unsigned int>(top_send[my_rank].size()), n_proc, top_size_send, mpi_communicator);
-
-
+    botCloudIndex->buildIndex();
 }
 
 
@@ -1015,6 +1130,7 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
     //std::vector<Point<dim>> cell_vertices(GeometryInfo<dim>::vertices_per_cell);
     //std::vector<Point<dim>> face_vertices(GeometryInfo<dim>::vertices_per_face);
 
+    unsigned int topfaceid = GeometryInfo<dim>::faces_per_cell - 1;
     double m = AQProps.multiplier_velocity_print;
 
     typename DoFHandler<dim>::active_cell_iterator
@@ -1042,11 +1158,11 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
             }
 
             bool is_cell_top = false;
-            if (cell->face(_TOPFACEID)->at_boundary())
+            if (cell->face(topfaceid)->at_boundary())
                 is_cell_top = true;
             else{
-                if (!cell->neighbor(_TOPFACEID)->has_children()){
-                    if (cell->neighbor(_TOPFACEID)->face(_TOPFACEID)->at_boundary())
+                if (!cell->neighbor(topfaceid)->has_children()){
+                    if (cell->neighbor(topfaceid)->face(topfaceid)->at_boundary())
                         is_cell_top = true;
                 }
             }
@@ -1086,8 +1202,8 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                 }
 
                 // Print the velocity on the top face also if its on the top boundary
-                if (cell->face(_TOPFACEID)->at_boundary()){
-                    fe_face_values.reinit (cell, _TOPFACEID);
+                if (cell->face(topfaceid)->at_boundary()){
+                    fe_face_values.reinit (cell, topfaceid);
                     fe_face_values.get_function_gradients(locally_relevant_solution, hgrad_face);
                     std::vector<Point<dim>> quad_points = fe_face_values.get_quadrature_points();
                     HK_function.value_list(quad_points, hydraulic_conductivity_values_face);
@@ -1167,13 +1283,15 @@ void NPSAT<dim>::printGWrecharge(MyFunction<dim, dim> &RCH_function) {
     std::vector<double>			 		recharge_values(n_face_q_points);
     std::vector<Point<dim>> quad_points;
 
+    unsigned int topfaceid = GeometryInfo<dim>::faces_per_cell-1;
+
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
-            if(cell->face(_TOPFACEID)->at_boundary()){
-                fe_face_values.reinit (cell, _TOPFACEID);
+            if(cell->face(topfaceid)->at_boundary()){
+                fe_face_values.reinit (cell, topfaceid);
                 quad_points = fe_face_values.get_quadrature_points();
                 RCH_function.value_list(quad_points, recharge_values);
                 for (unsigned int i = 0; i < recharge_values.size(); ++i){

@@ -32,7 +32,7 @@
 #include "helper_functions.h"
 #include "wells.h"
 #include "streams.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
 #include "dsimstructs.h"
 #include "dirichlet_boundary.h"
 
@@ -547,15 +547,35 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
     QTrapez<dim-1> face_trapez_formula;
     FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
     std::vector< double > values(face_trapez_formula.size());
+    std::vector<unsigned int> face_dof_indices(fe.dofs_per_face);
     // solution_points is a vector of vectors of DIM+1 (x, y, z, value) or (x, y, value)
-    std::vector<std::vector<double>> solution_points;
-    CGAL::Point_set_2<ine_Kernel, Tds> PointSet;
+    //std::vector<std::vector<double>> solution_points;
+    std::map<int,std::pair<Point<dim>, double> > solution_points;
+    typename std::map<int,std::pair<Point<dim>, double> >::iterator it;
+    //CGAL::Point_set_2<ine_Kernel, Tds> PointSet;
 
+    unsigned int itopface = GeometryInfo<dim>::faces_per_cell - 1;
     typename DoFHandler<dim>::active_cell_iterator
     cell = dof_handler.begin_active(),
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
+            if (cell->face(itopface)->at_boundary()){
+                fe_face_values.reinit (cell, itopface);
+                fe_face_values.get_function_values(locally_relevant_solution, values);
+                cell->face(itopface)->get_dof_indices(face_dof_indices);
+                for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                    it = solution_points.find(face_dof_indices[ii]);
+                    if (it == solution_points.end()){
+                        Point<dim> temp_point_dim = cell->face(itopface)->vertex(ii);
+                        solution_points.insert(std::pair<int, std::pair<Point<dim>, double> >
+                                                (face_dof_indices[ii],
+                                                std::pair<Point<dim>, double>(temp_point_dim, values[ii])));
+                    }
+                }
+            }
+
+            /*
             for (unsigned int i_face = 0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
                 if (cell->face(i_face)->at_boundary()){
                     for (unsigned int i = 0; i < top_boundary_ids.size(); ++i){
@@ -593,16 +613,16 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
                         }
                     }
                 }
-            }
+            }*/
         }
     }
 
     top_stream_file << solution_points.size() << std::endl;
-    for (unsigned int i = 0; i < solution_points.size(); i++){
+    for (it = solution_points.begin(); it != solution_points.end(); ++it){
         for (unsigned int idim = 0; idim < dim; idim++){
-            top_stream_file <<  std::setprecision(15) << solution_points[i][idim] << " ";
+            top_stream_file <<  std::setprecision(15) << it->second.first[dim] << " ";
         }
-        top_stream_file <<  std::setprecision(15) << solution_points[i][dim] << std::endl;
+        top_stream_file << std::setprecision(15) << it->second.second << std::endl;
     }
     top_stream_file.close();
 }

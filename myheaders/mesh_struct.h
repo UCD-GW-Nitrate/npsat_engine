@@ -23,7 +23,7 @@
 #include "my_functions.h"
 #include "mpi_help.h"
 #include "helper_functions.h"
-#include "mix_mesh.h"
+//#include "mix_mesh.h"
 #include "boost_functions.h"
 
 //! custom struct to hold point data temporarily as we iterate through the cells
@@ -184,7 +184,15 @@ public:
     void compute_initial_elevations(MyFunction<dim, dim> top_function,
                                     MyFunction<dim, dim> bot_function);
 
-    void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
+    //void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
+    //                       ConditionalOStream pcout,
+    //                       MPI_Comm &mpi_communicator);
+    void assign_top_bottom(PointVectorCloud& topCloud,
+                           std::shared_ptr<pointVector_kd_tree>& topindex,
+                           double topPower, double topRadius,
+                           PointVectorCloud& botCloud,
+                           std::shared_ptr<pointVector_kd_tree>& botindex,
+                           double botPower, double botRadius, double thres,
                            ConditionalOStream pcout,
                            MPI_Comm &mpi_communicator);
 
@@ -276,7 +284,6 @@ int Mesh_struct<dim>::check_if_point_exists(Point<dim> p){
     if (_counter == 0)
         return -9;
     int out = -9;
-    double x,y;
     double query_pt[2];
     query_pt[0] = p[0];
     if (dim == 2){
@@ -293,7 +300,7 @@ int Mesh_struct<dim>::check_if_point_exists(Point<dim> p){
     //std::vector<int> ids = circle_search_in_2DSet(CGALset, ine_Point3(x, y, 0.0) , xy_thres);
 
     if (resultSet.size() > 1)
-        std::cerr << "More than one points around x: " << x << ", y: " << y << "found within the specified tolerance" << std::endl;
+        std::cerr << "More than one points around x: " << query_pt[0] << ", y: " << query_pt[1] << "found within the specified tolerance" << std::endl;
     else if(resultSet.size() == 1) {
          out = resultSet.worst_item().first;
     }
@@ -697,7 +704,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
                             }
                         }
                         if (itz->Top.proc < 0){
-                            std::map<int, new_DOFZ>::iterator itt = Top_info.find(itz->Top.dof);
+                            auto itt = Top_info.find(itz->Top.dof);
                             if (itt != Top_info.end()){
                                 itz->Top.dof = itt->second.new_dof;
                                 itz->Top.proc = itt->second.proc;
@@ -1416,6 +1423,7 @@ void Mesh_struct<dim>::make_dof_ij_map(){
     }
 }
 
+
 template <int dim>
 void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_function,
                                                   MyFunction<dim, dim> bot_function){
@@ -1454,6 +1462,7 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_funct
     }
 }
 
+/*
 template <int dim>
 void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
                                          ConditionalOStream pcout,
@@ -1520,12 +1529,10 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
             id_bot.push_back(it->first);
         }
     }
-
-    MPI_Barrier(mpi_communicator);
     //print_size_msg<double>(Xcoord_bot, my_rank);
 
-
     if (n_proc > 1){
+        MPI_Barrier(mpi_communicator);
         pcout << "Checking top points..." << std::endl << std::flush;
         std::vector<int> points_per_proc;
         Send_receive_size(Xcoord_top[my_rank].size(), n_proc, points_per_proc, mpi_communicator);
@@ -1666,7 +1673,64 @@ void Mesh_struct<dim>::assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim
             }
         }
     }
+}
+*/
 
+
+template<int dim>
+void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared_ptr<pointVector_kd_tree> &topindex,
+                                         double topPower, double topRadius, PointVectorCloud &botCloud,
+                                         std::shared_ptr<pointVector_kd_tree> &botindex, double botPower,
+                                         double botRadius, double thres,
+                                         ConditionalOStream pcout,
+                                         MPI_Comm &mpi_communicator) {
+    pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+
+    typename std::map<int , PntsInfo<dim> >::iterator it;
+    double x, y;
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        x = it->second.PNT[0];
+        if (dim == 3)
+            y = it->second.PNT[1];
+        else
+            y = 0;
+        std::vector<double> topOut, botOut;
+        interpolateVectorCloud(topCloud,topindex,topPower,topRadius,thres,x,y,topOut);
+        it->second.T = topOut[1];
+        interpolateVectorCloud(botCloud,botindex,botPower,botRadius,thres,x,y,botOut);
+        it->second.B = botOut[0];
+    }
+    pcout << "Done Here" << std::endl;
+
+    // We set the top and bottom elevations to the zlist and calculate the relative positions
+    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
+        for (; itz != it->second.Zlist.end(); ++itz){
+            if (itz->is_local){
+                itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
+                if (itz->isTop){
+                    if (it->second.T < -9998){
+                        std::cout << "The Top at (" << it->second.PNT << ") has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it->second.T;
+                        itz->isZset = true;
+                    }
+                }
+                if (itz->isBot){
+                    if (it->second.B < -9998){
+                        std::cout << "The Bottom at (" << it->second.PNT << ") has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it->second.B;
+                        itz->isZset = true;
+                    }
+                }
+            }
+        }
+    }
 }
 
 

@@ -12,7 +12,8 @@
 #include "my_functions.h"
 #include "dsimstructs.h"
 #include "streamlines.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
+#include "nanoflann_structures.h"
 #include "mpi_help.h"
 //#include "velocity_rt0.h"
 
@@ -442,9 +443,22 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
         new_particles.clear();
 
         // make a Point Set for faster query of particles
-        std::vector<ine_Key> prtclsxy;
+        PointIdCloud ParticlesAsCloud;
+        pointid_kd_tree particleCloudIndex(2, ParticlesAsCloud,
+                        nanoflann::KDTreeSingleIndexAdaptorParams(10));
+        //std::vector<ine_Key> prtclsxy;
         for (unsigned int i = 0; i < streamlines.size(); ++i){
-            if (dim == 2){
+            PointId pid;
+            pid.id = i;
+            pid.x = streamlines[i].P[0][0];
+            if (dim == 3){
+                pid.y = streamlines[i].P[0][1];
+            }
+            else{
+                pid.y = 0;
+            }
+            ParticlesAsCloud.pts.push_back(pid);
+            /*if (dim == 2){
                 prtclsxy.push_back(ine_Key(ine_Point3(streamlines[i].P[0][0],
                                                       streamlines[i].P[0][1],
                                                       0), i) );
@@ -453,9 +467,10 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                 prtclsxy.push_back(ine_Key(ine_Point3(streamlines[i].P[0][0],
                                                       streamlines[i].P[0][1],
                                                       streamlines[i].P[0][2]), i) );
-            }
+            }*/
         }
-        Range_tree_3_type ParticlesXY(prtclsxy.begin(), prtclsxy.end());
+        //Range_tree_3_type ParticlesXY(prtclsxy.begin(), prtclsxy.end());
+        particleCloudIndex.buildIndex();
         //int cnt_ptr = 0;int cnt_cells = 0;
         typename DoFHandler<dim>::active_cell_iterator
         cell = dof_handler.begin_active(),
@@ -482,13 +497,28 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                 }
 
                 // Find which particles are inside this Cell bounding box that defined previously
-                bool are_particles = any_point_inside(ParticlesXY, ll, uu, particle_id_in_cell);
-                if (!are_particles)
+                //bool are_particles = any_point_inside(ParticlesXY, ll, uu, particle_id_in_cell);
+                double cellradius = cell->diameter();
+                Point<dim> cellBC = cell->barycenter();
+                cellradius = cellradius * cellradius;
+                double query_pt[2];
+                query_pt[0] = cellBC[0];
+                if (dim == 3)
+                    query_pt[1] = cellBC[1];
+                else if (dim == 2)
+                    query_pt[1] = 0;
+
+                std::vector<std::pair<size_t,double> > ret_matches;
+                nanoflann::SearchParams params;
+                params.sorted = false;
+                const int nMatches = particleCloudIndex.radiusSearch(query_pt,cellradius,ret_matches,params);
+
+                if (nMatches == 0)
                     continue;
 
                 // loop through each point found in the cell box
-                for (unsigned int jj = 0; jj < particle_id_in_cell.size(); ++jj){
-                    int iprt = particle_id_in_cell[jj];
+                for (unsigned int jj = 0; jj < ret_matches.size(); ++jj){
+                    int iprt = ret_matches[jj].first;
                     bool is_particle_inside = cell->point_inside(streamlines[iprt].P[0]);
                     if (is_particle_inside){
                         //std::cout << iprt << " : " << streamlines[iprt].E_id << " : " << streamlines[iprt].S_id << std::endl;

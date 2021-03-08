@@ -5,7 +5,7 @@
 
 #include <deal.II/base/point.h>
 
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
 #include "nanoflann_structures.h"
 #include "helper_functions.h"
 
@@ -457,7 +457,7 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
             std::vector<double> values, distances;
             for(size_t i = 0; i < num_results; ++i){
                 values.push_back(interpCloud.pts[ret_index[i]].values[0]);
-                distances.push_back(out_dist_sqr[i]);
+                distances.push_back(std::sqrt(out_dist_sqr[i]));
             }
             return IDWinterp(values, distances, power, threshold);
         }
@@ -467,7 +467,7 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
         std::vector<double> distances, interpRes;
         for(size_t i = 0; i < num_results; ++i){
             values.push_back(interpCloud.pts[ret_index[i]].values);
-            distances.push_back(out_dist_sqr[i]);
+            distances.push_back(std::sqrt(out_dist_sqr[i]));
         }
         interpRes = IDWinterp(values,distances,power,threshold);
         int vidx = 0;

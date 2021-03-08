@@ -20,7 +20,7 @@
 
 #include "dsimstructs.h"
 #include "helper_functions.h"
-#include "cgal_functions.h"
+//#include "cgal_functions.h"
 
 using namespace dealii;
 
@@ -328,6 +328,22 @@ void CL_arguments<dim>::declare_parameters(){
             prm.declare_entry("d z threshold", "0.01", Patterns::Double(0,10000),
                               "d----------------------------------\n"
                               "Threshold value the vertical plane");
+
+            prm.declare_entry("e Power for top", "3", Patterns::Double(1,5),
+                              "e----------------------------------\n"
+                              "Power parameter for top IDW interpolation");
+
+            prm.declare_entry("f Radius for top", "1000", Patterns::Double(0.01,50000),
+                              "f----------------------------------\n"
+                              "Radius parameter for top IDW interpolation");
+
+            prm.declare_entry("g Power for bottom", "3", Patterns::Double(1,5),
+                              "g----------------------------------\n"
+                              "Power parameter for bottom IDW interpolation");
+
+            prm.declare_entry("h Radius for bottom", "1000", Patterns::Double(0.01,50000),
+                              "h----------------------------------\n"
+                              "Radius parameter for bottom IDW interpolation");
         }
         prm.leave_subsection();
     }
@@ -806,6 +822,14 @@ bool CL_arguments<dim>::read_param_file(){
 
             AQprop.xy_thres = prm.get_double("c x-y threshold");
             AQprop.z_thres = prm.get_double("d z threshold");
+            AQprop.top_cloud_param.Power = prm.get_double("e Power for top");
+            AQprop.top_cloud_param.Radius = prm.get_double("f Radius for top");
+            AQprop.top_cloud_param.Radius = AQprop.top_cloud_param.Radius*AQprop.top_cloud_param.Radius;
+            AQprop.top_cloud_param.Threshold = prm.get_double("c x-y threshold");
+            AQprop.bot_cloud_param.Power = prm.get_double("g Power for bottom");
+            AQprop.bot_cloud_param.Radius = prm.get_double("h Radius for bottom");
+            AQprop.bot_cloud_param.Radius = AQprop.bot_cloud_param.Radius*AQprop.bot_cloud_param.Radius;
+            AQprop.bot_cloud_param.Threshold = prm.get_double("c x-y threshold");
         }
         prm.leave_subsection ();
     }

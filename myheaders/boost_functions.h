@@ -113,6 +113,30 @@ double polyXpoly(std::vector<double>& x1, std::vector<double>& y1,
     return area;
 }
 
+bool polyXpoly(std::vector<double>& x1, std::vector<double>& y1,
+               std::vector<double>& x2, std::vector<double>& y2){
+    std::vector<boost_point> pnts;
+    for (unsigned int i = 0; i < x1.size(); ++i){
+        pnts.push_back(boost_point(x1[i], y1[i]));
+    }
+    boost_polygon Poly1;
+    boost::geometry::assign_points(Poly1, pnts);
+    boost::geometry::correct(Poly1);
+
+    std::vector<boost_point> pnts2;
+    for (unsigned int i = 0; i < x2.size(); ++i){
+        pnts2.push_back(boost_point(x2[i], y2[i]));
+    }
+    boost_polygon Poly2;
+    boost::geometry::assign_points(Poly2, pnts2);
+    boost::geometry::correct(Poly2);
+
+    std::deque<boost_polygon> output;
+    boost::geometry::intersection(Poly1, Poly2, output);
+
+    return output.size() > 0;
+}
+
 /*!
  * \brief simplify_polyline simplifies a polyline based on the threshold using the
  * Ramer–Douglas–Peucker algorithm

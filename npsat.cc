@@ -9,7 +9,7 @@
 
 #include "myheaders/dsimstructs.h"
 #include "myheaders/user_input.h"
-#include "myheaders/cgal_functions.h"
+//#include "myheaders/cgal_functions.h"
 //#include "myheaders/interpinterface.h"
 //#include "myheaders/MultiPolyInterp.h"
 #include "myheaders/npsat.h"

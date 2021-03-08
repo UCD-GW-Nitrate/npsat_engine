@@ -377,7 +377,8 @@ bool Well_Set<dim>::read_wells(std::string base_filename)
             //wells[i].well_id = i;
         }
         wellIndex = std::shared_ptr<pointid_kd_tree>(new pointid_kd_tree(
-                2, WellsAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
+                2, WellsAsCloud,
+                nanoflann::KDTreeSingleIndexAdaptorParams(10)));
         wellIndex->buildIndex();
         return true;
     }
@@ -536,6 +537,10 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
             //    dummy_function(true,a);
             //}
             Point<dim> bc = cell->barycenter();
+            if (dim == 3)
+                bc[2] = 0;
+            else if (dim == 2)
+                bc[1] = 0;
 
             bool are_wells = search4NearbyWells(bc[0], bc[1], cell->diameter(), well_id_in_cell);
 
@@ -812,6 +817,7 @@ void Well_Set<dim>::distribute_particles(std::vector<Streamline<dim>> &Streamlin
 template<int dim>
 bool Well_Set<dim>::search4NearbyWells(double x, double y, double searchRadius,
                                        std::vector<int>& ids){
+    searchRadius = searchRadius * searchRadius; // Nanoflann requires the square distance
     const double query_pt[2] = {x, y};
     std::vector<std::pair<size_t,double> > ret_matches;
     nanoflann::SearchParams params;

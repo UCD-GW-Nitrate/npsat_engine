@@ -1,10 +1,7 @@
 #ifndef MY_MACROS_H
 #define MY_MACROS_H
 
-#define _DIM 3
-// For 2D the top face id is 3
-// For 3D the top dace id is 5
-#define _TOPFACEID 5
+#define _DIM 2
 
 enum class wellParticleDistributionType{
     LAYERED, /**<The particles are organized into layers equally distributed */

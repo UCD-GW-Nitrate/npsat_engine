@@ -144,6 +144,11 @@ struct ParticleParameters{
     double velocity_multiplier;
 };
 
+struct CloudSearchParam{
+    double Power = 2;
+    double Radius = 1000;
+    double Threshold = 0.1;
+};
 
 /*!
  * \brief A struct to hold the data for the aquifer Properties.
@@ -304,6 +309,9 @@ public:
 
     //! Holds the Solver parameters
     SolverParameters                    solver_param;
+
+    CloudSearchParam                    top_cloud_param;
+    CloudSearchParam                    bot_cloud_param;
 
     //! This is the main parameter file.
     std::string main_param_file;

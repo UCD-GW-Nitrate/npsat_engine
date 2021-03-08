@@ -1076,8 +1076,8 @@ double IDWinterp(std::vector<double> values,
     return sumWV/sumW;
 }
 
-std::vector<double> IDWinterp(std::vector<std::vector<double>> values,
-                 std::vector<double> distances,
+std::vector<double> IDWinterp(std::vector<std::vector<double>>& values,
+                 std::vector<double>& distances,
                  double power,
                  double threshold){
     double sumW = 0;
