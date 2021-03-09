@@ -376,8 +376,8 @@ void NPSAT<dim>::solve_refine(){
                                           botCloud, botCloudIndex,
                                           AQProps.bot_cloud_param.Power,
                                           AQProps.bot_cloud_param.Radius,
-                                          AQProps.top_cloud_param.Threshold/*,
-                                          pcout, mpi_communicator*/);
+                                          AQProps.top_cloud_param.Threshold,
+                                          pcout, mpi_communicator);
 
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
@@ -576,7 +576,7 @@ void NPSAT<dim>::create_top_bot_functions(){
             }
         }
     }
-    //std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
+    std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
 
     if (n_proc > 1){
         MPI_Barrier(mpi_communicator);
@@ -670,14 +670,14 @@ void NPSAT<dim>::create_top_bot_functions(){
                     }
                     else if (dim == 2){
                         temp_point_dim[1] = zbot[i_proc][i];
-                        botPoints.insert(std::pair<int, Point<dim>>(dofbot[i_proc][i], temp_point_dim));
                     }
+                    botPoints.insert(std::pair<int, Point<dim>>(dofbot[i_proc][i], temp_point_dim));
                 }
             }
         }
     }
     MPI_Barrier(mpi_communicator);
-    //std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
+    std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
     // ALl processors must have a complete set of top and bottom points to create
     // the top and bottom interpolation function
     topCloud.pts.clear();

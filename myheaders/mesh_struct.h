@@ -192,9 +192,9 @@ public:
                            double topPower, double topRadius,
                            PointVectorCloud& botCloud,
                            std::shared_ptr<pointVector_kd_tree>& botindex,
-                           double botPower, double botRadius, double thres/*,
+                           double botPower, double botRadius, double thres,
                            ConditionalOStream pcout,
-                           MPI_Comm &mpi_communicator*/);
+                           MPI_Comm &mpi_communicator);
 
 
     //! This method sets the scales #dbg_scale_x and #dbg_scale_z for debug plotting using software like houdini
@@ -972,7 +972,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     std::map<int, double> elev_asked;
     int dbg_cnt = 0;
     pcout << "Update Mesh elevation..." << std::endl;
-
+    MPI_Barrier(mpi_communicator);
+    std::cout << "Rank " << my_rank << " is here 0" << std::endl;
     std::deque<int> topo_order;
     boost::topological_sort(MeshGraph, std::front_inserter(topo_order));
 
@@ -981,6 +982,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 	//		std::cout << MeshGraph[*itd].id << std::endl;
 	//	}
 	//}
+    MPI_Barrier(mpi_communicator);
+	std::cout << "Rank " << my_rank << " is here 1" << std::endl;
 
     while (true){
         MPI_Barrier(mpi_communicator);
@@ -1162,7 +1165,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                 }
             }
         }
-
+        std::cout << "Rank " << my_rank << " is here 2" << std::endl;
         MPI_Barrier(mpi_communicator);
 
 
@@ -1237,6 +1240,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
             return;
         }
 
+        std::cout << "Rank " << my_rank << " is here 3" << std::endl;
         //copy unknown dofs from map to vector
         for (unsigned int iproc = 0; iproc < n_proc; ++iproc)
             dof_ask[iproc].clear();
@@ -1273,6 +1277,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
             }
         }
 
+        std::cout << "Rank " << my_rank << " is here 4" << std::endl;
         std::vector<int> reply_size(n_proc);
         Send_receive_size(static_cast<unsigned int>(dof_ask_reply[my_rank].size()), n_proc, reply_size, mpi_communicator);
         Sent_receive_data<int>(dof_ask_reply, reply_size, my_rank, mpi_communicator, MPI_INT);
@@ -1298,6 +1303,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     // After we have finished with all updates in the z structure we have to copy the---------------------------------------
     // new values to the distributed vector
+    std::cout << "Rank " << my_rank << " is here 5" << std::endl;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
@@ -1324,6 +1330,8 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     //move the actual vertices ------------------------------------------------
     move_vertices(mesh_dof_handler, mesh_vertices);
 
+    std::cout << "Rank " << my_rank << " is here 6" << std::endl;
+
     std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
@@ -1336,6 +1344,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
     }
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
+    std::cout << "Rank " << my_rank << " is here 7" << std::endl;
 }
 
 template <int dim>
@@ -1681,16 +1690,19 @@ template<int dim>
 void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared_ptr<pointVector_kd_tree> &topindex,
                                          double topPower, double topRadius, PointVectorCloud &botCloud,
                                          std::shared_ptr<pointVector_kd_tree> &botindex, double botPower,
-                                         double botRadius, double thres/*,
+                                         double botRadius, double thres,
                                          ConditionalOStream pcout,
-                                         MPI_Comm &mpi_communicator*/) {
-    //pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
-    //unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    //unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+                                         MPI_Comm &mpi_communicator) {
+    std::cout << "Compute global top/bottom elevations..." << std::endl << std::flush;
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
     double x, y;
 
+    int iter = 0;
+    int sz = PointsMap.size();
     typename std::map<int , PntsInfo<dim> >::iterator it;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+
         //std::cout << it->second.PNT[0] << std::endl;
         //std::cout << PointsMap[i].PNT[0] << std::endl;
         x = it->second.PNT[0];
@@ -1703,6 +1715,8 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
         it->second.T = topOut[1];
         interpolateVectorCloud(botCloud,botindex,botPower,botRadius,thres,x,y,botOut);
         it->second.B = botOut[0];
+        std::cout << my_rank << " - " << iter << "/" << sz << " top " << it->second.T << ", bot " << it->second.B << std::endl;
+        iter++;
 
         std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
@@ -1760,6 +1774,7 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
         }
     }
     */
+    std::cout << "Done with top/bottom elevations..." << std::endl << std::flush;
 }
 
 

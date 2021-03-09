@@ -1,14 +1,14 @@
-## Overview
-This example is primarily used for debugging and illustrating the various dirichlet boundary conditions that can be applied in a domain.
+# Overview
+This example is primarily used for debugging and illustrating the various boundary conditions that can be applied in a domain. The *Dirichlet* boundary conditions are all specified in a single file. The *Neumann* boundary conditions are split into two categories. Groundwater recharge and other Neumann boundaries. Groundwater Recharge actuall is  a Neumann boundary condition but it is always applied on the top, while the category Neumann boundary conditions in the input file it is used to set flows in boundaries of the domain other than the top.  
 
-#### Domain 
+## Domain 
 The domain of the example is a box with dimensions 5x5 km and depth 300 m approximately. The bottom of the aquifer is uniform and equal to -270 m. The initial approximation of the free surface is set to 30 m above msl.
 
-#### Stresses
-* Groundwater recharge is assumed uniform and equal to 0.0002 m/day, which results in a total incoming volume of water from recharge equal to  5000 m^3/day.
+## Stresses
+* Groundwater recharge unless it is modified it is assumed uniform and equal to 0.0002 m/day, which results in a total incoming volume of water from recharge equal to  5000 m^3/day.
 * There are 19 wells with pumping rates varying from 100 to 500 m^3/day. Their total pumping equals the recharge amount.
 
-#### Boundary conditions
+# Dirichlet Boundary conditions
 The purpose of this example is to test all the available boundary condition options of NPSAT. 
 The format of the boundary condition file is the following:
 - Number of boundaries
@@ -16,8 +16,8 @@ The format of the boundary condition file is the following:
 - Repeat N times the coordinates that describe the boundary
 
 
-# Test 1 (dir_bc01.npsat)
-* __Top boundary__. This type of boundary is a polygonal area aplied on top (e.g. lake) that has constant head equal to 30 m. In the example the polygon consist of 7 vertices. Therefore the file has the following format
+## Top boundary (Test 1 : dir_bc01.npsat)
+ This type of boundary is a polygonal area applied on top (e.g. lake) that has constant head. In the example this is set to 30 m, while the polygon consist of 7 vertices. The file has the following format
 ```
 1
 TOP 7 30
@@ -25,7 +25,9 @@ x y  #repeat 7 times
 ```
 **It is very important that the orientation of the polygon is counter clockwise**
 
-## Test 1 with multipolugon recharge
+The value does not have to be a constant value. On can pass a file that describe an interpolation function. 
+
+## Test 1 with multipolygon recharge
 Using the same boundary conditions we will assign zone recharge. This is implemented using the `MULTIPOLY` keyword as follows
 ```
 MULTIPOLY
