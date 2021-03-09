@@ -105,6 +105,7 @@ private:
     //! this is a container to hold the triangulation of the 2D scattered data
     //ine_Delaunay_triangulation T;
     PointVectorCloud interpCloud;
+    //PointVectorCloud* ptrCloud= &interpCloud;
     std::shared_ptr<pointVector_kd_tree> interpIndex;
 
 
@@ -127,10 +128,11 @@ private:
     //bool Stratified;
 
     //bool interpolated;
-    size_t NinterpPoints;
+    size_t NinterpPoints = 1;
 
     int Nlayers;
     double power = 2.0;
+    double radius = 1000;
     double threshold = 0.1;
 
     /*!
@@ -182,6 +184,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
         return;
     }
     else{
+        int Nleafs = 10;
         char buffer[512];
         {// Read the data type
             datafile.getline(buffer, 512);
@@ -234,7 +237,15 @@ void ScatterInterp<dim>::get_data(std::string filename){
             std::istringstream inp(buffer);
             inp >> Npnts;
             inp >> Ndata;
-            interpCloud.pts.resize(Npnts);
+            if (Ndata == 1)
+                Nlayers = 1;
+            if (sci_method == SCI_METHOD::LINEAR){
+                inp >> power;
+                inp >> radius;
+                radius = radius*radius;
+                inp >> threshold;
+                inp >> Nleafs;
+            }
         }
         {// Read the actual data
             double x, y, v;
@@ -272,10 +283,11 @@ void ScatterInterp<dim>::get_data(std::string filename){
                 //T.insert(p);
                 for (unsigned int j = 0; j < Ndata; ++j){
                     inp >> v;
-                    pv.values[j] = 0;
+                    pv.values[j] = v;
                     //ine_Coord_type ct(v);
                     //function_values[j].insert(std::make_pair(p,ct));
                 }
+                interpCloud.pts.push_back(pv);
                 //}
             }
 
@@ -283,11 +295,27 @@ void ScatterInterp<dim>::get_data(std::string filename){
             //    function_values.clear();
             //}
         }// Read data block
+        //pointVector_kd_tree temp_index(2, interpCloud, nanoflann::KDTreeSingleIndexAdaptorParams(Nleafs));
+
+        //temp_index.buildIndex();
+        //std::vector<std::pair<size_t,double> >   ret_matches;
+        //nanoflann::SearchParams params;
+        //params.sorted = false;
+        //double query_pt[2] = { 550, 0};
+        //size_t nMatches = temp_index.radiusSearch(&query_pt[0],radius, ret_matches, params);
+
+        //interpIndex = new pointVector_kd_tree(2, interpCloud, nanoflann::KDTreeSingleIndexAdaptorParams(Nleafs));
         interpIndex = std::shared_ptr<pointVector_kd_tree>(
                 new pointVector_kd_tree(2, interpCloud,
-                                        nanoflann::KDTreeSingleIndexAdaptorParams(10))
+                                        nanoflann::KDTreeSingleIndexAdaptorParams(Nleafs))
                 );
         interpIndex->buildIndex();
+
+        //double tmp = interpolate(Point<dim>(550,0));
+        //std::cout << tmp << std::endl;
+        //nMatches = interpIndex->radiusSearch(&query_pt[0],radius, ret_matches, params);
+        //bool stop_here = true;
+
     }
 }
 /*
@@ -443,10 +471,20 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
 
     std::vector<size_t>   ret_index(NinterpPoints);
     std::vector<double> out_dist_sqr(NinterpPoints);
-    size_t num_results = interpIndex->knnSearch(&query_pt[0],
+    size_t num_results;
+    if (sci_method == SCI_METHOD::NEAREST){
+        num_results = interpIndex->knnSearch(&query_pt[0],
                                              NinterpPoints,
                                              &ret_index[0],
                                              &out_dist_sqr[0]);
+    }
+    else if (sci_method == SCI_METHOD::LINEAR){
+        //num_results = interpIndex->knnSearch(&query_pt[0],
+        //                                     3,
+        //                                     &ret_index[0],
+        //                                     &out_dist_sqr[0]);
+        num_results = interpIndex->radiusSearch(&query_pt[0],radius,ret_matches,params);
+    }
 
 
     if (Nlayers == 1){
@@ -456,8 +494,8 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
         else{
             std::vector<double> values, distances;
             for(size_t i = 0; i < num_results; ++i){
-                values.push_back(interpCloud.pts[ret_index[i]].values[0]);
-                distances.push_back(std::sqrt(out_dist_sqr[i]));
+                values.push_back(interpCloud.pts[ret_matches[i].first].values[0]);
+                distances.push_back(std::sqrt(ret_matches[i].second));
             }
             return IDWinterp(values, distances, power, threshold);
         }
@@ -465,11 +503,18 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
     else{
         std::vector< std::vector<double> > values;
         std::vector<double> distances, interpRes;
-        for(size_t i = 0; i < num_results; ++i){
-            values.push_back(interpCloud.pts[ret_index[i]].values);
-            distances.push_back(std::sqrt(out_dist_sqr[i]));
+        if (sci_method == SCI_METHOD::NEAREST){
+            interpRes = interpCloud.pts[ret_index[0]].values;
         }
-        interpRes = IDWinterp(values,distances,power,threshold);
+        else if (sci_method == SCI_METHOD::LINEAR){
+            for(size_t i = 0; i < num_results; ++i){
+                values.push_back(interpCloud.pts[ret_matches[i].first].values);
+                distances.push_back(std::sqrt(ret_matches[i].second));
+            }
+            interpRes = IDWinterp(values,distances,power,threshold);
+        }
+
+
         int vidx = 0;
         int lidx = 1;
         //double v1, l1;

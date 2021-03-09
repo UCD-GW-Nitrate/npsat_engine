@@ -5,8 +5,8 @@
 //#define BOOST_NO_CXX11_SCOPED_ENUMS
 //#include <boost/filesystem.hpp>
 //#undef BOOST_NO_CXX11_SCOPED_ENUMS
-#include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
+//#include <boost/filesystem/operations.hpp>
+//#include <boost/filesystem/path.hpp>
 
 #include <deal.II/base/mpi.h>
 #include <deal.II/base/conditional_ostream.h>
@@ -54,7 +54,7 @@ public:
     void print_usage_message();
 
     //! Reads the parameter file.
-    bool read_param_file();
+    bool read_param_file(AquiferProperties<dim>&  AQprop);
 
     //! Returns the dimension of the problem
     int get_dim();
@@ -69,9 +69,9 @@ public:
     int get_nSc();
 
     //! A struct that holds all the aquifer properties needed for the simulation
-    AquiferProperties<dim>   AQprop;
+    //AquiferProperties<dim>   AQprop;
 
-    void Debug_Prop();
+    //void Debug_Prop();
 
     bool do_gather;
 
@@ -717,7 +717,7 @@ void CL_arguments<dim>::declare_parameters(){
 }
 
 template<int dim>
-bool CL_arguments<dim>::read_param_file(){
+bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
 
     std::ifstream f(param_file.c_str());
     if (!f.good())
@@ -1132,11 +1132,10 @@ int CL_arguments<dim>::get_nSc(){
     return nStreamlineChunks;
 }
 
-template <int dim>
-void CL_arguments<dim>::Debug_Prop(){
-    pcout << AQprop.geomtype << std::endl;
-
-}
+//template <int dim>
+//void CL_arguments<dim>::Debug_Prop(){
+//    pcout << AQprop.geomtype << std::endl;
+//}
 
 template <int dim>
 bool CL_arguments<dim>::get_entity_ids_from_file(std::string filename){

@@ -1,7 +1,7 @@
 SCATTERED
-HOR
-SIMPLE
-8 1
+2D
+LINEAR
+8 1 1.5 5000 0.1 10  # Npoints Ndata Power Radius threshold Nleafs
 0 73
 545 27
 1638 -153

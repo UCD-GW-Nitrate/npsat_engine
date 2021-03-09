@@ -45,20 +45,36 @@ subsection B. Geometry  ========================================
     # a----------------------------------
     # Top elevation function must be either a single value
     # or the name of a file
-    set a Top elevation function    = Top_test03.npsat
+    set a Top elevation function    = 50
 
     # b----------------------------------
     # Bottom elevation function must be either a single value
     # or the name of a file
-    set b Bottom elevation function = Bot_test03.npsat
+    set b Bottom elevation function = Bottom_gridded_test03.npsat
 
     # c----------------------------------
     # Threshold value along the horizontal plane
-    set c x-y threshold             = 0.01
+    set c x-y threshold             = 0.1
 
     # d----------------------------------
     # Threshold value the vertical plane
     set d z threshold               = 0.010
+
+    # e----------------------------------
+    # Power parameter for top IDW interpolation
+    set e Power for top             = 3
+
+    # f----------------------------------
+    # Radius parameter for top IDW interpolation
+    set f Radius for top            = 2500
+
+    # g----------------------------------
+    # Power parameter for bottom IDW interpolation
+    set g Power for bottom          = 3
+
+    # h----------------------------------
+    # Radius parameter for bottom IDW interpolation
+    set h Radius for bottom         = 2500
   end
 
 end
@@ -111,7 +127,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = KX_box03.npsat
+  set a Hydraulic Conductivity KX = KX_gridded_box03.npsat
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.
@@ -123,7 +139,7 @@ subsection E Aquifer Properties ================================
   # Hydraulic conductivity along the z direction.
   # It must be either a single value or the name of a file
   # If KZ == KX leave this empty. In 2D this corresponds to the vertical K
-  set c Hydraulic Conductivity KZ = KZ_box03.npsat
+  set c Hydraulic Conductivity KZ = KZ_gridded_box03.npsat
 
   # d----------------------------------
   # Porosity. This is used during particle tracking
@@ -136,7 +152,7 @@ subsection F. Sources & Sinks ==================================
   # a----------------------------------
   # Groundwater recharche function
   # must be either a single value or the name of a file
-  set a Groundwater recharge = RCH_test03.npsat
+  set a Groundwater recharge = RCH_gridded_test03.npsat
 
   # b----------------------------------
   # Stream network
@@ -171,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 7
+  set a Nonlinear iterations = 5
 
   # b----------------------------------
   # Tolerance of solver

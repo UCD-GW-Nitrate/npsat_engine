@@ -50,7 +50,7 @@ public:
 
     //void set_SCI_EDGE_points(Point<dim> a, Point<dim> b);
 
-    void copy_from(InterpInterface<dim> interp_in);
+    //void copy_from(InterpInterface<dim> interp_in);
 
     bool is_face_part_of_BND(Point<dim> A, Point<dim> B);
     unsigned int get_type();
@@ -72,6 +72,7 @@ private:
 
     //! Container for scattered interpolation data
     std::vector<ScatterInterp<dim>> SCI;
+    //ScatterInterp<dim> SCI;
 
     //! Container for boundary line interpolation
     std::vector<BoundaryInterp<dim>> BND_LINE;
@@ -121,9 +122,8 @@ template <int dim>
 void InterpInterface<dim>::get_data(std::string namefile){
     if (is_input_a_scalar(namefile)){
         double value = dealii::Utilities::string_to_double(namefile);
-        ConstInterp<dim> tmp;
-        tmp.set_value(value);
-        CNI.push_back(tmp);
+        CNI.resize(CNI.size()+1);
+        CNI[CNI.size()-1].set_value(value);
         TYPE = 0;
         Npoly = 0;
     }else{
@@ -141,25 +141,26 @@ void InterpInterface<dim>::get_data(std::string namefile){
             if (type_temp == "SCATTERED"){
                 TYPE = 1;
                 datafile.close();
-                ScatterInterp<dim> tmp;
-                tmp.get_data(namefile);
-                SCI.push_back(tmp);
+                SCI.resize(SCI.size()+1);
+                SCI[SCI.size()-1].get_data(namefile);
+                //ScatterInterp<dim> tmp;
+                //tmp.get_data(namefile);
+                //SCI.push_back(tmp);
             }
             else if(type_temp == "BOUNDARY_LINE"){
                 TYPE = 2;
                 datafile.close();
-                BoundaryInterp<dim> tmp;
-                tmp.get_data(namefile);
-                BND_LINE.push_back(tmp);
+                BND_LINE.resize(BND_LINE.size()+1);
+                BND_LINE[BND_LINE.size()-1].get_data(namefile);
+                //BoundaryInterp<dim> tmp;
+                //tmp.get_data(namefile);
+                //BND_LINE.push_back(tmp);
             }
             else if (type_temp.compare("GRIDDED") == 0 ){
                 TYPE = 3;
                 datafile.close();
-                std::string grid_namefile;
-                inp >> grid_namefile;
-                GRID_INTERP::interp<dim> tmp;
-                tmp.getDataFromFile(grid_namefile);
-                GRD.push_back(tmp);
+                GRD.resize(GRD.size()+1);
+                GRD[GRD.size()-1].getDataFromFile(namefile);
             }
             else if (type_temp.compare("MULTIPOLY") == 0 || type_temp.compare("MULTIRECT") == 0){
                 if (type_temp.compare("MULTIPOLY") == 0)
@@ -219,25 +220,24 @@ void InterpInterface<dim>::get_data(std::string namefile){
 
                     if (type.compare("CONST") == 0){
                         double value = dealii::Utilities::string_to_double(func);
-                        ConstInterp<dim> tmp;
-                        tmp.set_value(value);
-                        PolyInterpMap.push_back(std::pair<int, int>(0,CNI.size()));
-                        CNI.push_back(tmp);
+                        CNI.resize(CNI.size()+1);
+                        CNI[CNI.size()-1].set_value(value);
+                        PolyInterpMap.push_back(std::pair<int, int>(0,CNI.size()-1));
                     }
                     else if (type.compare("SCATTERED") == 0){
-                        ScatterInterp<dim> tmp;
-                        tmp.get_data(func);
-                        PolyInterpMap.push_back(std::pair<int, int>(1,SCI.size()));
-                        SCI.push_back(tmp);
+                        //ScatterInterp<dim> tmp;
+                        //tmp.get_data(func);
+                        SCI.resize(SCI.size()+1);
+                        SCI[SCI.size()-1].get_data(func);
+                        PolyInterpMap.push_back(std::pair<int, int>(1,SCI.size()-1));
                     }
                     else if (type.compare("BOUNDARY_LINE") == 0){
-                        std::cerr << "I cant think why one should split a boundary line" << std::endl;
+                        std::cerr << "I cant think why one would want to split a boundary line" << std::endl;
                     }
                     else if (type.compare("GRIDDED") == 0){
-                        GRID_INTERP::interp<dim> tmp;
-                        tmp.getDataFromFile(func);
-                        PolyInterpMap.push_back(std::pair<int, int>(2,GRD.size()));
-                        GRD.push_back(tmp);
+                        GRD.resize(GRD.size()+1);
+                        GRD[GRD.size()-1].getDataFromFile(func);
+                        PolyInterpMap.push_back(std::pair<int, int>(2,GRD.size()-1));
                     }
                     else{
                         std::cerr << "Unknown interpolation method Under MULTIPOLYGON " << namefile << std::endl;
@@ -291,6 +291,7 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
                     return CNI[PolyInterpMap[i].second].interpolate(p);
                 }
                 else if (PolyInterpMap[i].first == 1){
+                    //return SCI.interpolate(p);
                     return SCI[PolyInterpMap[i].second].interpolate(p);
                 }
                 else if (PolyInterpMap[i].first == 2){
@@ -319,6 +320,7 @@ double InterpInterface<dim>::interpolate(Point<dim> p)const{
 //    SCI[0].set_edge_points(a,b);
 //}
 
+/*
 template <int dim>
 void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
     TYPE = interp_in.TYPE;
@@ -332,6 +334,7 @@ void InterpInterface<dim>::copy_from(InterpInterface<dim> interp_in){
         GRD = interp_in.GRD;
     }
 }
+ */
 
 template <int dim>
 bool InterpInterface<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){

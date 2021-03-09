@@ -6,6 +6,10 @@
 SET(TARGET "npsat")
 PROJECT(${TARGET})
 
+# For the aqua cluster you may need the following two enabled
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
+
 FILE(GLOB_RECURSE TARGET_INC  myheaders/*.h)
 SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
 

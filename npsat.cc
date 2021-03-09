@@ -67,30 +67,31 @@ int main (int argc, char **argv){
     deallog.depth_console (1);
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
 
-  CL_arguments<_DIM> CLI;
+    CL_arguments<_DIM> CLI;
+    AquiferProperties<_DIM>   AQprop;
     //std::cout << "Is here?" << std::endl;
     //return 0;
     if (CLI.parse_command_line(argc,argv)){
-        bool read_param = CLI.read_param_file();
+        bool read_param = CLI.read_param_file(AQprop);
         if (read_param){
             if (CLI.do_gather){
-                if (CLI.AQprop.part_param.particle_prefix.empty()){
+                if (AQprop.part_param.particle_prefix.empty()){
                     std::cerr << "You havent specify a particle prefix name to gather data from" << std::endl;
                     return 0;
                 }
                 Gather_Data::gather_particles<_DIM> G;
-                G.gather_streamlines(CLI.AQprop.part_param.particle_prefix, CLI.get_np(), CLI.get_nSc(), CLI.EntityIDs);
-                G.print_streamlines4URF(CLI.AQprop.part_param.particle_prefix, CLI.AQprop.part_param);
+                G.gather_streamlines(AQprop.part_param.particle_prefix, CLI.get_np(), CLI.get_nSc(), CLI.EntityIDs);
+                G.print_streamlines4URF(AQprop.part_param.particle_prefix, AQprop.part_param);
                 G.calculate_age(true, 365);
-                G.simplify_XYZ_streamlines(CLI.AQprop.part_param.simplify_thres);
-                G.print_vtk(CLI.AQprop.part_param.particle_prefix, CLI.AQprop.part_param);
+                G.simplify_XYZ_streamlines(AQprop.part_param.simplify_thres);
+                G.print_vtk(AQprop.part_param.particle_prefix, AQprop.part_param);
             }
             else{
                 //CLI.Debug_Prop();
-                NPSAT<_DIM> npsat(CLI.AQprop);
-                if (CLI.AQprop.solver_param.load_solution <=0)
+                NPSAT<_DIM> npsat(AQprop);
+                if (AQprop.solver_param.load_solution <=0)
                     npsat.solve_refine();
-                if (CLI.AQprop.part_param.bDoParticleTracking > 0)
+                if (AQprop.part_param.bDoParticleTracking > 0)
                     npsat.particle_tracking();
             }
         }

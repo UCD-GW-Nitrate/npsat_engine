@@ -47,7 +47,7 @@ class NPSAT{
 public:
     //! The contructor requires the user inputs structure. Besides initializing all default deall parameters,
     //! the construcotr generates the initial mesh and reads the dirichlet boundary conditions.
-    NPSAT(AquiferProperties<dim> AQP);
+    NPSAT(AquiferProperties<dim>& AQP);
 
     //! The destructor frees the dof handles
     ~NPSAT();
@@ -128,7 +128,7 @@ private:
 };
 
 template <int dim>
-NPSAT<dim>::NPSAT(AquiferProperties<dim> AQP)
+NPSAT<dim>::NPSAT(AquiferProperties<dim>& AQP)
     :
     mpi_communicator (MPI_COMM_WORLD),
     triangulation (mpi_communicator,
@@ -193,10 +193,12 @@ void NPSAT<dim>::make_grid(){
                                  distributed_mesh_Offset_vertices,
                                  mpi_communicator, pcout);
 
-    const MyFunction<dim, dim> top_function(AQProps.top_elevation);
-    const MyFunction<dim, dim> bottom_function(AQProps.bottom_elevation);
+    MyFunction<dim, dim> top_function(AQProps.top_elevation);
+    //MyFunction<dim, dim> bottom_function(AQProps.bottom_elevation);
+    //double test = top_function.value(Point<dim>(550,0));
+    //double tmp = AQProps.top_elevation.interpolate(Point<dim>(550,0));
 
-    mesh_struct.compute_initial_elevations(top_function,bottom_function);
+    mesh_struct.compute_initial_elevations(AQProps.top_elevation, AQProps.bottom_elevation);
 
     mesh_struct.updateMeshElevation(mesh_dof_handler,
                                     triangulation,
@@ -256,7 +258,7 @@ void NPSAT<dim>::make_grid(){
                                      mesh_Offset_vertices,
                                      distributed_mesh_Offset_vertices,
                                      mpi_communicator, pcout);
-        mesh_struct.compute_initial_elevations(top_function,bottom_function);
+        mesh_struct.compute_initial_elevations(AQProps.top_elevation, AQProps.bottom_elevation);
 
         mesh_struct.updateMeshElevation(mesh_dof_handler,
                                         triangulation,
@@ -349,6 +351,7 @@ void NPSAT<dim>::solve_refine(){
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             pcout << "      Updateting Mesh ..." <<std::endl;
             create_top_bot_functions();
+
             //create_dim_1_grids();
             if (iter < AQProps.refine_param.MaxRefinement)
                 flag_cells_for_refinement();
@@ -373,8 +376,8 @@ void NPSAT<dim>::solve_refine(){
                                           botCloud, botCloudIndex,
                                           AQProps.bot_cloud_param.Power,
                                           AQProps.bot_cloud_param.Radius,
-                                          AQProps.top_cloud_param.Threshold,
-                                          pcout, mpi_communicator);
+                                          AQProps.top_cloud_param.Threshold/*,
+                                          pcout, mpi_communicator*/);
 
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
@@ -573,6 +576,8 @@ void NPSAT<dim>::create_top_bot_functions(){
             }
         }
     }
+    //std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
+
     if (n_proc > 1){
         MPI_Barrier(mpi_communicator);
         // Next we have to send the points to every other processor
@@ -615,7 +620,7 @@ void NPSAT<dim>::create_top_bot_functions(){
 
         // Send receive data for the top
         Send_receive_size(static_cast<unsigned int>(doftop[my_rank].size()), n_proc, top_Number_Points, mpi_communicator);
-        Sent_receive_data<int>(dofbot, top_Number_Points, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(doftop, top_Number_Points, my_rank, mpi_communicator, MPI_INT);
         Sent_receive_data<double>(xtop, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
         if (dim == 3)
             Sent_receive_data<double>(ytop, top_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
@@ -624,6 +629,7 @@ void NPSAT<dim>::create_top_bot_functions(){
 
         // Send receive data for the bot
         Send_receive_size(static_cast<unsigned int>(dofbot[my_rank].size()), n_proc, bot_Number_Points, mpi_communicator);
+        Sent_receive_data<int>(dofbot, bot_Number_Points, my_rank, mpi_communicator, MPI_INT);
         Sent_receive_data<double>(xbot, bot_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
         if (dim == 3)
             Sent_receive_data<double>(ybot, bot_Number_Points, my_rank, mpi_communicator, MPI_DOUBLE);
@@ -670,6 +676,8 @@ void NPSAT<dim>::create_top_bot_functions(){
             }
         }
     }
+    MPI_Barrier(mpi_communicator);
+    //std::cout << "Rank: " << my_rank << " has: " << topPoints.size() << " top and: " << botPoints.size() << " bottom" << std::endl;
     // ALl processors must have a complete set of top and bottom points to create
     // the top and bottom interpolation function
     topCloud.pts.clear();

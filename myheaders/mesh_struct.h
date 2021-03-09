@@ -181,8 +181,8 @@ public:
 
     //! This method calculates the top and bottom elevation on the points of the #PointsMap
     //! This should be called on the initial grid before any refinement.
-    void compute_initial_elevations(MyFunction<dim, dim> top_function,
-                                    MyFunction<dim, dim> bot_function);
+    void compute_initial_elevations(InterpInterface<dim>& top_function,
+                                    InterpInterface<dim>& bot_function);
 
     //void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
     //                       ConditionalOStream pcout,
@@ -192,9 +192,9 @@ public:
                            double topPower, double topRadius,
                            PointVectorCloud& botCloud,
                            std::shared_ptr<pointVector_kd_tree>& botindex,
-                           double botPower, double botRadius, double thres,
+                           double botPower, double botRadius, double thres/*,
                            ConditionalOStream pcout,
-                           MPI_Comm &mpi_communicator);
+                           MPI_Comm &mpi_communicator*/);
 
 
     //! This method sets the scales #dbg_scale_x and #dbg_scale_z for debug plotting using software like houdini
@@ -1425,8 +1425,8 @@ void Mesh_struct<dim>::make_dof_ij_map(){
 
 
 template <int dim>
-void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_function,
-                                                  MyFunction<dim, dim> bot_function){
+void Mesh_struct<dim>::compute_initial_elevations(InterpInterface<dim>& top_function,
+                                                  InterpInterface<dim>& bot_function){
     // Any modifications here maybe have to be copied on assign_top_bottom method at the end
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
@@ -1437,8 +1437,8 @@ void Mesh_struct<dim>::compute_initial_elevations(MyFunction<dim, dim> top_funct
             p_dim[ii] = it->second.PNT[ii];
         p_dim[dim-1] = 0;
 
-        double top = top_function.value(p_dim);
-        double bot = bot_function.value(p_dim);
+        double top = top_function.interpolate(p_dim);
+        double bot = bot_function.interpolate(p_dim);
         if (std::isnan(top))
             std::cout << "Top was nan" << std::endl;
         if (std::isnan(bot))
@@ -1681,16 +1681,18 @@ template<int dim>
 void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared_ptr<pointVector_kd_tree> &topindex,
                                          double topPower, double topRadius, PointVectorCloud &botCloud,
                                          std::shared_ptr<pointVector_kd_tree> &botindex, double botPower,
-                                         double botRadius, double thres,
+                                         double botRadius, double thres/*,
                                          ConditionalOStream pcout,
-                                         MPI_Comm &mpi_communicator) {
-    pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
-    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
-    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+                                         MPI_Comm &mpi_communicator*/) {
+    //pcout << "Compute global top/bottom elevations..." << std::endl << std::flush;
+    //unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    //unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    double x, y;
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
-    double x, y;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
+        //std::cout << it->second.PNT[0] << std::endl;
+        //std::cout << PointsMap[i].PNT[0] << std::endl;
         x = it->second.PNT[0];
         if (dim == 3)
             y = it->second.PNT[1];
@@ -1701,11 +1703,7 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
         it->second.T = topOut[1];
         interpolateVectorCloud(botCloud,botindex,botPower,botRadius,thres,x,y,botOut);
         it->second.B = botOut[0];
-    }
-    pcout << "Done Here" << std::endl;
 
-    // We set the top and bottom elevations to the zlist and calculate the relative positions
-    for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
             if (itz->is_local){
@@ -1731,6 +1729,37 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
             }
         }
     }
+
+    /*
+    // We set the top and bottom elevations to the zlist and calculate the relative positions
+    typename std::map<int , PntsInfo<dim> >::iterator it1;
+    for (it1 = PointsMap.begin(); it1 != PointsMap.end(); ++it1){
+        std::vector<Zinfo>::iterator itz = it1->second.Zlist.begin();
+        for (; itz != it1->second.Zlist.end(); ++itz){
+            if (itz->is_local){
+                itz->rel_pos = (itz->z - itz->Bot.z)/(itz->Top.z - itz->Bot.z);
+                if (itz->isTop){
+                    if (it1->second.T < -9998){
+                        std::cout << "The Top at (" << it1->second.PNT << ") has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it1->second.T;
+                        itz->isZset = true;
+                    }
+                }
+                if (itz->isBot){
+                    if (it1->second.B < -9998){
+                        std::cout << "The Bottom at (" << it1->second.PNT << ") has not been set" << std::endl;
+                    }
+                    else{
+                        itz->z = it1->second.B;
+                        itz->isZset = true;
+                    }
+                }
+            }
+        }
+    }
+    */
 }
 
 

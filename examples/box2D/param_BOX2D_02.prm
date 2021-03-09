@@ -45,12 +45,12 @@ subsection B. Geometry  ========================================
     # a----------------------------------
     # Top elevation function must be either a single value
     # or the name of a file
-    set a Top elevation function    = Top_test02.npsat
+    set a Top elevation function    = 50
 
     # b----------------------------------
     # Bottom elevation function must be either a single value
     # or the name of a file
-    set b Bottom elevation function = Bottom_test02.npsat
+    set b Bottom elevation function = Bottom_gridded_test02.npsat
 
     # c----------------------------------
     # Threshold value along the horizontal plane
@@ -59,6 +59,22 @@ subsection B. Geometry  ========================================
     # d----------------------------------
     # Threshold value the vertical plane
     set d z threshold               = 0.01
+
+    # e----------------------------------
+    # Power parameter for top IDW interpolation
+    set e Power for top             = 3
+
+    # f----------------------------------
+    # Radius parameter for top IDW interpolation
+    set f Radius for top            = 550
+
+    # g----------------------------------
+    # Power parameter for bottom IDW interpolation
+    set g Power for bottom          = 3
+
+    # h----------------------------------
+    # Radius parameter for bottom IDW interpolation
+    set h Radius for bottom         = 550
   end
 
 end
@@ -171,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 13
+  set a Nonlinear iterations = 5
 
   # b----------------------------------
   # Tolerance of solver
@@ -190,7 +206,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 15
+  set a Max refinements iterations = 5
 
   # b----------------------------------
   # Top refinement fraction

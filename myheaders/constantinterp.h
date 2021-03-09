@@ -18,7 +18,7 @@ public:
     ConstInterp(double value);
 
     //! Returns the constant value
-    double interpolate(Point<dim> p)const;
+    double interpolate(Point<dim>)const;
 
     //! A method to set the constant value
     void set_value(double val);
@@ -42,9 +42,9 @@ void ConstInterp<dim>::set_value(double val){
 }
 
 template <int dim>
-double ConstInterp<dim>::interpolate(Point<dim> p)const{
+double ConstInterp<dim>::interpolate(Point<dim>)const{
     //std::cout <<"in CNI " << value << std::endl;
-    p[0] = p[0];// something to suppress the unused warning
+    //p[0] = p[0];// something to suppress the unused warning
     return value;
 }
 

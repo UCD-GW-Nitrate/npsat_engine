@@ -5,6 +5,7 @@
 #include <deal.II/distributed/tria.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
+#include <deal.II/fe/fe_q.h>
 
 #include "helper_functions.h"
 //#include "cgal_functions.h"
