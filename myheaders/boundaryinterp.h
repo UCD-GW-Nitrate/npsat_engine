@@ -5,7 +5,7 @@
 
 #include <deal.II/base/point.h>
 
-//#include "helper_functions.h"
+#include "helper_functions.h"
 //#include "scatterinterp.h"
 
 using namespace dealii;
@@ -38,6 +38,12 @@ private:
 
     //! Number of data along Z
     unsigned int Ndata;
+
+    int Nlayers;
+
+    SCI_TYPE sci_type;
+    SCI_METHOD sci_methodXY;
+    SCI_METHOD sci_methodZ;
 
     //! Points with distance to a boundary segment closer that the tolerance
     //! will be considered as part of the boundary
@@ -78,6 +84,47 @@ void BoundaryInterp<dim>::get_data(std::string filename){
             }
         }
 
+        {// Read Interpolation type
+            datafile.getline(buffer, 512);
+            std::istringstream inp(buffer);
+            std::string temp;
+            inp >> temp;
+            if (temp == "3D")
+                sci_type = SCI_TYPE::DIM3;
+            else if (temp == "2D")
+                sci_type = SCI_TYPE::DIM2;
+            else if (temp == "VERT")
+                sci_type = SCI_TYPE::VERT;
+            else
+                std::cout << "Unknown interpolation type. Valid options are DIM3, DIM2, VERT" << std::endl;
+        }
+
+        {// Read interpolation method
+            datafile.getline(buffer, 512);
+            std::istringstream inp(buffer);
+            std::string temp;
+            inp >> temp;
+            if (temp == "LINEAR"){
+                sci_methodXY = SCI_METHOD::LINEAR;
+            }
+            else if (temp == "NEAREST"){
+                sci_methodXY = SCI_METHOD::NEAREST;
+            }
+            else
+                std::cout << "Unknown interpolation style. Valid options are LINEAR or NEAREST" << std::endl;
+
+            if (sci_type == SCI_TYPE::DIM3){
+                // Read the interpolation method along the z
+                inp >> temp;
+                if (temp == "LINEAR")
+                    sci_methodZ = SCI_METHOD::LINEAR;
+                else if (temp == "NEAREST")
+                    sci_methodZ = SCI_METHOD::NEAREST;
+                else
+                    std::cout << "Unknown interpolation style. Valid options are LINEAR or NEAREST" << std::endl;
+            }
+        }
+
         {// Read the number of data and allocate space
             datafile.getline(buffer, 512);
             std::istringstream inp(buffer);
@@ -87,8 +134,29 @@ void BoundaryInterp<dim>::get_data(std::string filename){
             Pnts.resize(Npnts);
             Values.resize(Npnts);
             Length.resize(Npnts);
-            if (Ndata > 1)
+            if (Ndata == 1)
+                Nlayers = 1;
+            else if (Ndata > 1){
                 Elevations.resize(Npnts);
+                if (sci_methodZ == SCI_METHOD::LINEAR){
+                    if (Ndata % 2 != 0){
+                        std::cerr << " In ScatterInterp file: " << filename
+                                  << " The number of data are incompatible h the Z layer interpolation type" << std::endl;
+                    }
+                    else{
+                        Nlayers = Ndata/2;
+                    }
+                }
+                else if (sci_methodZ == SCI_METHOD::NEAREST){
+                    if (Ndata % 2 == 0){
+                        std::cerr << " In ScatterInterp file: " << filename
+                                  << " The number of data are incompatible h the Z layer interpolation type" << std::endl;
+                    }
+                    else{
+                        Nlayers = (Ndata-1)/2;
+                    }
+                }
+            }
         }
 
         {// Read the data

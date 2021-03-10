@@ -50,7 +50,7 @@ subsection B. Geometry  ========================================
     # b----------------------------------
     # Bottom elevation function must be either a single value
     # or the name of a file
-    set b Bottom elevation function = Bottom_gridded_test03.npsat
+    set b Bottom elevation function = Bot_test03.npsat
 
     # c----------------------------------
     # Threshold value along the horizontal plane
@@ -95,7 +95,7 @@ subsection C. Discretization ===================================
 
   # c----------------------------------
   # The number of initial refinements
-  set c Initial Refinement      = 0
+  set c Initial Refinement      = 1
 
   # d----------------------------------
   # The number of initial refinements around the wells
@@ -127,7 +127,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = KX_gridded_box03.npsat
+  set a Hydraulic Conductivity KX = KX_box03.npsat
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.
@@ -139,7 +139,7 @@ subsection E Aquifer Properties ================================
   # Hydraulic conductivity along the z direction.
   # It must be either a single value or the name of a file
   # If KZ == KX leave this empty. In 2D this corresponds to the vertical K
-  set c Hydraulic Conductivity KZ = KZ_gridded_box03.npsat
+  set c Hydraulic Conductivity KZ = KZ_box03.npsat
 
   # d----------------------------------
   # Porosity. This is used during particle tracking
@@ -171,7 +171,7 @@ subsection F. Sources & Sinks ==================================
 
   # e----------------------------------
   # Multiplier for groundwater recharge
-  set e Recharge multiplier  = 1
+  set e Recharge multiplier  = 1.25
 
   # f----------------------------------
   # Multiplier for groundwater pumping
@@ -187,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 8
 
   # b----------------------------------
   # Tolerance of solver

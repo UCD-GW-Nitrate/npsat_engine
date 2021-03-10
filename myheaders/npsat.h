@@ -720,6 +720,7 @@ void NPSAT<dim>::create_top_bot_functions(){
         botCloud.pts.push_back(pid);
     }
     botCloudIndex->buildIndex();
+    std::cout << "Rank " << my_rank << "done building trees" << std::endl;
 }
 
 

@@ -2,8 +2,8 @@
 ---
 ## 1st Example (BOX2D_01)
 ### Domain
-The domain of the 2D problem is a vertical cross section of a hypothetical aquifer that is 5 km long. 
-The depth of the aquifer is 300 m. The initial estimation of the top elevation is at 30 m above msl, and the bottom elevation is set to -270 m.
+The domain for the 2D test problems is a vertical cross section of a hypothetical aquifer that is 5 km long. 
+The depth of the aquifer is set to 300 m. The initial estimation of the top elevation is at 30 m above msl, and the bottom elevation is set to -270 m.
 Initially the domain was discretized into 10 columns and 4 layers.
 
 <img src="box2d_01_init_mesh.png" alt="Initial Mesh" width="700"/>
@@ -53,6 +53,19 @@ The following figures show the free surface and the discretization after 2 and 7
 
 <img src="box2d_02_ref_02.png" alt="After 14 refinements" width="700"/>
 <img src="box2d_02_ref_07.png" alt="After 14 refinements" width="700"/>
+
+### Variations of the 2nd test problem
+The 2nd problem is also sutable to test several other formats of the input files.
+For example we can replace the constant hydraulic conductivity value with a variable hydraulic conductivity in zones. 
+
+
+<img src="box2d_KX_nearest.png" alt="After 14 refinements" width="700"/>
+
+The above figure represents the hydraulic conductivity described in the file *KX_scatter_test02.npsat*. We can see that the domain is split into 3 zones where conductivity is constant vertically within each zone but varies liearly along the x axis.
+
+
+We can also define the conductivity to be linearly interpolated in the vertical direction. The file *KX_scatter_test02_linear.npsat* gives an example of a linearly interpolated field.
+<img src="box2d_KX_linear.png" alt="After 14 refinements" width="700"/>
 
 ---
 

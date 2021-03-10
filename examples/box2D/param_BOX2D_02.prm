@@ -50,7 +50,7 @@ subsection B. Geometry  ========================================
     # b----------------------------------
     # Bottom elevation function must be either a single value
     # or the name of a file
-    set b Bottom elevation function = Bottom_gridded_test02.npsat
+    set b Bottom elevation function = Bottom_test02.npsat
 
     # c----------------------------------
     # Threshold value along the horizontal plane
@@ -95,7 +95,7 @@ subsection C. Discretization ===================================
 
   # c----------------------------------
   # The number of initial refinements
-  set c Initial Refinement      = 0
+  set c Initial Refinement      = 2
 
   # d----------------------------------
   # The number of initial refinements around the wells
@@ -127,7 +127,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = 13
+  set a Hydraulic Conductivity KX = 17
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.

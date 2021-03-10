@@ -17,6 +17,19 @@
 #include "dsimstructs.h"
 
 /*!
+ * \brief The SCI_TYPE enum can take one of the 3 values
+ * - DIM3: This option is used when the values of interpolation change with depth.
+ * Examples of DIM3 is the hydraulic conductivity
+ * - DIM2: It is used for interpolation when the values change in x or Y but not in Z.
+ * For example Top, Bottom groundwater recharge etc.
+ * - VERT is defined in 3D problems and it is an interpolation across an a vertical plane which is defined by 2
+ * points.
+ */
+enum SCI_TYPE { DIM3, DIM2, VERT };
+
+enum SCI_METHOD{LINEAR, NEAREST};
+
+/*!
  * \brief linspace generate a linearly spaced vector between the two numbers min and max
  * \param min is the lower end
  * \param max is the upper end
