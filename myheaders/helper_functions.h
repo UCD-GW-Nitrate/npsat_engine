@@ -1113,6 +1113,48 @@ std::vector<double> IDWinterp(std::vector<std::vector<double>>& values,
     return sumWV;
 }
 
+/*!
+ * Find the orientation of ordered triplet (P, Q, R)
+ * @tparam dim The dimension of the point. The dim has to be higher than 2.
+ * However the third dimension is ignored
+ * @param P Point P
+ * @param Q Point Q
+ * @param R Point R
+ * @return - 0 if the points are colinear
+ * - 1 if the points are clockwise
+ * - 2 if the points are counterclockwise
+ *
+ * The implementation is descirbed on the following link
+ *
+ * https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
+ *
+ */
+template<int dim>
+int orientation(const Point<dim>& P, const Point<dim>& Q, const Point<dim>& R){
+    double val = (Q[1] - P[1]) * (R[0] - Q[0]) - (Q[0] - P[0]) * (R[1] - Q[1]);
+    if (std::abs(val) < 0.0001)
+        return 0;
+    else{
+        return (val > 0)? 1: 2;
+    }
+}
+
+/*!
+ * Given three colinear points P, Q, R, the function checks if
+ * point Q lies on line segment PR
+ * @tparam dim
+ * @param P
+ * @param Q
+ * @param R
+ * @return
+ */
+template <int dim>
+bool onSegment(const Point<dim>& P, const Point<dim>& Q, const Point<dim>& R){
+    if (Q[0] <= std::max(P[0], R[0]) && Q[0] >= std::min(P[0], R[0]) &&
+        Q[1] <= std::max(P[1], R[1]) && Q[1] >= std::min(P[1], R[1]))
+        return true;
+    return false;
+}
 /*
 template <int dim>
 void Print_Mesh_DofHandler(std::string filename,

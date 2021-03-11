@@ -28,7 +28,7 @@ public:
 private:
 
     //! This is a vector with the corner points of the boundary polygon
-    std::vector<Point<dim-1>> Pnts;
+    std::vector<Point<dim>> Pnts;
     std::vector<std::vector<double>> Values;
     std::vector<std::vector<double>> Elevations;
     std::vector<double> Length;
@@ -203,11 +203,17 @@ void BoundaryInterp<dim>::get_data(std::string filename){
 
 template <int dim>
 bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) const{
-
     dst_t = -9999999999;
     if (iSeg >= static_cast<int>(Pnts.size() - 1))
         return false;
-
+    int orient = orientation<dim>(Pnts[iSeg], Pnts[iSeg+1], p);
+    if (orient == 0){
+        if (onSegment<dim>(Pnts[iSeg], p, Pnts[iSeg+1])){
+            dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
+            return true;
+        }
+    }
+    /*
     double dst = distance_point_line(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
     double dstA = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
     double dstB = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
@@ -229,6 +235,8 @@ bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) c
     }
     else
         return false;
+    */
+    return false;
 }
 
 template <int dim>
@@ -257,6 +265,32 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
         lx1 = Pnts[ii][0]; ly1 = Pnts[ii][1];
         lx2 = Pnts[ii+1][0]; ly2 = Pnts[ii+1][1];
 
+        int orient = orientation<dim>(A, B, Pnts[ii]);
+        if (orient != 0)
+            continue;
+        orient = orientation(A,B, Pnts[ii+1]);
+        if (orient != 0)
+            continue;
+
+        // both points of the boundary segment (ii) - (ii+1) are colinear
+        // Now we have to make sure that the two segments have some overlapping area.
+        // if the quadrature points on the line fall within the (ii) - (ii+1) segments
+        // set this face as Dirichlet boundary
+        Point<dim> Q;
+        Q[0] = A[0]*0.7887 + B[0]*0.2113;
+        Q[1] = A[1]*0.7887 + B[1]*0.2113;
+        bool tf = onSegment<dim>(Pnts[ii], Q, Pnts[ii+1]);
+        if(!tf){
+            Q[0] = B[0]*0.7887 + A[0]*0.2113;
+            Q[1] = B[1]*0.7887 + A[1]*0.2113;
+            tf = onSegment<dim>(Pnts[ii], Q, Pnts[ii+1]);
+            if (tf)
+                return true;
+        }
+        else
+            return true;
+
+        /*
         // Calculate the distance of the two cell points from the boundary line
         double dst1 = distance_point_line(cx3,cy3,lx1,ly1,lx2,ly2);
         double dst2 = distance_point_line(cx4,cy4,lx1,ly1,lx2,ly2);
@@ -289,7 +323,7 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
         }
         if (are_colinear){
             return true;
-        }
+        }*/
     }
     return false;
 }
@@ -303,33 +337,46 @@ double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
             double t = dst_t/(Length[i+1] - Length[i]);
             if (Ndata == 1){
                 //std::cout << "plot(" << p[0] << "," << p[1] << ",'xg')" << std::endl;
-                return Values[i][0] * (1-t) + Values[i+1][0]*t;
+
+                if (sci_methodXY == SCI_METHOD::LINEAR){
+                    return Values[i][0] * (1-t) + Values[i+1][0]*t;
+                }
+                else if (sci_methodXY == SCI_METHOD::NEAREST){
+                    return (t <= 0.5)? Values[i][0]: Values[i+1][0];
+                }
             }
             else{
-                std::cout << "WARNING: This part of the BoundaryInterp<dim>::interpolate has NOT been debuged" << std::endl;
-                std::cout << "The interpolations are more than likely wrong!!!" << std::endl;
-                double zup, zdown;
-                zup = Elevations[i][0] * t + Elevations[i+1][0]*(1-t);
-                zdown = 999999.9;// Initialize just to suppress  a warning
-                if (p(2) > zup){
-                    return Values[i][0] * t + Values[i+1][0]*(1-t);
+                double zup, zdown, vup, vdown;
+                zup = (sci_methodXY == SCI_METHOD::LINEAR)? Elevations[i][0] * (1-t) + Elevations[i+1][0] * t:
+                        (t < 0.5)? Elevations[i][0]: Elevations[i+1][0];
+
+                if (p(2) >= zup){
+                    return (sci_methodXY == SCI_METHOD::LINEAR)? Values[i][0] * (1-t) + Values[i+1][0]*t:
+                            (t <= 0.5)? Values[i][0]: Values[i+1][0];
                 }
                 else{
-                    for (unsigned int j = 1; j < Elevations[i].size(); ++j){
-                        zdown = Elevations[i][j] * t + Elevations[i+1][j]*(1-t);
-                        if (p(2) < zup && p(2) > zdown){
-                            double u = (p(2) - zdown)/(zup - zdown);
-                            double vup = Values[i][j-1] * t + Values[i+1][j-1]*(1-t);
-                            double vdown = Values[i][j] * t + Values[i+1][j]*(1-t);
-                            return u*vdown + (1-u)*vup;
+                    for (unsigned int j = 1; j < Nlayers; ++j){
+                        zdown = (sci_methodXY == SCI_METHOD::LINEAR)? Elevations[i][j] * (1-t) + Elevations[i+1][j]*t:
+                                (t <= 0.5)? Elevations[i][j]: Elevations[i+1][j];
+                        if (p[2] <= zup && p[2] >= zdown){
+                            if (sci_methodZ == SCI_METHOD::NEAREST){
+                                return (sci_methodXY == SCI_METHOD::LINEAR)? Values[i][j] * (1-t) + Values[i+1][j] * t:
+                                       Values[i][j];
+                            }
+                            else{
+                                double tz = (p[2] - zdown)/(zup - zdown);
+                                vup = (sci_methodXY == SCI_METHOD::LINEAR)? Values[i][j-1] * (1-t) + Values[i+1][j-1] * t:
+                                        (t < 0.5)? Values[i][j-1]: Values[i+1][j-1];
+                                vdown = (sci_methodXY == SCI_METHOD::LINEAR)? Values[i][j] * (1-t) + Values[i+1][j] * t:
+                                        (t < 0.5)? Values[i][j]: Values[i+1][j];
+                                return vup * tz + vdown * (1-tz);
+                            }
                         }
+                        zup = zdown;
                     }
-                    if (p(2) < zdown){
-                        unsigned int j = Elevations[i].size()-1;
-                        return Values[i][j] * t + Values[i+1][j]*(1-t);
-                    }
-                    else{
-                        std::cerr << "The z of point " << p << " is out of this world!" << std::endl;
+                    if (p[2] <= zdown){
+                        return (sci_methodXY == SCI_METHOD::LINEAR)? Values[i][Values[i].size()-1] * (1-t) + Values[i+1][Values[i+1].size()-1]*t:
+                               (t <= 0.5)? Values[i][Values[i].size()-1]: Values[i+1][Values[i+1].size()-1];
                     }
                 }
             }
@@ -337,7 +384,7 @@ double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
         }
     }
 
-    //std::cerr << "The Interpolation should never reach this point. There must be something wrong when assigning BC" << std::endl;
+    std::cerr << "The Interpolation should never reach this point. There must be something wrong when assigning BC" << std::endl;
     std::cout << "plot(" << p[0] << "," << p[1] << ",'or')" << std::endl;
     return -999999999;
 }

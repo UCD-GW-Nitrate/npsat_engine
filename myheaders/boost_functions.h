@@ -37,6 +37,7 @@ typedef std::vector<Edge> Edgelist;
 
 typedef boost::geometry::model::d2::point_xy<double> boost_point;
 typedef boost::geometry::model::polygon<boost_point> boost_polygon;
+typedef boost::geometry::model::segment<boost_point> boost_seg;
 
 
 
@@ -228,5 +229,6 @@ void CreateGraph(Graph& G,
         add_edge(ite->first, ite->second, G);
     }
 }
+
 
 #endif // BOOST_FUNCTIONS_H

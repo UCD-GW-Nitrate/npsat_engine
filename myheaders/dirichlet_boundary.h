@@ -249,13 +249,9 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                     inp >> x; boundary_parts[i].Xcoords.push_back(x); boundary_parts[i].Ycoords.push_back(0.0);
                 }
                 inp >> boundary_parts[i].value;
-                Nbnd++;
-
                 interp_funct[i].get_data(boundary_parts[i].value);
-
-                //MyFunction<dim,dim> tempfnc(interp_funct[i]);
-                //DirFunctions.push_back(tempfnc);
                 DirFunctions[i].set_interpolant(interp_funct[i]);
+                Nbnd++;
             }
             else if (dim == 3){
                 int N;  // Number of points that define the polygon
@@ -295,12 +291,9 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                              boundary_parts[i].BBmax[1] = x;
                          boundary_parts[i].Ycoords.push_back(x);
                     }
-                    Nbnd++;
-
                     interp_funct[i].get_data(boundary_parts[i].value);
-                    //MyFunction<dim,dim> tempfnc(interp_funct[i]);
-                    //DirFunctions.push_back(tempfnc);
                     DirFunctions[i].set_interpolant(interp_funct[i]);
+                    Nbnd++;
                 }
                 else if (boundary_parts[i].TYPE == "EDGE" || boundary_parts[i].TYPE == "EDGETOP"){// we read the value associated with the edge
                     if (N>=2){
@@ -313,7 +306,7 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                             inp >> x;
                             boundary_parts[i].Ycoords.push_back(x);
                         }
-                        Nbnd++;
+
                         interp_funct[i].get_data(boundary_parts[i].value);
 
                         if (interp_funct[i].get_type() == 1){
@@ -325,17 +318,14 @@ void Dirichlet<dim>::get_from_file(std::string& filename, std::string& input_dir
                             b[0] = boundary_parts[i].Xcoords[1];
                             b[1] = boundary_parts[i].Ycoords[1];
                             b[2] = 0;
-                            //interp_funct[i].set_SCI_EDGE_points(a,b);
                         }
-                        //MyFunction<dim,dim> tempfnc(interp_funct[i]);
                         DirFunctions[i].set_interpolant(interp_funct[i]);
-                        //DirFunctions.push_back(MyFunction<dim,dim>(interp_funct[i]));
-                        //DirFunctions[DirFunctions.size()-1].set_interpolant(interp_funct[i]);
-                        //DirFunctions[DirFunctions.size()-1].set_interpolant(interp_funct[i]);
+                        Nbnd++;
                     }
                     else{
                         interp_funct[i].get_data(boundary_parts[i].value);
                         DirFunctions[i].set_interpolant(interp_funct[i]);
+                        Nbnd++;
                     }
                 }
             }

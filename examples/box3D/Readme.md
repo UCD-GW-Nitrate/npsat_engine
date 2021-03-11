@@ -52,20 +52,41 @@ We can see that in the right side of the aquifer only the top row of elements ha
 
 # Side Boundaries variable (Test 3 : dir_bc03.npsat)
 For the third example we will use the same boundaries as in the second example and change their values. Instead of using a uniform value along the boundary we will use variable interpolation functions.
-* For the left boundary the head will vary also with depth.
-* The the right boundary since only the top face is affected we will use a variable interpolation function along the x-y plane. All z nodes will have the same constant head value for the same x,y location
- The input file is almost identical to the previous example. This time the values are replaced with the files that contain the interpolation functions:
+* For the left boundary the head will vary also with depth.</br>
+In particular the left boundary is divided into zones as shown in the following figure</br>
+<img src="box3d_leftv1.png" alt="Dirichlet test 01" width="700"/>
+
+* For the right boundary only the top face is affected therefore we will use a variable interpolation function along the x-y plane. All z nodes will have the same constant head value for the same x,y location
+The input file is modified in order to use the **BOUNDARY_LINE** interpolation function.
+The following file is interpeted as follows. There are 2 boundary definitions. The first affects the entire edge **EDGE** and the second only the top row of the side **EDGETOP**.
+The zero is the number of points that define the boundary. However here we use the **BOUNDARY_LINE** which defines the edge in the function itself.  
  
 ```
 2
-EDGE 2 box3d_leftv1.npsat
-x1 y1
-x2 y2
-EDGETOP 2 box3d_rightv1.npsat
-x1 y1
-x2 y2
+EDGE 0 box3d_leftv1.npsat
+EDGETOP 0 box3d_rightv1.npsat
 ```
+For illustration purposes we simulated the 3rd example in two ways. First we assume that the head between the zones is vertically constant within each zone. The constant head ar x = 0 becomes :
+<img src="box3d_dirich3_nearest.png" alt="Dirichlet test 01" width="700"/>
 
+Secondly we repeated the simulation assuming linear gradient between the zones. In theis case the values correspnd to the elevations and vary linearly</br>
+<img src="box3d_leftv1b.png" alt="Dirichlet test 01" width="700"/></br>
+The input file for this simulation is the *box3d_leftv1b.npsat* and the boundary becaomes:
+<img src="box3d_dirich3_linear.png" alt="Dirichlet test 01" width="700"/>
+
+# Side Boundaries non-colinear (Test 4 : dir_bc04.npsat)
+This example is very similar to the previous one. This show that one can describe a boundary where the segments do not lay on the same vertical plane. 
+
+For the following simulation we assume that the constant hydraulic head is defined for the segments (2500, 0)-(5000, 0)-(5000 2500). Although this is a polyline that constist of two segments it can be set as one boundary function. The file *box3d_bnd_lines_test04.npsat* describes the boundary function.
+```
+1
+EDGETOP 0 box3d_bnd_lines.npsat
+```
+The head at the corner is set equal to 20 m and inreases linearly up to 50m to the right size and 40 to the left.
+</br>
+<img src="box3d_dirich4.png" alt="Dirichlet test 01" width="700"/>
+
+Note that for this case we do not provide and points to describe the boundary. The input file contains the definition of the segments along with the values.
 ## Test 1 with multipolygon recharge
 Using the same boundary conditions we will assign zone recharge. This is implemented using the `MULTIPOLY` keyword as follows
 ```
@@ -82,15 +103,7 @@ Repeat `Npoly` times from Nverts. An example of the input file is the mult_const
 
 
 
-# Test 4 (dir_bc04.npsat)
-A common case in groundwater hydrology is to assign specific values on vertices that correspond to domain outline and assume linear interpolation between the vertices. This can be handled using interpolation functions, however one would have to provide a different file for each segment.
-In this example we assume that the constant hydraulic head is defined for the segments (2500, 0)-(5000, 0)-(5000 2500)
-In this case instead creating two interpolation functions for each segment the file will have the following format:
-```
-1
-EDGETOP 0 box3d_bnd_lines.npsat
-```
-Note that for this case we do not provide and points to describe the boundary. The input file contains the definition of the segments along with the values.
+
 
 
 

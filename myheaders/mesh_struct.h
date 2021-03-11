@@ -341,7 +341,7 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     mesh_dof_handler.distribute_dofs(mesh_fe);
 
     pcout << "Distribute mesh dofs..." << mesh_dof_handler.n_dofs() << std::endl << std::flush;
-
+    MPI_Barrier(mpi_communicator);
     //pcout << "dofs 1" << mesh_dof_handler.n_dofs() << std::endl << std::flush;
     mesh_locally_owned = mesh_dof_handler.locally_owned_dofs();
     DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);

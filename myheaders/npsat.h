@@ -368,7 +368,7 @@ void NPSAT<dim>::solve_refine(){
                                          mesh_Offset_vertices,
                                          distributed_mesh_Offset_vertices,
                                          mpi_communicator, pcout);
-
+            MPI_Barrier(mpi_communicator);
             //mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
             mesh_struct.assign_top_bottom(topCloud, topCloudIndex,
                                           AQProps.top_cloud_param.Power,
@@ -378,7 +378,7 @@ void NPSAT<dim>::solve_refine(){
                                           AQProps.bot_cloud_param.Radius,
                                           AQProps.top_cloud_param.Threshold,
                                           pcout, mpi_communicator);
-
+            MPI_Barrier(mpi_communicator);
             mesh_struct.updateMeshElevation(mesh_dof_handler,
                                             triangulation,
                                             mesh_constraints,
@@ -388,6 +388,7 @@ void NPSAT<dim>::solve_refine(){
                                             distributed_mesh_Offset_vertices,
                                             mpi_communicator,
                                             pcout);
+            MPI_Barrier(mpi_communicator);
             //print_mesh();
 
         }
@@ -726,6 +727,8 @@ void NPSAT<dim>::create_top_bot_functions(){
 
 template <int dim>
 void NPSAT<dim>::flag_cells_for_refinement(){
+    pcout << "Flag cells for refinements" << std::endl << std::flush;
+    MPI_Barrier(mpi_communicator);
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
                                      QGauss<dim-1>(fe.degree+2),
@@ -796,7 +799,8 @@ void NPSAT<dim>::do_refinement(){
 
 template <int dim>
 void NPSAT<dim>::do_refinement1(){
-
+    pcout << "Executing refinement... " << std::endl << std::flush;
+    MPI_Barrier(mpi_communicator);
     std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
     {
         // Create the boolean input of communicate_locally_moved_vertices method

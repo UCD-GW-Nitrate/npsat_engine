@@ -1,4 +1,6 @@
 BOUNDARY_LINE 		#Keyword for boundary function
+2D                  # This shows that there is no variability along Z
+LINEAR              # how to interpolate between the point.
 5 1 1.000000		#Npoints Ndata tolerance	
 2500.000000 0.000000 40.000000
 4000.000000 0.000000 30.000000
