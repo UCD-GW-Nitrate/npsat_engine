@@ -1715,7 +1715,7 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
         it->second.T = topOut[1];
         interpolateVectorCloud(botCloud,botindex,botPower,botRadius,thres,x,y,botOut);
         it->second.B = botOut[0];
-        std::cout << my_rank << " - " << iter << "/" << sz << " top " << it->second.T << ", bot " << it->second.B << std::endl;
+        //std::cout << my_rank << " - " << iter << "/" << sz << " top " << it->second.T << ", bot " << it->second.B << std::endl;
         iter++;
 
         std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
@@ -1774,6 +1774,7 @@ void Mesh_struct<dim>::assign_top_bottom(PointVectorCloud &topCloud, std::shared
         }
     }
     */
+    std::cout << my_rank << " - " << iter << "/" << sz << std::endl;
     std::cout << "Done with top/bottom elevations..." << std::endl << std::flush;
 }
 

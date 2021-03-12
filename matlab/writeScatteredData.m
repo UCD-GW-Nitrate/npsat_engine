@@ -1,44 +1,52 @@
-function writeScatteredData(filename, info, DATA)
-%% writeScatteredData(filename, info, DATA)
+function writeScatteredData(filename, TYPE, COORDS, DATA, TR)
+%% writeScatteredData(filename, info, DATA, TR)
 %
 % Writes scattered data into the appropriate format
 % filename: is the name of the file to be written
-% info: is a struct variable that requires 3 fields
-% PDIM: is the number of columns that correspond to coordinates
-%          This is 1 for 1D points of 2 for 2D points.
-% TYPE: Valid options for type are FULL, HOR or VERT
-% MODE: Valid options for mode are SIMPLE or STRATIFIED
+% TYPE: This is the interpolation method. it can be LINEAR or NEAREST.
+% However for the 3D interpolation both the horizontal and vertical type
+% must be defined.
+% COORDS: [x] or [x y]
 %
 % DATA: the data to be printed. Data should have as many columns as needed.
+%       For 2D the data should have 0ne column.
+%       For 3D with NEAREST vertical TYPE{2} then the number of data must be
+%       odd. [value Elevatio value Elevation .... Value]
+%       For 3D with LINEAR vertical then the number of data must be even.
+%       [value Elevatio value Elevation .... Value Elevation]
+%       
 %       For example it can be :
-%       [x v]
-%       [x v1 z1 v2 z2 ... vn-1 zn-1 vn]
-%       [x y v]
-%       [x y v1 z1 v2 z2 ... vn-1 zn-1 vn]
+%       [v]
+%       [v1 z1 v2 z2 ... vn-1 zn-1 vn]
+%       [v1 z1 v2 z2 ... vn-1 zn-1 vn]
 %       .
 %       .
 %       .
+% TR: Triangulation data
+%    [id1 id2 i3]
+%       .
+%       .
+%       .
+% The ids must start on 1. The function will subtract one during printing
+%
 % Examples
 % For 2D interpolation such as top, bottom elevation or recharge
-% writeScatteredData(filename, struct('PDIM', 2, 'TYPE', 'HOR', 'MODE', 'SIMPLE'), DATA)
+% writeScatteredData(filename, struct('DIM', '2D', 'TYPE', {'LINEAR'}), DATA)
+
 
 fid = fopen(filename,'w');
 % Write flags
 fprintf(fid, 'SCATTERED\n');
-fprintf(fid, [info.TYPE '\n']);
-fprintf(fid, [info.MODE '\n']);
+if length(TYPE) == 1
+    fprintf(fid, '2D\n');
+    fprintf(fid, [TYPE{1} '\n']);
+elseif length(TYPE) == 2
+    fprintf(fid, '3D\n');
+    fprintf(fid, [TYPE{1} ' ' TYPE{2} '\n']);
+end
 
-Ndata = size(DATA,2) - info.PDIM;
-fprintf(fid, '%d %d\n', [size(DATA,1) Ndata]);
-% configure format
-frmt = [];
-for ii = 1:info.PDIM
-    frmt = [frmt '%f '];
-end
-for ii = 1:Ndata-1
-    frmt = [frmt '%f '];
-end
-frmt = [frmt '%f\n'];
-% print data
-fprintf(fid, frmt, DATA');
+fprintf(fid, '%d %d %d\n', [size(COORDS,1) size(DATA,2), size(TR,1)]);
+
+fprintf(fid, [repmat('%f ', 1, size(COORDS,2) + size(DATA,2)) '\n'], [COORDS DATA]');
+fprintf(fid, '%d %d %d\n',[TR-1]');
 fclose(fid);

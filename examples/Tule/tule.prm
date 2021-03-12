@@ -4,11 +4,11 @@ subsection A. Workspace directories ============================
   # a----------------------------------
   # The directory with all input data.
   # All input data must be under the same directory.
-  set a Input directory  = .
+  set a Input directory  = /home/giorgk/Documents/CODES/npsat_engine/examples/Tule
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = ./output/
+  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/Tule/output
 end
 
 
@@ -59,6 +59,22 @@ subsection B. Geometry  ========================================
     # d----------------------------------
     # Threshold value the vertical plane
     set d z threshold               = 0.01
+
+    # e----------------------------------
+    # Power parameter for top IDW interpolation
+    set e Power for top             = 3
+
+    # f----------------------------------
+    # Radius parameter for top IDW interpolation
+    set f Radius for top            = 3000
+
+    # g----------------------------------
+    # Power parameter for bottom IDW interpolation
+    set g Power for bottom          = 3
+
+    # h----------------------------------
+    # Radius parameter for bottom IDW interpolation
+    set h Radius for bottom         = 3000
   end
 
 end
@@ -171,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 1
+  set a Nonlinear iterations = 5
 
   # b----------------------------------
   # Tolerance of solver
@@ -190,12 +206,12 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 0
+  set a Max refinements iterations = 5
 
   # b----------------------------------
   # Top refinement fraction
   # This defines the percentage of cells to be refined
-  set b Top fraction               = 0.17
+  set b Top fraction               = 0.15
 
   # c----------------------------------
   # Bottom refinement fraction
@@ -316,7 +332,7 @@ subsection J. Output Parameters ================================
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix = TuleRiver_v1
+  set a Prefix = TuleRiverNew
 
 
   subsection A. Load/Save options =---=---=---=---=---=---=
@@ -343,7 +359,7 @@ subsection J. Output Parameters ================================
     # e----------------------------------
     # Prints the velocity field cloud
     # The file name is Prefix + proc.vel
-    set e Print velocity field cloud = 1
+    set e Print velocity field cloud = 0
 
     # f----------------------------------
     # Multiplier coefficient to increase the printed velocity precision
@@ -362,7 +378,7 @@ subsection J. Output Parameters ================================
     # i----------------------------------
     # Prints the groundwater recharge as point cloud
     # The file name is Prefix + proc.rch
-    set i Print GW Recharge          = 1
+    set i Print GW Recharge          = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=

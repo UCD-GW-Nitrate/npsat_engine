@@ -91,6 +91,11 @@ void interpolateVectorCloud(PointVectorCloud& cloud,
         values.push_back(cloud.pts[ret_matches[i].first].values);
         distances.push_back(std::sqrt(ret_matches[i].second));
     }
+    if (nMatches == 0){
+        std::cout << " I didn't find any point near "
+                  << std::setprecision(2) << std::fixed
+                  <<  query_pt[0] << "," << query_pt[1] << std::endl;
+    }
     out = IDWinterp(values,distances,power,thres);
 }
 

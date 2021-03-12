@@ -1107,8 +1107,14 @@ std::vector<double> IDWinterp(std::vector<std::vector<double>>& values,
             sumWV[j] = sumWV[j] + values[i][j]*w;
         }
     }
+
     for (unsigned int j = 0; j < sumWV.size(); ++j){
         sumWV[j] = sumWV[j]/sumW;
+    }
+    if (sumW < 0.00000001){
+        std::cout << "Almost zero weight returned value:"
+                  << std::setprecision(6) << std::fixed << std::endl;
+
     }
     return sumWV;
 }
