@@ -30,7 +30,7 @@ The value does not have to be a constant value. On can pass a file that describe
 We can see that that boundary polygon has been refined several times so that it is clrearly identified
 <img src="Box3D_dirich1.png" alt="Dirichlet test 01" width="700"/>
 
-# Side Boundaries (Test 2 : dir_bc02.npsat) 
+## Side Boundaries (Test 2 : dir_bc02.npsat) 
 This type of boundary is used when the side of the domain is associated with a constant head boundary.
 In the 2nd example we set two boundaries 
 * The left side of the aquifer (x = 0) is set equal to 25 m. This value will be assigned to the entire depth.
@@ -50,7 +50,7 @@ x2 y2
 
 We can see that in the right side of the aquifer only the top row of elements has constant head equal to 40 m. 
 
-# Side Boundaries variable (Test 3 : dir_bc03.npsat)
+## Side Boundaries variable (Test 3 : dir_bc03.npsat)
 For the third example we will use the same boundaries as in the second example and change their values. Instead of using a uniform value along the boundary we will use variable interpolation functions.
 * For the left boundary the head will vary also with depth.</br>
 In particular the left boundary is divided into zones as shown in the following figure</br>
@@ -74,7 +74,7 @@ Secondly we repeated the simulation assuming linear gradient between the zones. 
 The input file for this simulation is the *box3d_leftv1b.npsat* and the boundary becaomes:
 <img src="box3d_dirich3_linear.png" alt="Dirichlet test 01" width="700"/>
 
-# Side Boundaries non-colinear (Test 4 : dir_bc04.npsat)
+## Side Boundaries non-colinear (Test 4 : dir_bc04.npsat)
 This example is very similar to the previous one. This show that one can describe a boundary where the segments do not lay on the same vertical plane. 
 
 For the following simulation we assume that the constant hydraulic head is defined for the segments (2500, 0)-(5000, 0)-(5000 2500). Although this is a polyline that constist of two segments it can be set as one boundary function. The file *box3d_bnd_lines_test04.npsat* describes the boundary function.
@@ -87,22 +87,87 @@ The head at the corner is set equal to 20 m and inreases linearly up to 50m to t
 <img src="box3d_dirich4.png" alt="Dirichlet test 01" width="700"/>
 
 Note that for this case we do not provide and points to describe the boundary. The input file contains the definition of the segments along with the values.
-## Test 1 with multipolygon recharge
-Using the same boundary conditions we will assign zone recharge. This is implemented using the `MULTIPOLY` keyword as follows
+
+# Neumann Boundary conditions
+In the following section we illustrate the various interpolation methods one can use within npsat to describe 2D fluxes. Typical example is the groundwater recharge, which is a flux defined on the top
+
+## Scatter interpolation
+When the data are scatter or the geometry is not of rectangular shape it is more efficient to use scattered data interpolation.
+
+The format of the scatter data is the following:
+```
+SCATTERED
+2D
+LINEAR
+Npoints Ndata Nelements
+x y v
+.
+.
+.
+ID1 ID2 ID3
+.
+.
+.
+```
+The first keyword indicates the type of interpolation method
+Next 2D or 3D is used to indicate whether there is a vartical variation
+LINEAR or NEAREST is the type of interpolation
+Npoints is the number of points, ie. the number of lines that follows must be Npoints.
+Ndata is the number of columns that follow after the coordinates x and y. For 2D this is always 1. Nelements is the number of triangles that follow after the points and data list
+An example is shown in the file *Rch_scattered.npsat*. Depending on the element interpolation type the results are quite different. The first figure shows the recharge distribution when the interpolation is set to linear, while the second shows the nearest interpolation. Generally it makes more sense to use linear interpolation with scattered data.</br>
+<img src="scatterRchLinear.png" alt="Dirichlet test 01" width="700"/>
+
+<img src="scatterRchNearest.png" alt="Dirichlet test 01" width="700"/>
+
+
+## Gridded interpolation
+If the data can be organized into rows, columns and layers then it is possible to use the gridded interpolation format. The format of the gridded interpolation is described in [gridInterp](https://github.com/giorgk/gridInterp). An example of gridded interpolation is shown in the file *Rch_gridded.npsat*.
+Similalry to the scattered interpolation there are two options linear and nearest which are shown in the figures below.
+
+<img src="griddedRchLinear.png" alt="Dirichlet test 01" width="700"/>
+<img src="griddedRchNearest.png" alt="Dirichlet test 01" width="700"/>
+
+## Multi polygon/rectangle interpolation
+### MULTIPOLY
+The last type of interpolation discribed in this section is a combination of all of the above. The **MULTIPOLY** and **MULTIRECT** can be used in cases where a different interpolation method should be used in different parts of the domain. 
+
+The input file for these options has the following format:
 ```
 MULTIPOLY
 Npoly 
-Nverts CONST value
+Nverts TYPE VALUE
 x y
 .
 .
 .
 ```
-Repeat `Npoly` times from Nverts. An example of the input file is the mult_const_rch.npsat
+The first keyword can be either MULTIPOLY or MULTIRECT.</br>
+Next Npoly is the number of polygons where a separate interpolation function is defined. </br>
+Then repeat `Npoly` times the remaining lines where Nverts is the number of vertices that define the polygon, the type can be either **CONST**, **SCATTERED** or **GRIDDED**, but not MULTIRECT or MULTIPOLY. The value is either a scalar value if the type is CONST or a file that describes the interpolation function.    
+An example of the input file is the mult_var_rch.npsat.
 
+The domain has been split into 3 zones as show in the figure
+<img src="multipoly_split.png" alt="Dirichlet test 01" width="500"/>
 
+In each zone we set a different interpolation function. The area with red outline is using a scattered interpolation data while the other two polygons used gridded functions.
+One of the gridded interpolation functions use nearest interpolation and the other linear. From the figure below this becomes quite obvious.
 
+<img src="multipoly_splitRCH.png" alt="Dirichlet test 01" width="500"/>
 
+### MULTIRECT
+The **MULTIRECT** option is very similar to **MULTIPOLY**. The only difference is the way the domain is divided into sub areas. In **MULTIPOLY** the polygonal areas can be of any shape with any number of vertices. However this comes with a cost where each function evaluation loops through the polygons to find which polygon containts the point in question. In **MULTIRECT** it is assumed that the polygons are orthogonal rectangles, therefore a point will be inside the polygon if it is inside the bounding box which is defined by two points the left lower and right upper. The format for the  **MULTIRECT** is the follwing:
+```
+MULTIRECT
+Npoly
+TYPE VALUE
+Xmin Ymin Xmax Ymax
+.
+.
+.
+```
+There is no need to set the number of vertices and the 2 corner points are set on the same line.
+
+<img src="multirect_splitRCH.png" alt="Dirichlet test 01" width="500"/>
 
 
 

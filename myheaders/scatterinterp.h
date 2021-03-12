@@ -149,14 +149,15 @@ private:
 
     bool findElemId(Point<dim> p, int& elemId, double& u, double& v, double& w)const;
 
+    std::string namefile;
+
 };
 
 template<int dim>
 ScatterInterp<dim>::ScatterInterp(){
     Ndata = 0;
     Npnts = 0;
-    NinterpPoints = dim+1;
-    //points_known = false;
+    NinterpPoints = (dim == 2)? 3: 10;
 }
 
 /*
@@ -181,6 +182,7 @@ void ScatterInterp<dim>::get_data(std::string filename){
         return;
     }
     else{
+        namefile = filename;
         int Nleafs = 10;
         char buffer[512];
         {// Read the data type
@@ -222,7 +224,6 @@ void ScatterInterp<dim>::get_data(std::string filename){
             }
             else if (temp == "NEAREST"){
                 sci_methodXY = SCI_METHOD::NEAREST;
-                NinterpPoints = 1;
             }
             else
                 std::cout << "Unknown interpolation style. Valid options are LINEAR or NEAREST" << std::endl;
@@ -508,9 +509,9 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
                 d = Data[triangulation[id][0]][i] * (1 - u)  + Data[triangulation[id][1]][i] * u;
             }
             else if (dim == 3){
-                d = Data[triangulation[id][0]][i] * u +
-                    Data[triangulation[id][1]][i] * v +
-                    Data[triangulation[id][2]][i] * w;
+                d = Data[triangulation[id][0]][i] * w +
+                    Data[triangulation[id][1]][i] * u +
+                    Data[triangulation[id][2]][i] * v;
             }
         }
         else{
@@ -552,6 +553,8 @@ double ScatterInterp<dim>::interpolate(Point<dim> p)const{
             lidx = lidx + 2;
         }
     }
+    std::cout << "The interpolation from " << namefile << "was not successful at point (" << p[0] << "," << p[1] << ")" << std::endl;
+    return -9999999.9;
 }
 
 template <int dim>
@@ -572,8 +575,11 @@ bool ScatterInterp<dim>::findElemId(Point<dim> p, int& elemId, double& u, double
                                          NinterpPoints,
                                          &ret_index[0],
                                          &out_dist_sqr[0]);
+    std::map<int,int> triangleIds;
     if (sci_methodXY == SCI_METHOD::LINEAR) {
         for (unsigned int i = 0; i < ret_index.size(); ++i) {
+            triangleIds.insert(std::pair<int,int>(triangulation[ret_index[i]][0],triangulation[ret_index[i]][0]));
+            triangleIds.insert(std::pair<int,int>(triangulation[ret_index[i]][1],triangulation[ret_index[i]][1]));
             if (dim == 2) {
                 double x1 = Vertices[triangulation[ret_index[i]][0]][0];
                 double x2 = Vertices[triangulation[ret_index[i]][1]][0];
@@ -593,18 +599,20 @@ bool ScatterInterp<dim>::findElemId(Point<dim> p, int& elemId, double& u, double
                     }
                 }
             } else if (dim == 3) {
+                triangleIds.insert(std::pair<int,int>(triangulation[ret_index[i]][2],triangulation[ret_index[i]][2]));
                 Point<dim> A, B, C;
                 A = Vertices[triangulation[ret_index[i]][0]];
                 B = Vertices[triangulation[ret_index[i]][1]];
                 C = Vertices[triangulation[ret_index[i]][2]];
-
+                // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/barycentric-coordinates
                 double CAP = triangle_area(C, A, p, true);
                 double ABP = triangle_area(A, B, p, true);
                 double BCP = triangle_area(B, C, p, true);
-                if (std::abs(CAP + ABP + BCP - triangleArea[ret_index[i]]) < 0.001) {
+                if (std::abs(CAP + ABP + BCP - triangleArea[ret_index[i]]) < 0.01) {
                     u = CAP / triangleArea[ret_index[i]];
-                    v = CAP / triangleArea[ret_index[i]];
-                    w = CAP / triangleArea[ret_index[i]];
+                    v = ABP / triangleArea[ret_index[i]];
+                    w = BCP / triangleArea[ret_index[i]];
+                    //double ww = 1 - u - v;
                     elemId = ret_index[i];
                     out = true;
                     break;
@@ -613,34 +621,24 @@ bool ScatterInterp<dim>::findElemId(Point<dim> p, int& elemId, double& u, double
         }
     }
     if (!out){
-        // if the point is outside of the triangulation return the nearest node instead of element id
-        if (dim == 2){
-            double x1 = Vertices[triangulation[ret_index[0]][0]][0];
-            double x2 = Vertices[triangulation[ret_index[0]][1]][0];
-            if (std::abs(x1 - p[0]) <= std::abs(x2 - p[0])){
-                elemId =triangulation[ret_index[0]][0];
-            }
-            else{
-                elemId =triangulation[ret_index[0]][1];
+        if (sci_methodXY == SCI_METHOD::NEAREST) {
+            for (unsigned int i = 0; i < ret_index.size(); ++i) {
+                triangleIds.insert(std::pair<int, int>(triangulation[ret_index[i]][0], triangulation[ret_index[i]][0]));
+                triangleIds.insert(std::pair<int, int>(triangulation[ret_index[i]][0], triangulation[ret_index[i]][1]));
+                if (dim == 3)
+                    triangleIds.insert(
+                            std::pair<int, int>(triangulation[ret_index[i]][0], triangulation[ret_index[i]][2]));
             }
         }
-        else if (dim == 3){
-            double d1 = distance_2_points(p[0], p[1],
-                                          Vertices[triangulation[ret_index[0]][0]][0],
-                                          Vertices[triangulation[ret_index[0]][0]][1]);
-            double d2 = distance_2_points(p[0], p[1],
-                                          Vertices[triangulation[ret_index[0]][1]][0],
-                                          Vertices[triangulation[ret_index[0]][1]][1]);
-            double d3 = distance_2_points(p[0], p[1],
-                                          Vertices[triangulation[ret_index[0]][2]][0],
-                                          Vertices[triangulation[ret_index[0]][2]][1]);
-            if (d1 <= d2 && d1 <= d3){
-                elemId = triangulation[ret_index[0]][0];
-            }
-            else if (d2 <= d1 && d2 <= d3)
-                elemId = triangulation[ret_index[0]][1];
-            else{
-                elemId = triangulation[ret_index[0]][2];
+        // if the point is outside of the triangulation return the nearest node instead of element id
+        std::map<int,int>::iterator it;
+        double mindst = 999999999999;
+        for (it = triangleIds.begin(); it != triangleIds.end(); ++it){
+            double dst = (dim == 2)? distance_2_points(p[0], 0.0, Vertices[it->first][0], 0.0):
+                         distance_2_points(p[0], p[1], Vertices[it->first][0], Vertices[it->first][1]);
+            if (dst < mindst){
+                elemId = it->first;
+                mindst = dst;
             }
         }
     }
