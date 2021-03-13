@@ -4,7 +4,6 @@
 
 # Set the name of the project and target:
 SET(TARGET "npsat")
-PROJECT(${TARGET})
 
 # For the aqua cluster you may need the following two enabled
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -29,7 +28,7 @@ SET(TARGET_SRC
 
 # Usually, you will not need to modify anything beyond this point...
 
-CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
 FIND_PACKAGE(deal.II 9.1.1 QUIET
   HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR}
@@ -64,10 +63,11 @@ One or both of the aforementioned combinations of prerequisites are not met by y
           )
 ENDIF()
 
-DEAL_II_INITIALIZE_CACHED_VARIABLES()
-
 INCLUDE_DIRECTORIES(${GRID_INTERP})
+
+DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 #ADD_EXECUTABLE(${TARGET} ${TARGET_SRC})
 #DEAL_II_SETUP_TARGET(${TARGET})
+PROJECT(${TARGET})
 DEAL_II_INVOKE_AUTOPILOT()
