@@ -206,13 +206,43 @@ bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) c
     dst_t = -9999999999;
     if (iSeg >= static_cast<int>(Pnts.size() - 1))
         return false;
-    int orient = orientation<dim>(Pnts[iSeg], Pnts[iSeg+1], p);
-    if (orient == 0){
-        if (onSegment<dim>(Pnts[iSeg], p, Pnts[iSeg+1])){
+
+    // Calculate the projection of the point p onto the segment iSeg
+    Point<dim> pp = project_point_onLine<dim>(p, Pnts[iSeg], Pnts[iSeg+1]);
+    // Compute the distance between the point and its projection
+    double dst = distance_2_points(pp[0], pp[1], p[0],p[1]);
+    if (dst < 0.1){
+        double t = 0.0;
+        if (std::abs(Pnts[iSeg+1][0] - Pnts[iSeg][0]) > std::abs(Pnts[iSeg+1][1] - Pnts[iSeg][1]) ){
+            t = (pp[0] - Pnts[iSeg][0])/(Pnts[iSeg+1][0] - Pnts[iSeg][0]);
+        }
+        else{
+            t = (pp[1] - Pnts[iSeg][1])/(Pnts[iSeg+1][1] - Pnts[iSeg][1]);
+        }
+
+        if (std::abs(t) < 0.001){
             dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
+            if (dst_t < 0.1){
+                t = 0.00000001;
+                dst_t = 0;
+            }
+
+        }
+        else if (std::abs(t-1) < 0.001){
+            double dst = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
+            if (dst < 0.1){
+                t = 0.99999999;
+                dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
+            }
+        }
+
+        if ( t >= 0.0 && t <=1 ){
             return true;
         }
     }
+    return false;
+
+
     /*
     double dst = distance_point_line(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
     double dstA = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
@@ -235,8 +265,9 @@ bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) c
     }
     else
         return false;
-    */
+
     return false;
+    */
 }
 
 template <int dim>
@@ -262,24 +293,14 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
     }
 
     for (unsigned int ii = 0; ii < Npnts - 1; ii++){
-        lx1 = Pnts[ii][0]; ly1 = Pnts[ii][1];
-        lx2 = Pnts[ii+1][0]; ly2 = Pnts[ii+1][1];
-
-        int orient = orientation<dim>(A, B, Pnts[ii]);
-        if (orient != 0)
-            continue;
-        orient = orientation(A,B, Pnts[ii+1]);
-        if (orient != 0)
+        bool tf = areSegmentsCollinear(A, B, Pnts[ii], Pnts[ii+1]);
+        if (!tf)
             continue;
 
-        // both points of the boundary segment (ii) - (ii+1) are colinear
-        // Now we have to make sure that the two segments have some overlapping area.
-        // if the quadrature points on the line fall within the (ii) - (ii+1) segments
-        // set this face as Dirichlet boundary
         Point<dim> Q;
         Q[0] = A[0]*0.7887 + B[0]*0.2113;
         Q[1] = A[1]*0.7887 + B[1]*0.2113;
-        bool tf = onSegment<dim>(Pnts[ii], Q, Pnts[ii+1]);
+        tf = onSegment<dim>(Pnts[ii], Q, Pnts[ii+1]);
         if(!tf){
             Q[0] = B[0]*0.7887 + A[0]*0.2113;
             Q[1] = B[1]*0.7887 + A[1]*0.2113;
@@ -289,41 +310,44 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
         }
         else
             return true;
-
         /*
-        // Calculate the distance of the two cell points from the boundary line
-        double dst1 = distance_point_line(cx3,cy3,lx1,ly1,lx2,ly2);
-        double dst2 = distance_point_line(cx4,cy4,lx1,ly1,lx2,ly2);
-
-        // The cell face is collinear with the boundary line if the distances are very close to zero
-        // and one of the two distances is positive.
-        bool are_colinear = false;
-        if (std::abs(dst1) < tolerance && std::abs(dst2) < tolerance){
-            if ( !(dst1 < 0) || !(dst2 < 0)){
-                are_colinear = true;
-            }
-            else {
-                // It may be possible due to numerical errors that the distances are both negative
-                // This can happen under two circumstances.
-                // 1) The boundary line is smaller than the cell face. This means that the boundary condition
-                //    lines have not been set correctly.
-                //    FUTURE VERSION OF THE CODE SHOULD ADDRESS THIS CASE
-                // 2) The boundary segment is identical with the cell face. Then it is possible that both points
-                //    of the cell may appear outside of the boundary by very small amount.
-
-                //====== Case 2 ======
-                { // Take care the second case
-                    double min_dst1 = std::min(distance_2_points(cx3,cy3,lx1,ly1),distance_2_points(cx3,cy3,lx2,ly2));
-                    double min_dst2 = std::min(distance_2_points(cx4,cy4,lx1,ly1),distance_2_points(cx4,cy4,lx2,ly2));
-                    if (min_dst1 < 0.1 && min_dst2 < 0.1){
-                        are_colinear = true;
-                    }
-                }
-            }
+        //Calculate the parametric coordinate of the face points onto this segment
+        double ta = 0.0;
+        double tb = 0.0;
+        if (std::abs(Pnts[ii+1][0] - Pnts[ii][0]) > std::abs(Pnts[ii+1][1] - Pnts[ii][1]) ){
+            ta = (A[0] - Pnts[ii][0])/(Pnts[ii+1][0] - Pnts[ii][0]);
+            tb = (B[0] - Pnts[ii][0])/(Pnts[ii+1][0] - Pnts[ii][0]);
         }
-        if (are_colinear){
+        else{
+            ta = (A[1] - Pnts[ii][1])/(Pnts[ii+1][1] - Pnts[ii][1]);
+            tb = (B[1] - Pnts[ii][1])/(Pnts[ii+1][1] - Pnts[ii][1]);
+        }
+        if (std::abs(ta) < 0.001){
+            double dst = distance_2_points(A[0], A[1], Pnts[ii][0], Pnts[ii][1]);
+            if (dst < 0.1)
+                ta = 0.00000001;
+        }
+        else if (std::abs(ta-1) < 0.001){
+            double dst = distance_2_points(A[0], A[1], Pnts[ii+1][0], Pnts[ii+1][1]);
+            if (dst < 0.1)
+                ta = 0.99999999;
+        }
+
+        if (std::abs(tb) < 0.001){
+            double dst = distance_2_points(B[0], B[1], Pnts[ii][0], Pnts[ii][1]);
+            if (dst < 0.1)
+                tb = 0.00000001;
+        }
+        else if (std::abs(tb-1) < 0.001){
+            double dst = distance_2_points(B[0], B[1], Pnts[ii+1][0], Pnts[ii+1][1]);
+            if (dst < 0.1)
+                tb = 0.99999999;
+        }
+
+        if ( (ta >= 0.0 && ta <=1) || (tb >= 0.0 && tb <=1)){
             return true;
-        }*/
+        }
+        */
     }
     return false;
 }

@@ -176,9 +176,23 @@ double distance_on_2D_line(double l1x, double l1y, double l2x, double l2y, doubl
         return dst;
 }
 
-//! distance_point_line calculates the distance between a point and a line segment.
-//! If the projection of the point to the line falls outside the line segment then
-//! returns the minimum distance from the the two points
+
+/*! distance_point_line calculates the distance between a point and a line segment.
+ * If the projection of the point to the line falls outside the line segment then
+ * returns the minimum distance from the the two points.
+ *
+ * During the calculation it computes the coordinates of the point projection on the line
+ *
+ *
+ *
+ * @param px
+ * @param py
+ * @param l1x
+ * @param l1y
+ * @param l2x
+ * @param l2y
+ * @return
+ */
 double distance_point_line(double px, double py, // Point coordinates
                            double l1x, double l1y, // first point of line
                            double l2x, double l2y){ // second point of line
@@ -198,7 +212,7 @@ double distance_point_line(double px, double py, // Point coordinates
         t = (ppy - l1y)/(l2y-l1y);
 
     double dst;
-    if (t <0 || t > 1){
+    if (t < 0 || t > 1){
         dst = std::min(distance_2_points(px,py,l1x,l1y), distance_2_points(px,py,l1x,l1y));
     }
     else{
@@ -207,10 +221,24 @@ double distance_point_line(double px, double py, // Point coordinates
     return dst;
 }
 
+template<int dim>
+Point<dim> project_point_onLine(const Point<dim>& p, const Point<dim>& a, const Point<dim>& b){
+    Point<dim> pp;
+    double e1x = b[0] - a[0]; // l2x - l1x;
+    double e1y = b[1] - a[1]; //l2y - l1y;
+    double len2 = e1x*e1x + e1y*e1y;
+    double e2x = p[0] - a[0]; //px - l1x;
+    double e2y = p[1] - a[1]; //py - l1y;
+    double dot = e1x*e2x + e1y*e2y;
+    pp[0] = a[0] + dot*e1x/len2;
+    pp[1] = a[1] + dot*e1y/len2;
+    return pp;
+}
+
 /*!
  * \brief is_input_a_scalar check if the string can be converted into a scalar value
  * \param input is the string to test
- * \return true if the input can be a scalars
+ * \return true if the input can be a scalar
  */
 bool is_input_a_scalar(std::string input){
     // try to convert the input to scalar
@@ -1119,6 +1147,11 @@ std::vector<double> IDWinterp(std::vector<std::vector<double>>& values,
     return sumWV;
 }
 
+double PointLineDistance(double px, double py, double ax, double ay, double bx, double by){
+    return ((by - ay)*px - (bx - ax)*py + bx*ay - by*ax)/
+           std::sqrt( (by - ay)*(by - ay) + (bx - ax)*(bx - ax) );
+}
+
 /*!
  * Find the orientation of ordered triplet (P, Q, R)
  * @tparam dim The dimension of the point. The dim has to be higher than 2.
@@ -1161,6 +1194,58 @@ bool onSegment(const Point<dim>& P, const Point<dim>& Q, const Point<dim>& R){
         return true;
     return false;
 }
+
+/*!
+ * areSegmentsCollinear tests whether the two segments are collinear.
+ * It does so by calculating the angle between the two segments.
+ * If the angle is very close to 0 then it test the distance between
+ * one point and the projection  of that point onto the other segment
+ *
+ *
+ * See more here
+ * https://math.stackexchange.com/questions/103065/how-to-test-any-2-line-segments-3d-are-collinear-or-not
+ * @tparam dim
+ * @param SegAstart
+ * @param SegAend
+ * @param SegBstart
+ * @param SegBend
+ * @return
+ */
+template<int dim>
+bool areSegmentsCollinear(Point<dim>& SegAstart, Point<dim>& SegAend,
+                          Point<dim>& SegBstart, Point<dim>& SegBend){
+    bool are_collinear = false;
+    double ux = SegAend[0]-SegAstart[0];
+    double uy = SegAend[1]-SegAstart[1];
+    double vx = SegBend[0]-SegBstart[0];
+    double vy = SegBend[1]-SegBstart[1];
+    double lenA = std::sqrt(ux*ux + uy*uy);
+    double lenB = std::sqrt(vx*vx + vy*vy);
+    double cosPhi = (ux*vx + uy*vy)/(lenA*lenB);
+
+    if (std::abs(std::abs(cosPhi) - 1) < 0.00016){
+        // The two segments are parallel.
+        // Now we compute the distance between a point
+        // and its projection onto the segment
+        Point<dim> pSegAstart = project_point_onLine(SegAstart, SegBstart, SegBend);
+        double dst = distance_2_points(pSegAstart[0], pSegAstart[1], SegAstart[0],SegAstart[1]);
+
+        //double d1 = std::abs(PointLineDistance(SegBstart[0], SegBstart[1],
+        //                              SegAstart[0], SegAstart[1],
+        //                              SegAend[0], SegAend[1]));
+        //double d2 = std::abs(PointLineDistance(SegBend[0], SegBend[1],
+        //                              SegAstart[0], SegAstart[1],
+        //                              SegAend[0], SegAend[1]));
+        if (dst < 0.1)
+            are_collinear = true;
+    }
+
+    return are_collinear;
+
+}
+
+
+
 /*
 template <int dim>
 void Print_Mesh_DofHandler(std::string filename,

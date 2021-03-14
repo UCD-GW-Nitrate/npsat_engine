@@ -665,6 +665,8 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                         itw->second.K_cell.push_back(K);
                         itw->second.owned.push_back(true);
                         itw->second.mid_point.push_back(p_mid);
+                        //itw->second.well_cells.resize(itw->second.well_cells.size()+1);
+                        //itw->second.well_cells[itw->second.well_cells.size()-1] = cell;
                         itw->second.well_cells.push_back(cell);
 
                         well_id[my_rank].push_back(itw->first);

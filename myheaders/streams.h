@@ -339,7 +339,7 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                     if (yy[j] < Ymin[i])
                         Ymin[i] = yy[j];
                 }
-                double river_diameter = std::sqrt((Xmax[i] - Xmin[i])*(Xmax[i] - Xmin[i]) + (Ymax[i] - Ymin[i])*(Ymax[i] - Ymin[i]));
+                double river_diameter = std::sqrt((Xmax[i] - Xmin[i])*(Xmax[i] - Xmin[i]) + (Ymax[i] - Ymin[i])*(Ymax[i] - Ymin[i]))*0.6;
                 if (river_diameter > diameter_search)
                     diameter_search = river_diameter;
 
@@ -368,6 +368,7 @@ bool Streams<dim>::Streams::read_streams(std::string namefile){
                 //}
             }
         }
+        diameter_search = diameter_search*diameter_search;
         streamIndex = std::shared_ptr<pointid_kd_tree>(new pointid_kd_tree(
                 2, StreamCenterAsCloud,nanoflann::KDTreeSingleIndexAdaptorParams(10)));
         streamIndex->buildIndex();
@@ -494,14 +495,12 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc,
                 //print_poly_matlab(Xoutline[it->first], Youtline[it->first]);
                 //std::cout << /* "Intersected area: " << area << */ "plot(" << d_xc << ", " << d_yc << ", 'x')" << std::endl;
 
-                if (area < 0.1){
-                    int aa = 0;
-                    aa++;
-                    //std::cout << "The area " << area << " is too small" << std::endl;
+                if (area > 1){
+                    xc.push_back(d_xc);
+                    yc.push_back(d_yc);
+                    Q.push_back(area * Q_rate[ret_matches[i].first]);
                 }
-                xc.push_back(d_xc);
-                yc.push_back(d_yc);
-                Q.push_back(area * Q_rate[ret_matches[i].first]);
+
             } catch (...) {
                 std::cout << "Boost failed to find intersection" << std::endl;
             }
@@ -544,6 +543,8 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     Vector<double>       cell_rhs_streams (dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
+    unsigned int i_face = GeometryInfo<dim>::faces_per_cell - 1; // top face id
+
     double QSTRM = 0;
     double SUMA_AREA = 0;
     //int dbg_coounter = 0;
@@ -552,67 +553,55 @@ void Streams<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
-            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
-                if(cell->face(i_face)->at_boundary()){
-                    bool isfacetop = false;
-                    for (unsigned int jj = 0; jj < top_boundary_ids.size(); ++jj){
-                        if (top_boundary_ids[jj] == static_cast<int>(cell->face(i_face)->boundary_id())){
-                            isfacetop = true;
-                            break;
-                        }
-                    }
+            if(cell->face(i_face)->at_boundary()){
+                const MappingQ1<dim-1> mapping;
+                setup_cell(cell->face(i_face), tria);
+                std::vector<double> xc, yc, Qface;
+                std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
+                std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
+                // We have to use the correct order of vertices which is not like dealii vertex numbering
 
-                    if (isfacetop){
-                        const MappingQ1<dim-1> mapping;
-                        setup_cell(cell->face(i_face), tria);
-                        std::vector<double> xc, yc, Qface;
-                        std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
-                        std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
-                        // We have to use the correct order of vertices which is not like dealii vertex numbering
+                for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
+                    xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
+                    yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
+                }
+                Point<dim> cell_barycenter = cell->barycenter();
 
-                        for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
-                            xface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[0];
-                            yface[jj] = cell->face(i_face)->vertex(v_nmb[jj])[1];
-                        }
-                        Point<dim> cell_barycenter = cell->barycenter();
-
-                        //print_poly_matlab(xface,yface);
-                        //std::cout << dbg_coounter++ << std::endl;
-                        double ar;
-                        bool tf = get_stream_recharge(xc,yc,Qface,
-                                                      xface, yface,
-                                                      cell_barycenter,
-                                                      ar);
-                        SUMA_AREA += ar;
-                        if (tf){ // if this cell intersects a stream
-                            cell_rhs_streams = 0;
-                            // construct one point quadrature using the centroid of the intersected area
-                            for (unsigned int k = 0; k < xc.size(); ++k){
-                                Point<dim-1> quad_point;
-                                quad_point[0] = xc[k]; quad_point[1] = yc[k];
-                                Point<dim-1> unit_mid_point;
-                                bool mapping_done = try_mapping<dim-1>(quad_point, unit_mid_point,
-                                                                       tria.begin_active(), mapping);
-                                if (mapping_done){
-                                    double weight = 1.0;
-                                    Quadrature<dim-1>stream_quad(unit_mid_point);
-                                    FEFaceValues<dim>fe_face_stream_values(fe, stream_quad, update_values | update_quadrature_points);
-                                    fe_face_stream_values.reinit(cell, i_face);
-                                    for (unsigned int q_point = 0; q_point < stream_quad.size(); ++q_point){
-                                        for (unsigned int j = 0; j < dofs_per_cell; ++j){
-                                            double Q_temp = weight*Qface[k]*fe_face_stream_values.shape_value(j,q_point);
-                                            cell_rhs_streams(j) += Q_temp * stream_multiplier;
-                                            QSTRM += Q_temp * stream_multiplier;
-                                        }
-                                    }
+                //print_poly_matlab(xface,yface);
+                //std::cout << dbg_coounter++ << std::endl;
+                double ar;
+                bool tf = get_stream_recharge(xc,yc,Qface,
+                                              xface, yface,
+                                              cell_barycenter,
+                                              ar);
+                SUMA_AREA += ar;
+                if (tf){ // if this cell intersects a stream
+                    cell_rhs_streams = 0;
+                    // construct one point quadrature using the centroid of the intersected area
+                    for (unsigned int k = 0; k < xc.size(); ++k){
+                        Point<dim-1> quad_point;
+                        quad_point[0] = xc[k]; quad_point[1] = yc[k];
+                        Point<dim-1> unit_mid_point;
+                        bool mapping_done = try_mapping<dim-1>(quad_point, unit_mid_point,
+                                                               tria.begin_active(), mapping);
+                        if (mapping_done){
+                            double weight = 1.0;
+                            Quadrature<dim-1>stream_quad(unit_mid_point);
+                            FEFaceValues<dim>fe_face_stream_values(fe, stream_quad, update_values | update_quadrature_points);
+                            fe_face_stream_values.reinit(cell, i_face);
+                            for (unsigned int q_point = 0; q_point < stream_quad.size(); ++q_point){
+                                for (unsigned int j = 0; j < dofs_per_cell; ++j){
+                                    double Q_temp = weight*Qface[k]*fe_face_stream_values.shape_value(j,q_point);
+                                    cell_rhs_streams(j) += Q_temp * stream_multiplier;
+                                    QSTRM += Q_temp * stream_multiplier;
                                 }
                             }
-                            cell->get_dof_indices (local_dof_indices);
-                            constraints.distribute_local_to_global(cell_rhs_streams,
-                                                                   local_dof_indices,
-                                                                   system_rhs);
                         }
                     }
+                    cell->get_dof_indices (local_dof_indices);
+                    constraints.distribute_local_to_global(cell_rhs_streams,
+                                                           local_dof_indices,
+                                                           system_rhs);
                 }
             }
         }
@@ -630,49 +619,48 @@ void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulatio
     //ine_Tree stream_tree;
     //stream_tree.insert(stream_triangles.begin(), stream_triangles.end());
 
+    unsigned int i_face = GeometryInfo<dim>::faces_per_cell - 1;
+
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
     cell = triangulation.begin_active(),
     endc = triangulation.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
-            for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
-                if(cell->face(i_face)->at_boundary() && cell->face(i_face)->boundary_id() == GeometryInfo<dim>::faces_per_cell-1){
-                    std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
-                    std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
-                    for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
-                        xface[jj] = cell->face(i_face)->vertex(jj)[0];
-                        yface[jj] = cell->face(i_face)->vertex(jj)[1];
-                    }
+            if(cell->face(i_face)->at_boundary()){
+                std::vector<double> xface(GeometryInfo<dim>::vertices_per_face);
+                std::vector<double> yface(GeometryInfo<dim>::vertices_per_face);
+                for (unsigned int jj = 0; jj < GeometryInfo<dim>::vertices_per_face; ++jj){
+                    xface[jj] = cell->face(i_face)->vertex(jj)[0];
+                    yface[jj] = cell->face(i_face)->vertex(jj)[1];
+                }
 
-                    Point<dim> cell_barycenter = cell->barycenter();
-                    // Search for river segments near this cell
-                    const double query_pt[2] = {cell_barycenter[0], cell_barycenter[1]};
-                    std::vector<std::pair<size_t,double> > ret_matches;
-                    nanoflann::SearchParams params;
-                    const int nMatches = streamIndex->radiusSearch(
-                            &query_pt[0], diameter_search, ret_matches, params);
-                    bool tf = false;
-                    if (nMatches > 0){
-                        for (int i = 0; i < nMatches; ++i){
-                            double d_xc, d_yc;
-                            try {
-                                double area = polyXpoly(xface, yface,
-                                                        Xpoly[ret_matches[i].first],
-                                                        Ypoly[ret_matches[i].first],
-                                                        d_xc, d_yc);
-                                if (area > 0.1){
-                                    tf = true;
-                                    break;
-                                }
-                            } catch (...){
-                                std::cout << "Boost failed to find intersection" << std::endl;
+                Point<dim> cell_barycenter = cell->barycenter();
+                // Search for river segments near this cell
+                const double query_pt[2] = {cell_barycenter[0], cell_barycenter[1]};
+                std::vector<std::pair<size_t,double> > ret_matches;
+                nanoflann::SearchParams params;
+                const int nMatches = streamIndex->radiusSearch(
+                        &query_pt[0], diameter_search, ret_matches, params);
+                bool tf = false;
+                if (nMatches > 0){
+                    for (int i = 0; i < nMatches; ++i){
+                        double d_xc, d_yc;
+                        try {
+                            double area = polyXpoly(xface, yface,
+                                                    Xpoly[ret_matches[i].first],
+                                                    Ypoly[ret_matches[i].first],
+                                                    d_xc, d_yc);
+                            if (area > 0.1){
+                                tf = true;
+                                break;
                             }
+                        } catch (...){
+                            std::cout << "Boost failed to find intersection" << std::endl;
                         }
                     }
-
-                    if (tf){
-                        cell->set_refine_flag ();
-                    }
+                }
+                if (tf){
+                    cell->set_refine_flag ();
                 }
             }
         }
