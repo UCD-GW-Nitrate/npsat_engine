@@ -973,7 +973,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     int dbg_cnt = 0;
     pcout << "Update Mesh elevation..." << std::endl;
     MPI_Barrier(mpi_communicator);
-    std::cout << "Rank " << my_rank << " is here 0" << std::endl;
+    //std::cout << "Rank " << my_rank << " is here 0" << std::endl;
     std::deque<int> topo_order;
     boost::topological_sort(MeshGraph, std::front_inserter(topo_order));
 
@@ -983,7 +983,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 	//	}
 	//}
     MPI_Barrier(mpi_communicator);
-	std::cout << "Rank " << my_rank << " is here 1" << std::endl;
+	//std::cout << "Rank " << my_rank << " is here 1" << std::endl;
 
     while (true){
         MPI_Barrier(mpi_communicator);
@@ -1165,7 +1165,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
                 }
             }
         }
-        std::cout << "Rank " << my_rank << " is here 2" << std::endl;
+        //std::cout << "Rank " << my_rank << " is here 2" << std::endl;
         MPI_Barrier(mpi_communicator);
 
 
@@ -1240,7 +1240,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
             return;
         }
 
-        std::cout << "Rank " << my_rank << " is here 3" << std::endl;
+        //std::cout << "Rank " << my_rank << " is here 3" << std::endl;
         //copy unknown dofs from map to vector
         for (unsigned int iproc = 0; iproc < n_proc; ++iproc)
             dof_ask[iproc].clear();
@@ -1277,7 +1277,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
             }
         }
 
-        std::cout << "Rank " << my_rank << " is here 4" << std::endl;
+        //std::cout << "Rank " << my_rank << " is here 4" << std::endl;
         std::vector<int> reply_size(n_proc);
         Send_receive_size(static_cast<unsigned int>(dof_ask_reply[my_rank].size()), n_proc, reply_size, mpi_communicator);
         Sent_receive_data<int>(dof_ask_reply, reply_size, my_rank, mpi_communicator, MPI_INT);
@@ -1303,7 +1303,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
 
     // After we have finished with all updates in the z structure we have to copy the---------------------------------------
     // new values to the distributed vector
-    std::cout << "Rank " << my_rank << " is here 5" << std::endl;
+    //std::cout << "Rank " << my_rank << " is here 5" << std::endl;
     for (it = PointsMap.begin(); it != PointsMap.end(); ++it){
         std::vector<Zinfo>::iterator itz = it->second.Zlist.begin();
         for (; itz != it->second.Zlist.end(); ++itz){
@@ -1330,7 +1330,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
     //move the actual vertices ------------------------------------------------
     move_vertices(mesh_dof_handler, mesh_vertices);
 
-    std::cout << "Rank " << my_rank << " is here 6" << std::endl;
+    //std::cout << "Rank " << my_rank << " is here 6" << std::endl;
 
     std::vector<bool> locally_owned_vertices = triangulation.get_used_vertices();
     typename parallel::distributed::Triangulation<dim>::active_cell_iterator
@@ -1344,7 +1344,7 @@ void Mesh_struct<dim>::updateMeshElevation(DoFHandler<dim>& mesh_dof_handler,
         }
     }
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
-    std::cout << "Rank " << my_rank << " is here 7" << std::endl;
+    //std::cout << "Rank " << my_rank << " is here 7" << std::endl;
 }
 
 template <int dim>

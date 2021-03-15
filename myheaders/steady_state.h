@@ -620,7 +620,7 @@ void GWFLOW<dim>::output_xyz_top(int iter, std::string output_file){
     top_stream_file << solution_points.size() << std::endl;
     for (it = solution_points.begin(); it != solution_points.end(); ++it){
         for (unsigned int idim = 0; idim < dim; idim++){
-            top_stream_file <<  std::setprecision(15) << it->second.first[dim] << " ";
+            top_stream_file <<  std::setprecision(15) << it->second.first[idim] << " ";
         }
         top_stream_file << std::setprecision(15) << it->second.second << std::endl;
     }
