@@ -220,19 +220,18 @@ bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) c
             t = (pp[1] - Pnts[iSeg][1])/(Pnts[iSeg+1][1] - Pnts[iSeg][1]);
         }
 
+        dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
+
         if (std::abs(t) < 0.001){
-            dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
             if (dst_t < 0.1){
                 t = 0.00000001;
                 dst_t = 0;
             }
-
         }
         else if (std::abs(t-1) < 0.001){
             double dst = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
             if (dst < 0.1){
                 t = 0.99999999;
-                dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
             }
         }
 
