@@ -45,7 +45,7 @@ subsection B. Geometry  ========================================
     # a----------------------------------
     # Top elevation function must be either a single value
     # or the name of a file
-    set a Top elevation function    = 50
+    set a Top elevation function    = Top_test02_v1.npsat
 
     # b----------------------------------
     # Bottom elevation function must be either a single value
@@ -95,11 +95,11 @@ subsection C. Discretization ===================================
 
   # c----------------------------------
   # The number of initial refinements
-  set c Initial Refinement      = 2
+  set c Initial Refinement      = 0
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 0
+  set d Well Refinement         = 4
 
   # e----------------------------------
   # The number of initial refinements around the Streams
@@ -107,7 +107,7 @@ subsection C. Discretization ===================================
 
   # f----------------------------------
   # The number of initial refinements on the top (water table)
-  set f Top Refinement                  = 0
+  set f Top Refinement                  = 2
 
   # g----------------------------------
   # The number of initial refinements for the remaining boundaries

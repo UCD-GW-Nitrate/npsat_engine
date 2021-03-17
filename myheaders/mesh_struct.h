@@ -149,6 +149,18 @@ public:
                           MPI_Comm&  mpi_communicator,
                           ConditionalOStream pcout);
 
+    void updateMeshStruct1(DoFHandler<dim>& mesh_dof_handler,
+                          FESystem<dim>& mesh_fe,
+                          AffineConstraints<double>& mesh_constraints,
+                          IndexSet& mesh_locally_owned,
+                          IndexSet& mesh_locally_relevant,
+                          TrilinosWrappers::MPI::Vector& mesh_vertices,
+                          TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
+                          TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                          TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
+                          MPI_Comm&  mpi_communicator,
+                          ConditionalOStream pcout);
+
     //! Once the #PointsMap::T and #PointsMap::B have been set to a new elevation
     //! we can use this method to update the z elevations of the
     //! Mesh structure. Then the updated elevations will be transfered to the mesh.
@@ -747,6 +759,30 @@ void Mesh_struct<dim>::updateMeshStruct(DoFHandler<dim>& mesh_dof_handler,
     pcout << "Max time spent: " << elapsed_secs << " sec on Updating XYZ" << std::endl;
     //std::cout << "====================================================" << std::endl;
     MPI_Barrier(mpi_communicator);
+}
+
+template<int dim>
+void Mesh_struct<dim>::updateMeshStruct1(DoFHandler<dim>& mesh_dof_handler,
+                       FESystem<dim>& mesh_fe,
+                       AffineConstraints<double>& mesh_constraints,
+                       IndexSet& mesh_locally_owned,
+                       IndexSet& mesh_locally_relevant,
+                       TrilinosWrappers::MPI::Vector& mesh_vertices,
+                       TrilinosWrappers::MPI::Vector& distributed_mesh_vertices,
+                       TrilinosWrappers::MPI::Vector& mesh_Offset_vertices,
+                       TrilinosWrappers::MPI::Vector& distributed_mesh_Offset_vertices,
+                       MPI_Comm&  mpi_communicator,
+                       ConditionalOStream pcout){
+
+    typename DoFHandler<dim>::active_cell_iterator
+            cell = mesh_dof_handler.begin_active(),
+            endc = mesh_dof_handler.end();
+    for (; cell != endc; ++cell){
+        if (cell->is_locally_owned()){
+
+        }
+    }
+
 }
 
 template <int dim>

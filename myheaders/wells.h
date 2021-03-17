@@ -399,6 +399,7 @@ void Well_Set<dim>::flag_cells_for_refinement(parallel::distributed::Triangulati
     endc = triangulation.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
+            std::cout << cell->barycenter() << std::endl;
             std::vector<int> well_id_in_cell;
             std::vector<double> xp; std::vector<double> yp;
             if (dim == 2){
@@ -821,6 +822,8 @@ template<int dim>
 bool Well_Set<dim>::search4NearbyWells(double x, double y, double searchRadius,
                                        std::vector<int>& ids){
     searchRadius = searchRadius * searchRadius; // Nanoflann requires the square distance
+    if (dim == 2)
+        y = 0;
     const double query_pt[2] = {x, y};
     std::vector<std::pair<size_t,double> > ret_matches;
     nanoflann::SearchParams params;

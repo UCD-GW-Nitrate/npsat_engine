@@ -323,5 +323,11 @@ AquiferProperties<dim>::AquiferProperties(){
     have_streams = false;
 }
 
+template <int dim>
+struct PZ {
+    Point<dim> p;
+    double Znew;
+};
+
 
 #endif // DSIMSTRUCTS_H

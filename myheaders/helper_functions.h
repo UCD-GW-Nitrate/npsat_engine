@@ -605,9 +605,9 @@ void refineTop(parallel::distributed::Triangulation<dim>& triangulation, bool re
         if (cell->is_locally_owned()){
             for (unsigned int i_face=0; i_face < GeometryInfo<dim>::faces_per_cell; ++i_face){
                 if (cell->face(i_face)->at_boundary()){
-                    if (cell->face(i_face)->boundary_id() == GeometryInfo<dim>::faces_per_cell-1 && refine_top)
+                    if (i_face == GeometryInfo<dim>::faces_per_cell-1 && refine_top)
                         cell->set_refine_flag ();
-                    if (cell->face(i_face)->boundary_id() != GeometryInfo<dim>::faces_per_cell-1 && refine_bnd)
+                    if (i_face != GeometryInfo<dim>::faces_per_cell-1 && refine_bnd)
                         cell->set_refine_flag ();
                 }
             }

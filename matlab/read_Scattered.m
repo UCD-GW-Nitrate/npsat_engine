@@ -14,30 +14,10 @@ interp_type = fgetl(fid);
 if strcmp(interp_type, 'SCATTERED')
     out.info.TYPE = fgetl(fid);
     out.info.MODE = fgetl(fid);
-    N = fscanf(fid, '%d %d\n', 2);
+    N = fscanf(fid, '%d %d %d\n', 3);
     
-    frmt ='%f';
-    for ii = 1:PDIM-1
-        frmt =[frmt ' %f']; 
-    end
-
-    for ii = 1:N(2)
-        frmt = [frmt ' %f'];
-    end
-    frmt = [frmt '\n'];
-    out.p = nan(N(1), PDIM);
-    out.v = nan(N(1), N(2));
-    
-    for ii = 1:N(1)
-        temp = fscanf(fid, frmt, N(2)+PDIM);
-        out.p(ii,:) = [temp(1:PDIM)'];
-        ll = [];
-        for jj = 1:N(2)
-            ll = [ll temp(jj+2)]; 
-        end
-        out.v(ii,:) = ll;
-    end
-    
+    out.Data = cell2mat(textscan(fid, repmat('%f ',1, PDIM + N(2)), N(1)));
+    out.TR = cell2mat(textscan(fid, '%f %f %f', N(3))) + 1;
 else
     out = [];
 end
