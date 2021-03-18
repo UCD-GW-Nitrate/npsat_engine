@@ -239,9 +239,9 @@ void GWFLOW<dim>::assemble(){
     endc = dof_handler.end();
     for (; cell!=endc; ++cell){
         if (cell->is_locally_owned()){
-            if (Point<dim>(322356, 3.98326e+06, 201.809).distance(cell->center()) < 10){
-                print_cell_coords<dim>(cell);
-            }
+            //if (Point<dim>(322356, 3.98326e+06, 201.809).distance(cell->center()) < 10){
+            //    print_cell_coords<dim>(cell);
+            //}
             cell_matrix = 0;
             cell_rhs = 0;
             fe_values.reinit (cell);

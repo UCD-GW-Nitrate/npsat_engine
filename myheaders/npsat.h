@@ -351,10 +351,10 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
     for (const auto &cell : mesh_dof_handler.active_cell_iterators()){
         if (cell->is_locally_owned()){
             bool print_this_cell = false;
-            if (Point<dim>(322356, 3.98326e+06, 100).distance(cell->center()) < 10) {
-                print_this_cell = true;
-                std::cout << my_rank << "----------------" << std::endl;
-            }
+            //if (Point<dim>(322356, 3.98326e+06, 100).distance(cell->center()) < 10) {
+            //    print_this_cell = true;
+            //    std::cout << my_rank << "----------------" << std::endl;
+            //}
             fe_mesh_points.reinit(cell);
             cell->get_dof_indices (cell_dof_indices);
             for (unsigned int idof = 0; idof < mesh_fe.base_element(0).dofs_per_cell; ++idof){
@@ -400,16 +400,15 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
                         double PointBot = AQProps.bottom_elevation.interpolate(pz.p);
                         double newElev = PointTop * coord/100.0 + PointBot*(1 - coord/100.0);
                         double dz = newElev - coord;
-                        if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(pz.p[0], pz.p[1])) < 10){
-                            std::cout << std::fixed << std::setprecision(3)
-                                      << "dof: " << cell_dof_indices[support_point_index]
-                                      << ", X: " << pz.p[0] << ", Y: " << pz.p[1]
-                                      << ", coord: " << coord
-                                      << ", PointTop: " << PointTop
-                                      << ", PointBot: " << PointBot
-                                      << ", newElev: " << newElev << std::endl;
-
-                        }
+                        //if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(pz.p[0], pz.p[1])) < 10){
+                        //    std::cout << std::fixed << std::setprecision(3)
+                        //              << "dof: " << cell_dof_indices[support_point_index]
+                        //              << ", X: " << pz.p[0] << ", Y: " << pz.p[1]
+                        //              << ", coord: " << coord
+                        //              << ", PointTop: " << PointTop
+                        //              << ", PointBot: " << PointBot
+                        //              << ", newElev: " << newElev << std::endl;
+                        //}
                         distributed_mesh_Offset_vertices[cell_dof_indices[support_point_index]] = dz;
                         distributed_mesh_vertices[cell_dof_indices[support_point_index]] = newElev;
                         pz.Znew = newElev;
@@ -443,9 +442,9 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
                 Point<dim> &v=cell->vertex(vertex_no);
                 for (unsigned int dir=0; dir < dim; ++dir){
                     v(dir) = mesh_vertices(cell->vertex_dof_index(vertex_no, dir));
-                    if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(v[0], v[1])) < 10){
-                        std::cout << "Assigned: " << v(dir) << std::endl;
-                    }
+                    //if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(v[0], v[1])) < 10){
+                    //    std::cout << "Assigned: " << v(dir) << std::endl;
+                    //}
                 }
             }
         }
@@ -526,7 +525,7 @@ void NPSAT<dim>::solve_refine(){
 
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
-            pcout << "      Updateting Mesh ..." <<std::endl;
+            pcout << "      Updating Mesh ..." <<std::endl;
             newTopFnc.clear();
             newTopFnc.resize(1);
             if (!meshConform) {
