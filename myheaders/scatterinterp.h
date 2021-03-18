@@ -87,6 +87,10 @@ public:
      */
     //void set_edge_points(Point<dim> a, Point<dim> b);
 
+    void SetScalarData(std::map<int,Point<dim>>& Points,
+                       std::vector<std::vector<int>>& Elements,
+                       SCI_METHOD method);
+
 private:
 
     //! this is a container to hold the triangulation of the 2D scattered data
@@ -355,6 +359,102 @@ void ScatterInterp<dim>::get_data(std::string filename){
             interpIndex->buildIndex();
         }
     }
+}
+
+template <int dim>
+void ScatterInterp<dim>::SetScalarData(std::map<int,Point<dim>>& Points,
+                                       std::vector<std::vector<int>>& Elements,
+                                       SCI_METHOD method){
+    Ndata = 1;
+    Nlayers = 1;
+    sci_type = SCI_TYPE::DIM2;
+    Npnts = Points.size();
+    Ntris = Elements.size();
+    sci_methodXY = method;
+
+    // Set the vertices
+    std::map<int, int> dofIndex;
+    std::map<int, int>::iterator it;
+    typename std::map<int,Point<dim> >::iterator itTop;
+    int i = 0;
+    for (itTop = Points.begin(); itTop != Points.end(); ++itTop){
+        dofIndex.insert(std::pair<int,int>(itTop->first,i));
+        Point<dim> p;
+        std::vector<double> v;
+        p[0] = itTop->second[0];
+        if (dim == 3)
+            p[1] = itTop->second[1];
+        Vertices.push_back(p);
+        v.push_back(itTop->second[dim-1]);
+        Data.push_back(v);
+        i++;
+    }
+
+    // Set the elements
+    double bcx, bcy;
+    Point<dim> A, B, C;
+    PointId pid;
+    std::vector<int> id(dim);
+    for (unsigned int i = 0; i < Elements.size(); ++i){
+        bcx = 0;
+        bcy = 0;
+        int ia,ib,ic;
+        it = dofIndex.find(Elements[i][0]);
+        if (it == dofIndex.end()){
+            std::cout << "Error while constructing  top interpolation function" << std::endl;
+        }
+        else {
+            ia = it->second;
+            id[0] = ia;
+            bcx += Vertices[ia][0];
+            if (dim == 3) A = Vertices[ia];
+        }
+        it = dofIndex.find(Elements[i][1]);
+        if (it == dofIndex.end()) {
+            std::cout << "Error while constructing  top interpolation function" << std::endl;
+        }
+        else {
+            ib = it->second;
+            id[1] = ib;
+            bcx += Vertices[ib][0];
+            if (dim == 3) B = Vertices[ib];
+        }
+        if (dim == 3){
+            it = dofIndex.find(Elements[i][2]);
+            if (it == dofIndex.end()) {
+                std::cout << "Error while constructing  top interpolation function" << std::endl;
+            }
+            else {
+                ic = it->second;
+                id[2] = ic;
+                bcx += Vertices[ic][0];
+                if (dim == 3) C = Vertices[ic];
+                bcx = bcx/3.0;
+                bcy = (Vertices[ia][1] + Vertices[ib][1] + Vertices[ic][1])/3.0;
+            }
+        }
+        else{
+            bcx = bcx/2.0;
+        }
+        triangulation.push_back(id);
+        if (dim == 3){
+            pid.x = bcx;
+            pid.y = bcy;
+            double area = triangle_area(A,B,C, true);
+            triangleArea.push_back(area);
+        }
+        else if (dim == 2){
+            pid.x = bcx;
+            pid.y = 0;
+        }
+        pid.id = i;
+        interpCloud.pts.push_back(pid);
+    }
+    interpIndex = std::shared_ptr<pointid_kd_tree>(
+            new pointid_kd_tree (2, interpCloud,
+                                 nanoflann::KDTreeSingleIndexAdaptorParams(10)));
+    interpIndex->buildIndex();
+
 }
 /*
 template <int dim>

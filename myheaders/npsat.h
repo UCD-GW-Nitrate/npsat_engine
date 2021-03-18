@@ -99,6 +99,7 @@ private:
     std::shared_ptr<pointVector_kd_tree>        topCloudIndex;
     PointVectorCloud                            botCloud;
     std::shared_ptr<pointVector_kd_tree>        botCloudIndex;
+    std::vector<ScatterInterp<dim>>             newTopFnc;
 
 
 
@@ -120,6 +121,7 @@ private:
     void make_grid();
     //void create_dim_1_grids();
     void create_top_bot_functions();
+    void create_top_scatter_func();
     void flag_cells_for_refinement();
     void print_mesh();
     void save();
@@ -128,6 +130,7 @@ private:
     bool meshConform = false;
 
     void UpdateNonConformingElevation();
+    bool useSolution2UpdateMesh = false;
 };
 
 template <int dim>
@@ -266,8 +269,7 @@ void NPSAT<dim>::make_grid(){
         if (!meshConform){
             UpdateNonConformingElevation();
         }
-
-        if (meshConform){
+        else{
             mesh_struct.updateMeshStruct(mesh_dof_handler,
                                          mesh_fe,
                                          mesh_constraints,
@@ -307,11 +309,11 @@ void NPSAT<dim>::make_grid(){
 
 template<int dim>
 void NPSAT<dim>::UpdateNonConformingElevation() {
-    {
-        std::ofstream out("Pre_init_mesh.vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out("Pre_init_mesh.vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 
     const MappingQ1<dim> mapping;
     mesh_dof_handler.distribute_dofs(mesh_fe);
@@ -319,11 +321,14 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
     MPI_Barrier(mpi_communicator);
     mesh_locally_owned = mesh_dof_handler.locally_owned_dofs();
     DoFTools::extract_locally_relevant_dofs (mesh_dof_handler, mesh_locally_relevant);
+    //std::cout << "IsHere 1" << std::endl;
 
     mesh_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
     distributed_mesh_vertices.reinit(mesh_locally_owned, mpi_communicator);
     mesh_Offset_vertices.reinit (mesh_locally_owned, mesh_locally_relevant, mpi_communicator);
     distributed_mesh_Offset_vertices.reinit(mesh_locally_owned, mpi_communicator);
+
+    //std::cout << "IsHere 2" << std::endl;
 
     const std::vector<Point<dim> > mesh_support_points
             = mesh_fe.base_element(0).get_unit_support_points();
@@ -337,6 +342,7 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
     mesh_constraints.reinit(mesh_locally_relevant);
     DoFTools::make_hanging_node_constraints(mesh_dof_handler, mesh_constraints);
     mesh_constraints.close();
+    //std::cout << "IsHere 3" << std::endl;
 
     std::map<int, PZ<dim>> dofZnew;
     typename std::map<int, PZ<dim>>::iterator itpz;
@@ -344,6 +350,11 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
 
     for (const auto &cell : mesh_dof_handler.active_cell_iterators()){
         if (cell->is_locally_owned()){
+            bool print_this_cell = false;
+            if (Point<dim>(322356, 3.98326e+06, 100).distance(cell->center()) < 10) {
+                print_this_cell = true;
+                std::cout << my_rank << "----------------" << std::endl;
+            }
             fe_mesh_points.reinit(cell);
             cell->get_dof_indices (cell_dof_indices);
             for (unsigned int idof = 0; idof < mesh_fe.base_element(0).dofs_per_cell; ++idof){
@@ -364,10 +375,41 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
                     double coord = fe_mesh_points.quadrature_point(idof)[dir];
                     pz.p[dir] = coord;
                     if (dir == dim-1){
-                        double PointTop = AQProps.top_elevation.interpolate(pz.p);
+                        double PointTop;
+                        if (useSolution2UpdateMesh){
+                            double x = pz.p[0];
+                            double y = 0;
+                            if (dim == 3)
+                                y = pz.p[1];
+
+                            //std::vector<double> topOut;
+                            PointTop = newTopFnc[0].interpolate(pz.p);
+                            //std::cout << PointTop << std::endl;
+
+                            //interpolateVectorCloud(topCloud, topCloudIndex,
+                            //                       AQProps.top_cloud_param.Power,
+                            //                       AQProps.top_cloud_param.Radius,
+                            //                       AQProps.top_cloud_param.Threshold,
+                            //                       x,y,
+                            //                       topOut);
+                            //PointTop = topOut[1];
+                        }
+                        else{
+                            PointTop = AQProps.top_elevation.interpolate(pz.p);
+                        }
                         double PointBot = AQProps.bottom_elevation.interpolate(pz.p);
                         double newElev = PointTop * coord/100.0 + PointBot*(1 - coord/100.0);
                         double dz = newElev - coord;
+                        if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(pz.p[0], pz.p[1])) < 10){
+                            std::cout << std::fixed << std::setprecision(3)
+                                      << "dof: " << cell_dof_indices[support_point_index]
+                                      << ", X: " << pz.p[0] << ", Y: " << pz.p[1]
+                                      << ", coord: " << coord
+                                      << ", PointTop: " << PointTop
+                                      << ", PointBot: " << PointBot
+                                      << ", newElev: " << newElev << std::endl;
+
+                        }
                         distributed_mesh_Offset_vertices[cell_dof_indices[support_point_index]] = dz;
                         distributed_mesh_vertices[cell_dof_indices[support_point_index]] = newElev;
                         pz.Znew = newElev;
@@ -386,14 +428,14 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
     // The compress sends the data to the processors that owns the data
 //distributed_mesh_vertices.compress(VectorOperation::add);
 //distributed_mesh_Offset_vertices.compress(VectorOperation::insert);
+    //std::cout << "IsHere 4" << std::endl;
 
-
-    mesh_constraints.distribute(distributed_mesh_Offset_vertices);
+    //mesh_constraints.distribute(distributed_mesh_Offset_vertices);
     mesh_Offset_vertices = distributed_mesh_Offset_vertices;
 
-    mesh_constraints.distribute(distributed_mesh_vertices);
+    //mesh_constraints.distribute(distributed_mesh_vertices);
     mesh_vertices = distributed_mesh_vertices;
-
+    //std::cout << "IsHere 5" << std::endl;
 
     for (const auto &cell : mesh_dof_handler.active_cell_iterators()){
         if (cell->is_locally_owned()){
@@ -401,16 +443,20 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
                 Point<dim> &v=cell->vertex(vertex_no);
                 for (unsigned int dir=0; dir < dim; ++dir){
                     v(dir) = mesh_vertices(cell->vertex_dof_index(vertex_no, dir));
+                    if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(v[0], v[1])) < 10){
+                        std::cout << "Assigned: " << v(dir) << std::endl;
+                    }
                 }
             }
         }
     }
 
-    {
-        std::ofstream out("Post_init_mesh.vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //std::cout << "IsHere 6" << std::endl;
+    //{
+    //    std::ofstream out("Post_init_mesh.vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 }
 
 template <int dim>
@@ -444,6 +490,7 @@ void NPSAT<dim>::solve_refine(){
     printing_flags.print_vtk = AQProps.print_solution_vtk;
     printing_flags.print_velocity = AQProps.print_velocity_cloud;
     printing_flags.print_BND = AQProps.print_bnd_cond;
+    useSolution2UpdateMesh = true;
 
 
 
@@ -480,44 +527,56 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             pcout << "      Updateting Mesh ..." <<std::endl;
-            create_top_bot_functions();
+            newTopFnc.clear();
+            newTopFnc.resize(1);
+            if (!meshConform) {
+                create_top_scatter_func();
+            }
+            else
+                create_top_bot_functions();
 
             //create_dim_1_grids();
             if (iter < AQProps.refine_param.MaxRefinement)
                 flag_cells_for_refinement();
             do_refinement1();
 
-            mesh_struct.prefix = "iter" + std::to_string(iter);
-            mesh_struct.updateMeshStruct(mesh_dof_handler,
-                                         mesh_fe,
-                                         mesh_constraints,
-                                         mesh_locally_owned,
-                                         mesh_locally_relevant,
-                                         mesh_vertices,
-                                         distributed_mesh_vertices,
-                                         mesh_Offset_vertices,
-                                         distributed_mesh_Offset_vertices,
-                                         mpi_communicator, pcout);
-            MPI_Barrier(mpi_communicator);
-            //mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
-            mesh_struct.assign_top_bottom(topCloud, topCloudIndex,
-                                          AQProps.top_cloud_param.Power,
-                                          AQProps.top_cloud_param.Radius,
-                                          botCloud, botCloudIndex,
-                                          AQProps.bot_cloud_param.Power,
-                                          AQProps.bot_cloud_param.Radius,
-                                          AQProps.top_cloud_param.Threshold,
-                                          pcout, mpi_communicator);
-            MPI_Barrier(mpi_communicator);
-            mesh_struct.updateMeshElevation(mesh_dof_handler,
-                                            triangulation,
-                                            mesh_constraints,
-                                            mesh_vertices,
-                                            distributed_mesh_vertices,
-                                            mesh_Offset_vertices,
-                                            distributed_mesh_Offset_vertices,
-                                            mpi_communicator,
-                                            pcout);
+            if (!meshConform){
+                UpdateNonConformingElevation();
+            }
+            else{
+                mesh_struct.prefix = "iter" + std::to_string(iter);
+                mesh_struct.updateMeshStruct(mesh_dof_handler,
+                                             mesh_fe,
+                                             mesh_constraints,
+                                             mesh_locally_owned,
+                                             mesh_locally_relevant,
+                                             mesh_vertices,
+                                             distributed_mesh_vertices,
+                                             mesh_Offset_vertices,
+                                             distributed_mesh_Offset_vertices,
+                                             mpi_communicator, pcout);
+                MPI_Barrier(mpi_communicator);
+                //mesh_struct.assign_top_bottom(top_grid, bottom_grid, pcout, mpi_communicator);
+                mesh_struct.assign_top_bottom(topCloud, topCloudIndex,
+                                              AQProps.top_cloud_param.Power,
+                                              AQProps.top_cloud_param.Radius,
+                                              botCloud, botCloudIndex,
+                                              AQProps.bot_cloud_param.Power,
+                                              AQProps.bot_cloud_param.Radius,
+                                              AQProps.top_cloud_param.Threshold,
+                                              pcout, mpi_communicator);
+                MPI_Barrier(mpi_communicator);
+                mesh_struct.updateMeshElevation(mesh_dof_handler,
+                                                triangulation,
+                                                mesh_constraints,
+                                                mesh_vertices,
+                                                distributed_mesh_vertices,
+                                                mesh_Offset_vertices,
+                                                distributed_mesh_Offset_vertices,
+                                                mpi_communicator,
+                                                pcout);
+            }
+
             MPI_Barrier(mpi_communicator);
             //print_mesh();
 
@@ -655,6 +714,148 @@ void NPSAT<dim>::create_dim_1_grids(){
     //}
 }
 */
+
+template<int dim>
+void NPSAT<dim>::create_top_scatter_func(){
+    unsigned int my_rank = Utilities::MPI::this_mpi_process(mpi_communicator);
+    unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
+    std::map<int,Point<dim> > topPoints;
+    typename std::map<int,Point<dim> >::iterator itTop;
+    std::vector<std::vector<int>> Elements;
+
+    QTrapez<dim-1> face_trapez_formula;
+    FEFaceValues<dim> fe_face_values(fe, face_trapez_formula, update_values);
+    std::vector< double > values(face_trapez_formula.size());
+    std::vector<unsigned int> face_dof_indices(fe.dofs_per_face);
+
+    unsigned int iTopface = GeometryInfo<dim>::faces_per_cell-1;
+
+    for(const auto &cell : dof_handler.active_cell_iterators()){
+        if (cell->is_locally_owned()){
+            if(cell->face(iTopface)->at_boundary()){
+                fe_face_values.reinit (cell, iTopface);
+                cell->face(iTopface)->get_dof_indices(face_dof_indices);
+                fe_face_values.get_function_values(locally_relevant_solution, values);
+                for (unsigned int ii = 0; ii < face_trapez_formula.size(); ++ii){
+                    itTop = topPoints.find(face_dof_indices[ii]);
+                    if (itTop == topPoints.end()){
+                        Point<dim> temp_point_dim = cell->face(iTopface)->vertex(ii);
+                        temp_point_dim[dim-1] = values[ii];
+                        //std::cout << temp_point_dim << std::endl;
+                        topPoints.insert(std::pair<int, Point<dim> >(face_dof_indices[ii], temp_point_dim));
+                    }
+                }
+                if (dim == 2){
+                    std::vector<int>tmp;
+                    tmp.push_back(face_dof_indices[0]);
+                    tmp.push_back(face_dof_indices[1]);
+                    Elements.push_back(tmp);
+                }
+                else if (dim == 3){
+                    std::vector<int>tmp;
+                    tmp.push_back(face_dof_indices[0]);
+                    tmp.push_back(face_dof_indices[1]);
+                    tmp.push_back(face_dof_indices[2]);
+                    Elements.push_back(tmp);
+                    std::vector<int>tmp1;
+                    tmp1.push_back(face_dof_indices[1]);
+                    tmp1.push_back(face_dof_indices[3]);
+                    tmp1.push_back(face_dof_indices[2]);
+                    Elements.push_back(tmp1);
+                }
+            }
+        }
+    }
+    std::cout << "Rank: " << my_rank << " has: " << topPoints.size()
+              << " top and: " << Elements.size() << " bottom" << std::endl;
+
+    if (n_proc > 1){
+        MPI_Barrier(mpi_communicator);
+        std::vector<int> Number_of_Points;
+        std::vector<int> Number_of_Elements;
+        std::vector<std::vector<int>> doftop(n_proc);
+        std::vector<std::vector<double>> xpnt(n_proc);
+        std::vector<std::vector<double>> ypnt(n_proc);
+        std::vector<std::vector<double>> zpnt(n_proc);
+        std::vector<std::vector<int>> iA(n_proc);
+        std::vector<std::vector<int>> iB(n_proc);
+        std::vector<std::vector<int>> iC(n_proc);
+
+        for (itTop = topPoints.begin(); itTop != topPoints.end(); ++ itTop){
+            doftop[my_rank].push_back(itTop->first);
+            xpnt[my_rank].push_back(itTop->second[0]);
+            if (dim == 2){
+                zpnt[my_rank].push_back(itTop->second[1]);
+            }
+            else{
+                ypnt[my_rank].push_back(itTop->second[1]);
+                zpnt[my_rank].push_back(itTop->second[2]);
+            }
+        }
+
+        for (unsigned int i = 0; i < Elements.size(); ++i){
+            iA[my_rank].push_back(Elements[i][0]);
+            iB[my_rank].push_back(Elements[i][1]);
+            if (dim == 3)
+                iC[my_rank].push_back(Elements[i][2]);
+        }
+
+        MPI_Barrier(mpi_communicator);
+        // Send Receive points
+        Send_receive_size(static_cast<unsigned int>(doftop[my_rank].size()), n_proc, Number_of_Points, mpi_communicator);
+        Sent_receive_data<int>(doftop, Number_of_Points, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<double>(xpnt, Number_of_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        if (dim == 3)
+            Sent_receive_data<double>(ypnt, Number_of_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+        Sent_receive_data<double>(zpnt, Number_of_Points, my_rank, mpi_communicator, MPI_DOUBLE);
+
+        // Send receive the elements
+        Send_receive_size(static_cast<unsigned int>(iA[my_rank].size()), n_proc, Number_of_Elements, mpi_communicator);
+        Sent_receive_data<int>(iA, Number_of_Elements, my_rank, mpi_communicator, MPI_INT);
+        Sent_receive_data<int>(iB, Number_of_Elements, my_rank, mpi_communicator, MPI_INT);
+        if (dim == 3)
+            Sent_receive_data<int>(iC, Number_of_Elements, my_rank, mpi_communicator, MPI_INT);
+
+        // Each processors will loop through the data sent from the other processors and get the ones
+        // that is missing
+        for (unsigned int i_proc = 0; i_proc < n_proc; ++i_proc){
+            if (i_proc == my_rank)
+                continue;
+            // Get the points
+            for (unsigned int i = 0; i < doftop[i_proc].size(); ++i){
+                itTop = topPoints.find(doftop[i_proc][i]);
+                if (itTop == topPoints.end()){
+                    Point<dim> temp_point_dim;
+                    temp_point_dim[0] = xpnt[i_proc][i];
+                    if (dim == 2){
+                        temp_point_dim[1] = zpnt[i_proc][i];
+                    }
+                    else if (dim == 3){
+                        temp_point_dim[1] = ypnt[i_proc][i];
+                        temp_point_dim[2] = zpnt[i_proc][i];
+                    }
+                    //std::cout << "sent " << temp_point_dim << std::endl;
+                    topPoints.insert(std::pair<int, Point<dim> >(doftop[i_proc][i], temp_point_dim));
+                }
+            }
+
+            // Get the elements
+            for (unsigned int i = 0; i < iA[i_proc].size(); ++i){
+                std::vector<int> elem;
+                elem.push_back(iA[i_proc][i]);
+                elem.push_back(iB[i_proc][i]);
+                if (dim == 3)
+                    elem.push_back(iC[i_proc][i]);
+                Elements.push_back(elem);
+            }
+        }
+    }
+
+    std::cout << "Rank: " << my_rank << " has: " << topPoints.size()
+              << " top and: " << Elements.size() << " bottom" << std::endl;
+
+    newTopFnc[0].SetScalarData(topPoints,Elements,SCI_METHOD::LINEAR);
+}
 
 template<int dim>
 void NPSAT<dim>::create_top_bot_functions(){
@@ -857,7 +1058,7 @@ void NPSAT<dim>::create_top_bot_functions(){
 
 template <int dim>
 void NPSAT<dim>::flag_cells_for_refinement(){
-    pcout << "Flag cells for refinements" << std::endl << std::flush;
+    pcout << "Flag cells for refinement" << std::endl << std::flush;
     MPI_Barrier(mpi_communicator);
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
@@ -950,11 +1151,11 @@ void NPSAT<dim>::do_refinement1(){
 
     // Call the method before
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
-    {
-        std::ofstream out ("RefA" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("RefA" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 
     {// Apply the opposite displacement
         std::map<types::global_dof_index, bool> set_dof;
@@ -980,22 +1181,22 @@ void NPSAT<dim>::do_refinement1(){
             }
         }
     }
-    {
-        std::ofstream out ("RefB" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("RefB" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
     triangulation.communicate_locally_moved_vertices(locally_owned_vertices);
 
 
     // now the mesh should consistent as when it was first created
     // so we can hopefully refine it
     triangulation.execute_coarsening_and_refinement();
-    {
-        std::ofstream out ("RefC" + std::to_string(my_rank) + ".vtk");
-        GridOut grid_out;
-        grid_out.write_ucd(triangulation, out);
-    }
+    //{
+    //    std::ofstream out ("RefC" + std::to_string(my_rank) + ".vtk");
+    //    GridOut grid_out;
+    //    grid_out.write_ucd(triangulation, out);
+    //}
 }
 
 template <int dim>

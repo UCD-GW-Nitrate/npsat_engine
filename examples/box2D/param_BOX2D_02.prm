@@ -99,7 +99,7 @@ subsection C. Discretization ===================================
 
   # d----------------------------------
   # The number of initial refinements around the wells
-  set d Well Refinement         = 4
+  set d Well Refinement         = 2
 
   # e----------------------------------
   # The number of initial refinements around the Streams
@@ -127,7 +127,7 @@ subsection E Aquifer Properties ================================
   # a----------------------------------
   # Hydraulic conductivity along the x direction.
   # It must be either a single value or the name of a file
-  set a Hydraulic Conductivity KX = 17
+  set a Hydraulic Conductivity KX = KX_scatter_test02.npsat
 
   # b----------------------------------
   # Hydraulic conductivity along the y direction.
@@ -187,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 10
 
   # b----------------------------------
   # Tolerance of solver
@@ -206,7 +206,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 5
+  set a Max refinements iterations = 10
 
   # b----------------------------------
   # Top refinement fraction
