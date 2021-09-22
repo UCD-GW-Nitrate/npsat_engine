@@ -24,6 +24,9 @@ Nstrm = temp(1);
 for ii = 1:Nstrm
     temp = textscan(fid, frmt,1);
     Np = temp{1,1}(1);
+    if Np == 2
+        w = textscan(fid, '%f', 1);
+    end
     q = temp{1,2}(1);
     info =cell2mat(temp(3:end));
     poly = nan(Np,2);

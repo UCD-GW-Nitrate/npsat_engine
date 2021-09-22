@@ -57,7 +57,8 @@ while ~feof(fid)
     end
     if strcmp(temp(1),'f') || strcmp(temp(1),'l')
         temp1=temp(2:end);
-        MSH(cnt_el,:) = cell2mat(textscan(temp1,' %f'))';
+        tmp = cell2mat(textscan(temp1,' %f'))';
+        MSH(cnt_el,1:length(tmp)) = tmp;
         cnt_el = cnt_el + 1;
     end
     
