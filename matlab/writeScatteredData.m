@@ -1,5 +1,5 @@
 function writeScatteredData(filename, TYPE, COORDS, DATA, TR)
-%% writeScatteredData(filename, info, DATA, TR)
+%% writeScatteredData(filename, TYPE, COORDS, DATA, TR)
 %
 % Writes scattered data into the appropriate format
 % filename: is the name of the file to be written
@@ -31,7 +31,10 @@ function writeScatteredData(filename, TYPE, COORDS, DATA, TR)
 %
 % Examples
 % For 2D interpolation such as top, bottom elevation or recharge
-% writeScatteredData(filename, struct('DIM', '2D', 'TYPE', {'LINEAR'}), DATA)
+% writeScatteredData(filename, 'LINEAR', COORDS, DATA, TR)
+%
+% For 3D interpolation such as hydraulic conductivity
+% writeScatteredData(filename, {'LINEAR','NEAREST'}, COORDS, DATA, TR)
 
 
 fid = fopen(filename,'w');
