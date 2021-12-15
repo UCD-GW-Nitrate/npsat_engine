@@ -378,7 +378,7 @@ double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
                             (t <= 0.5)? Values[i][0]: Values[i+1][0];
                 }
                 else{
-                    for (unsigned int j = 1; j < Nlayers; ++j){
+                    for (int j = 1; j < Nlayers; ++j){
                         zdown = (sci_methodXY == SCI_METHOD::LINEAR)? Elevations[i][j] * (1-t) + Elevations[i+1][j]*t:
                                 (t <= 0.5)? Elevations[i][j]: Elevations[i+1][j];
                         if (p[2] <= zup && p[2] >= zdown){
