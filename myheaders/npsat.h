@@ -144,7 +144,7 @@ NPSAT<dim>::NPSAT(AquiferProperties<dim>& AQP)
     dof_handler (triangulation),
     fe (1),
     mesh_dof_handler (triangulation),
-    mesh_fe (FE_Q<dim>(1),dim),
+    mesh_fe (FE_Q<dim>(1),1),
     AQProps(AQP),
     mesh_struct(AQP.xy_thres, AQP.z_thres),
     pcout(std::cout,(Utilities::MPI::this_mpi_process(mpi_communicator) == 0))
@@ -359,66 +359,33 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
             cell->get_dof_indices (cell_dof_indices);
             for (unsigned int idof = 0; idof < mesh_fe.base_element(0).dofs_per_cell; ++idof){
                 PZ<dim> pz;
-                int x_dof;
-                for (unsigned int dir = 0; dir < dim; ++dir){
-                    unsigned int support_point_index = mesh_fe.component_to_system_index(dir, idof);
-                    int current_dof = static_cast<int>(cell_dof_indices[support_point_index]);
-                    if (dir == 0){
-                        x_dof = current_dof;
-                        itpz = dofZnew.find(x_dof);
-                        if (itpz != dofZnew.end()){
-                            //std::cout << "DOF:" << itpz->first << ": " << itpz->second.p << " | " << itpz->second.Znew << std::endl;
-                            break;
-                        }
-                    }
 
-                    double coord = fe_mesh_points.quadrature_point(idof)[dir];
-                    pz.p[dir] = coord;
-                    if (dir == dim-1){
-                        double PointTop;
-                        if (useSolution2UpdateMesh){
-                            double x = pz.p[0];
-                            double y = 0;
-                            if (dim == 3)
-                                y = pz.p[1];
-
-                            //std::vector<double> topOut;
-                            PointTop = newTopFnc[0].interpolate(pz.p);
-                            //std::cout << PointTop << std::endl;
-
-                            //interpolateVectorCloud(topCloud, topCloudIndex,
-                            //                       AQProps.top_cloud_param.Power,
-                            //                       AQProps.top_cloud_param.Radius,
-                            //                       AQProps.top_cloud_param.Threshold,
-                            //                       x,y,
-                            //                       topOut);
-                            //PointTop = topOut[1];
-                        }
-                        else{
-                            PointTop = AQProps.top_elevation.interpolate(pz.p);
-                        }
-                        double PointBot = AQProps.bottom_elevation.interpolate(pz.p);
-                        double newElev = PointTop * coord/100.0 + PointBot*(1 - coord/100.0);
-                        double dz = newElev - coord;
-                        //if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(pz.p[0], pz.p[1])) < 10){
-                        //    std::cout << std::fixed << std::setprecision(3)
-                        //              << "dof: " << cell_dof_indices[support_point_index]
-                        //              << ", X: " << pz.p[0] << ", Y: " << pz.p[1]
-                        //              << ", coord: " << coord
-                        //              << ", PointTop: " << PointTop
-                        //              << ", PointBot: " << PointBot
-                        //              << ", newElev: " << newElev << std::endl;
-                        //}
-                        distributed_mesh_Offset_vertices[cell_dof_indices[support_point_index]] = dz;
-                        distributed_mesh_vertices[cell_dof_indices[support_point_index]] = newElev;
-                        pz.Znew = newElev;
-                        dofZnew.insert(std::pair<int, PZ<dim>> (x_dof, pz) );
-                    }
-                    else{
-                        distributed_mesh_vertices[cell_dof_indices[support_point_index]] = coord;
-                        distributed_mesh_Offset_vertices[cell_dof_indices[support_point_index]] = 0;
-                    }
+                unsigned int support_point_index = mesh_fe.component_to_system_index(0, idof);
+                int current_dof = static_cast<int>(cell_dof_indices[support_point_index]);
+                itpz = dofZnew.find(current_dof);
+                if (itpz != dofZnew.end()){
+                    //std::cout << "DOF:" << itpz->first << ": " << itpz->second.p << " | " << itpz->second.Znew << std::endl;
+                    continue;
                 }
+
+                pz.p = fe_mesh_points.quadrature_point(idof);
+                double PointTop;
+
+                if (useSolution2UpdateMesh){
+                    PointTop = newTopFnc[0].interpolate(pz.p);
+                }
+                else{
+                    PointTop = AQProps.top_elevation.interpolate(pz.p);
+                }
+
+                double PointBot = AQProps.bottom_elevation.interpolate(pz.p);
+                double newElev = PointTop * pz.p[dim-1]/100.0 + PointBot*(1 - pz.p[dim-1]/100.0);
+                double dz = newElev - pz.p[dim-1];
+
+                distributed_mesh_Offset_vertices[cell_dof_indices[support_point_index]] = dz;
+                distributed_mesh_vertices[cell_dof_indices[support_point_index]] = newElev;
+                pz.Znew = newElev;
+                dofZnew.insert(std::pair<int, PZ<dim>> (current_dof, pz) );
             }
         }
     }
