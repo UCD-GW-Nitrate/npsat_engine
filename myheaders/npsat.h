@@ -407,12 +407,9 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
         if (cell->is_locally_owned()){
             for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
                 Point<dim> &v=cell->vertex(vertex_no);
-                for (unsigned int dir=0; dir < dim; ++dir){
-                    v(dir) = mesh_vertices(cell->vertex_dof_index(vertex_no, dir));
-                    //if (Point<dim-1>(322119.700000, 3983005.750000).distance(Point<dim-1>(v[0], v[1])) < 10){
-                    //    std::cout << "Assigned: " << v(dir) << std::endl;
-                    //}
-                }
+                //std::cout << v << " | ";
+                v(dim - 1) = mesh_vertices(cell->vertex_dof_index(vertex_no, 0));
+                //std::cout << v << std::endl;
             }
         }
     }
@@ -1133,15 +1130,13 @@ void NPSAT<dim>::do_refinement1(){
             if (cell->is_locally_owned()){
                 for (unsigned int vertex_no = 0; vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
                     Point<dim> &v=cell->vertex(vertex_no);
-                    for (unsigned int dir=0; dir < dim; ++dir){
-                        types::global_dof_index dof = cell->vertex_dof_index(vertex_no, dir);
-                        it_set = set_dof.find(dof);
-                        if (it_set == set_dof.end()){
-                            //std::cout << dof << ": " << v(dir) << ", " << mesh_Offset_vertices(dof) << std::endl;
-                            v(dir) = v(dir) - mesh_Offset_vertices(dof);
-                            //std::cout << v(dir) << std::endl;
-                            set_dof[dof] = true;
-                        }
+                    types::global_dof_index dof = cell->vertex_dof_index(vertex_no, 0);
+                    it_set = set_dof.find(dof);
+                    if (it_set == set_dof.end()){
+                        //std::cout << dof << ": " << v<< ", " << mesh_Offset_vertices(dof) << std::endl;
+                        v(dim-1) = v(dim-1) - mesh_Offset_vertices(dof);
+                        //std::cout << v << std::endl;
+                        set_dof[dof] = true;
                     }
                 }
             }
