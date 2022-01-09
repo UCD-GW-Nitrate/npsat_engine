@@ -17,6 +17,9 @@ function WellURF = readURFs_ichnos(filename, opt)
     topt.Ttime = 200; % [years]
     topt.Lmin = 200; %[m]
     topt.mult = 1000000;
+    topt.do_fit = false;
+    topt.exe_path;
+    topt.fitname = 'urf.dat';
     if ~isempty(opt)
         topt.aL.alpha = opt.alpha;
         topt.aL.beta = opt.beta;
@@ -31,6 +34,15 @@ function WellURF = readURFs_ichnos(filename, opt)
         end
         if isfield(opt, 'mult')
             topt.mult = opt.mult;
+        end
+        if isfield(opt, 'do_fit')
+            topt.do_fit = opt.do_fit;
+        end
+        if isfield(opt, 'exe_path')
+            topt.exe_path = opt.exe_path;
+        end
+        if isfield(opt, 'fitname')
+            topt.fitname = opt.fitname;
         end
     end
 
@@ -118,6 +130,15 @@ function WellURF = readURFs_ichnos(filename, opt)
                 %plot(urf)
                 %drawnow
                 WellURF(cnter,1).URF = urf;
+                if topt.do_fit && ex_r == 1
+                    fid = fopen(topt.fitname,'w');
+                    fprintf(fid,'%.10f\n', urf);
+                    fclose(fid);
+                    [st, cm] = system([topt.exe_path ' ' topt.fitname]);
+                    cft = textscan(strtrim(cm),'%f %f');
+                    WellURF(cnter,1).m = cft{1};
+                    WellURF(cnter,1).s = cft{2};
+                end
             else
                 WellURF(cnter,1).p_cds = pp(1,:);
                 WellURF(cnter,1).v_cds = vv(1);
