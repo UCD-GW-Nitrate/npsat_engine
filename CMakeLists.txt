@@ -63,7 +63,7 @@ One or both of the aforementioned combinations of prerequisites are not met by y
           )
 ENDIF()
 
-INCLUDE_DIRECTORIES(${GRID_INTERP})
+INCLUDE_DIRECTORIES(${GRID_INTERP} ${NANOFLAN})
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
