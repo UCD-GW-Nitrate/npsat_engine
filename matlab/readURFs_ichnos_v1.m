@@ -129,15 +129,29 @@ function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
             %drawnow
             URFs(cnter,1).URF = urf;
             if topt.do_fit && ex_r == 1
-                fitname = [topt.fitname '_' num2str(E_id) '_' num2str(S_id) '.dat'];
-                fid = fopen(fitname,'w');
-                fprintf(fid,'%.10f\n', urf);
-                fclose(fid);
-                [st, cm] = system([topt.exe_path ' ' topt.fitname]);
-                cft = textscan(strtrim(cm),'%f %f');
-                WellData(cnter,4) = cft{1};
-                WellData(cnter,5) = cft{2};
-                delete(fitname);
+                iter1 = 1;
+                hasValidfid = false;
+                while true
+                    fitname = [topt.fitname '_' num2str(E_id) '_' num2str(S_id) '_' num2str(round(10000000*rand)) '.dat'];
+                    fid1 = fopen(fitname, 'w');
+                    if fid1 >= 0
+                        hasValidfid = true;
+                        break;
+                    end
+                    iter1 = iter1 + 1
+                    if iter > 20
+                        break;
+                    end
+                end
+                if hasValidfid
+                    fprintf(fid1,'%.10f\n', urf);
+                    fclose(fid1);
+                    [st, cm] = system([topt.exe_path ' ' fitname]);
+                    cft = textscan(strtrim(cm),'%f %f');
+                    WellData(cnter,4) = cft{1};
+                    WellData(cnter,5) = cft{2};
+                    delete(fitname);
+                end
             end
             if ex_r == 2
                 WellData(cnter,4) = 0;
@@ -148,7 +162,7 @@ function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
             WellData(cnter,9) = vv(1);
         end
         cnter = cnter + 1;
-        if cnter > size(WellURF,1)
+        if cnter > size(WellData,1)
             [WellData, URFs] = allocate_space(WellData, URFs);
         end
     end
