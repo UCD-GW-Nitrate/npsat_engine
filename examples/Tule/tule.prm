@@ -8,7 +8,7 @@ subsection A. Workspace directories ============================
 
   # b----------------------------------
   # The directory where all output data will be saved.
-  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/Tule/output
+  set b Output directory = /home/giorgk/Documents/CODES/npsat_engine/examples/Tule/output2
 end
 
 
@@ -187,7 +187,7 @@ subsection G. Solver parameters ================================
   # a----------------------------------
   # Number of nonlinear iterations for solving the unconfined problem
   # The refinement will occur during the N Max refinements iterations.
-  set a Nonlinear iterations = 5
+  set a Nonlinear iterations = 4
 
   # b----------------------------------
   # Tolerance of solver
@@ -206,7 +206,7 @@ end
 subsection H. Refinement Parameters ============================
   # a----------------------------------
   # Number of maximum refinement cycles during a simulation
-  set a Max refinements iterations = 5
+  set a Max refinements iterations = 6
 
   # b----------------------------------
   # Top refinement fraction
@@ -332,7 +332,7 @@ subsection J. Output Parameters ================================
   # a----------------------------------
   # Prefix is a keyword that is used when printing the various
   # output files
-  set a Prefix = TuleRiverNew
+  set a Prefix = TuleRiver2
 
 
   subsection A. Load/Save options =---=---=---=---=---=---=
@@ -359,26 +359,31 @@ subsection J. Output Parameters ================================
     # e----------------------------------
     # Prints the velocity field cloud
     # The file name is Prefix + proc.vel
-    set e Print velocity field cloud = 0
+    set e Print velocity field cloud = 1
 
     # f----------------------------------
-    # Multiplier coefficient to increase the printed velocity precision
-    set f Velocity multiplier        = 10000
+    # It is used only if the print velocity is 1
+    # The file name is Prefix + proc.grph
+    set f Print dependency graph for cloud = 1
 
     # g----------------------------------
-    # Prints the constant head boundary condition polygons
-    # The file name is Prefix + proc.vel
-    set g Print Boundary conditions  = 0
+    # Multiplier coefficient to increase the printed velocity precision
+    set g Velocity multiplier        = 10000
 
     # h----------------------------------
-    # Prints the average velocity field
-    # The file name is Prefix + AvVelField + proc.vel
-    set h Print Average Velocity     = 0
+    # Prints the constant head boundary condition polygons
+    # The file name is Prefix + proc.vel
+    set h Print Boundary conditions  = 0
 
     # i----------------------------------
+    # Prints the average velocity field
+    # The file name is Prefix + AvVelField + proc.vel
+    set i Print Average Velocity     = 0
+
+    # j----------------------------------
     # Prints the groundwater recharge as point cloud
     # The file name is Prefix + proc.rch
-    set i Print GW Recharge          = 0
+    set j Print GW Recharge          = 0
   end
 
   subsection B. Debug options =---=---=---=---=---=---=

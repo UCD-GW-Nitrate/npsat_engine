@@ -67,11 +67,11 @@ public:
 
     void particle_tracking();
 
-    void printVelocityField(MyTensorFunction<dim> &HK_function);
+    void printVelocityField(MyTensorFunction<dim> &HK_function, bool graph);
 
     void printGWrecharge(MyFunction<dim, dim> &RCH_function);
 
-
+    void printElementConnectivity();
 
 private:
     MPI_Comm                                  	mpi_communicator;
@@ -548,8 +548,12 @@ void NPSAT<dim>::solve_refine(){
 
     if (AQProps.solver_param.save_solution > 0)
         save();
-    if (AQProps.print_velocity_cloud > 0)
-        printVelocityField(HK_function[0]);
+    if (AQProps.print_velocity_cloud > 0){
+        printVelocityField(HK_function[0], AQProps.print_element_graph > 0);
+        if (AQProps.print_element_graph > 0)
+            printElementConnectivity();
+    }
+
 
     if (AQProps.print_GW_rch > 0)
         printGWrecharge(GR_funct);
@@ -1394,7 +1398,7 @@ void NPSAT<dim>::read_Particles_from_file(std::vector<Streamline<dim>> &Streamli
 
 
 template <int dim>
-void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
+void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function, bool graph){
     const std::string vel_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
                                       Utilities::int_to_string(my_rank,4) + ".vel");
 
@@ -1503,7 +1507,14 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                                         << std::setprecision(6) << std::fixed
                                         << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
                     }
-                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
+                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio;
+                    if (graph){
+                        vel_stream_file << " " << cell->id().to_string() <<  std::endl;
+                    }
+                    else{
+                        vel_stream_file <<  std::endl;
+                    }
+
                 }
 
                 // Print the velocity on the top face also if its on the top boundary
@@ -1526,7 +1537,13 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                                             << std::setprecision(6) << std::fixed
                                             << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
                         }
-                        vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
+                        vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio;
+                        if (graph){
+                            vel_stream_file << " " << cell->id().to_string() <<  std::endl;
+                        }
+                        else{
+                            vel_stream_file <<  std::endl;
+                        }
                     }
                 }
             }
@@ -1560,7 +1577,13 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function){
                                         << std::setprecision(6) << std::fixed
                                         << -m*KdH[0] << " " << -m*KdH[1] << " " << -m*KdH[2] << " ";
                     }
-                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio << std::endl;
+                    vel_stream_file << cell->subdomain_id() << " " << std::setprecision(1) << std::fixed << diameter << " " << cell_ratio;
+                    if (graph){
+                        vel_stream_file << " " << cell->id().to_string() <<  std::endl;
+                    }
+                    else{
+                        vel_stream_file <<  std::endl;
+                    }
                 }
             }
         }
@@ -1607,5 +1630,219 @@ void NPSAT<dim>::printGWrecharge(MyFunction<dim, dim> &RCH_function) {
     }
     rch_stream.close();
 }
+
+template<int dim>
+void NPSAT<dim>::printElementConnectivity() {
+
+    const std::string grph_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
+                                      Utilities::int_to_string(my_rank,4) + ".grph");
+    pcout << "Printing Element Connectivity in: " <<  (AQProps.Dirs.output + AQProps.sim_prefix + "xxxx.grph") << std::endl;
+
+    std::ofstream grph_stream;
+    grph_stream.open(grph_filename);
+
+    std::map<dealii::CellId, std::vector<dealii::CellId> > ElementMap;
+    std::vector<typename DoFHandler<dim>::active_cell_iterator> neighborCells;
+    std::vector<dealii::CellId> neighborCellsIDS;
+    std::map<dealii::CellId, int> neighborCellsIDSmap;
+    std::map<dealii::CellId, int>::iterator neighIt;
+
+    std::vector<unsigned int> cell_dof_indices (fe.dofs_per_cell);
+    std::vector<unsigned int> other_cell_dof_indices (fe.dofs_per_cell);
+    typename DoFHandler<dim>::active_cell_iterator adjacent_cell, child_of_neighbor;
+    std::map<int, int> cell_dof_indices_map;
+    std::map<int, int>::iterator it;
+
+    for(const auto &cell : dof_handler.active_cell_iterators()){
+        if (cell->is_locally_owned()){
+            neighborCellsIDS.clear();
+            neighborCellsIDSmap.clear();
+            neighborCells.clear();
+            cell_dof_indices_map.clear();
+            int idx = 0;
+
+            //std::cout << "------------------------------------------------------" << std::endl;
+            //print_cell_coords<dim>(cell);
+
+            neighborCells.clear();
+            cell->get_dof_indices (cell_dof_indices);
+            for (unsigned int i = 0; i < cell_dof_indices.size(); ++ i){
+                cell_dof_indices_map.insert(std::pair<int,int>(cell_dof_indices[i],i));
+            }
+
+            //loop through the cells that touch the faces of this cell
+            for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
+                //If the i face of this  cell is at boundary then the neighbor
+                // does not exist
+                if (cell->at_boundary(iface))
+                    continue;
+                if (!cell->neighbor(iface)->active()){
+                    // if the neighbor cell is not active then it has children
+                    for (unsigned int ichild = 0; ichild < cell->neighbor(iface)->n_children(); ++ichild){
+                        // If the child has also children this means that the children
+                        // of this child are two levels apart from the original cell
+                        // therefore these children can not be adjacent to the original cell.
+                        if (!cell->neighbor(iface)->child(ichild)->active())
+                            continue;
+                        if (cell->neighbor(iface)->child(ichild)->is_artificial())
+                            continue;
+
+                        child_of_neighbor = cell->neighbor(iface)->child(ichild);
+                        for (unsigned int j = 0; j < GeometryInfo<dim>::faces_per_cell; ++j){
+                            if (child_of_neighbor->at_boundary(j))
+                                continue;
+                            if (!child_of_neighbor->neighbor(j)->active())
+                                continue;
+                            if (child_of_neighbor->neighbor(j)->is_artificial())
+                                continue;
+
+                            if (child_of_neighbor->neighbor(j)->id() == cell->id()){
+                                //print_cell_coords<dim>(child_of_neighbor);
+                                neighborCells.push_back(child_of_neighbor);
+                                neighborCellsIDS.push_back(child_of_neighbor->id());
+                                neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(child_of_neighbor->id(),idx++));
+                                break;
+                            }
+                        }
+                    }
+                }
+                else{
+                    if (cell->neighbor(iface)->is_artificial())
+                        continue;
+                    //print_cell_coords<dim>(cell->neighbor(i));
+                    neighborCells.push_back(cell->neighbor(iface));
+                    neighborCellsIDS.push_back(cell->neighbor(iface)->id());
+                    neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(cell->neighbor(iface)->id(),idx++));
+                }
+            }
+
+            // Now loop through this cell's neighbors and find if there is any neighbor
+            // has common node ids with this cell
+            std::vector<typename DoFHandler<dim>::active_cell_iterator> neighborCells1;
+            for (unsigned int ineigh = 0; ineigh < neighborCells.size(); ++ineigh){
+                // loop through the neighbor faces
+                for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
+                    if (neighborCells[ineigh]->at_boundary(iface))
+                        continue;
+                    if (!neighborCells[ineigh]->neighbor(iface)->active()){
+                        // if the neighbor cell is not active then it has children
+                        for (unsigned int ichild = 0; ichild < neighborCells[ineigh]->neighbor(iface)->n_children(); ++ichild){
+                            if (!neighborCells[ineigh]->neighbor(iface)->child(ichild)->active())
+                                continue;
+                            if (neighborCells[ineigh]->neighbor(iface)->child(ichild)->is_artificial())
+                                continue;
+
+                            child_of_neighbor = neighborCells[ineigh]->neighbor(iface)->child(ichild);
+                            if (cell->id() == child_of_neighbor->id())
+                                continue;
+                            neighIt = neighborCellsIDSmap.find(child_of_neighbor->id());
+                            if (neighIt != neighborCellsIDSmap.end())
+                                continue;
+                            child_of_neighbor->get_dof_indices (other_cell_dof_indices);
+                            for (unsigned int i = 0; i < other_cell_dof_indices.size(); ++ i){
+                                it = cell_dof_indices_map.find(other_cell_dof_indices[i]);
+                                if (it != cell_dof_indices_map.end()){
+                                    //print_cell_coords<dim>(child_of_neighbor);
+                                    neighborCells1.push_back(child_of_neighbor);
+                                    neighborCellsIDS.push_back(child_of_neighbor->id());
+                                    neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(child_of_neighbor->id(),idx++));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    else{
+                        if (neighborCells[ineigh]->neighbor(iface)->is_artificial())
+                            continue;
+
+                        if (cell->id() == neighborCells[ineigh]->neighbor(iface)->id())
+                            continue;
+                        neighIt = neighborCellsIDSmap.find(neighborCells[ineigh]->neighbor(iface)->id());
+                        if (neighIt != neighborCellsIDSmap.end())
+                            continue;
+                        neighborCells[ineigh]->neighbor(iface)->get_dof_indices (other_cell_dof_indices);
+                        for (unsigned int i = 0; i < other_cell_dof_indices.size(); ++ i){
+                            it = cell_dof_indices_map.find(other_cell_dof_indices[i]);
+                            if (it != cell_dof_indices_map.end()){
+                                //print_cell_coords<dim>(neighborCells[ineigh]->neighbor(iface));
+                                neighborCells1.push_back(neighborCells[ineigh]->neighbor(iface));
+                                neighborCellsIDS.push_back(neighborCells[ineigh]->neighbor(iface)->id());
+                                neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(neighborCells[ineigh]->neighbor(iface)->id(),idx++));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // loop through the neighbors of the neighbors to get the elements that touch the corners
+            for (unsigned int ineigh = 0; ineigh < neighborCells1.size(); ++ineigh){
+                // loop through the neighbor faces
+                for (unsigned int iface = 0; iface < GeometryInfo<dim>::faces_per_cell; ++iface){
+                    if (neighborCells1[ineigh]->at_boundary(iface))
+                        continue;
+                    if (!neighborCells1[ineigh]->neighbor(iface)->active()){
+                        // if the neighbor cell is not active then it has children
+                        for (unsigned int ichild = 0; ichild < neighborCells1[ineigh]->neighbor(iface)->n_children(); ++ichild){
+                            if (!neighborCells1[ineigh]->neighbor(iface)->child(ichild)->active())
+                                continue;
+                            if (neighborCells1[ineigh]->neighbor(iface)->child(ichild)->is_artificial())
+                                continue;
+
+                            child_of_neighbor = neighborCells1[ineigh]->neighbor(iface)->child(ichild);
+                            if (cell->id() == child_of_neighbor->id())
+                                continue;
+                            neighIt = neighborCellsIDSmap.find(child_of_neighbor->id());
+                            if (neighIt != neighborCellsIDSmap.end())
+                                continue;
+                            child_of_neighbor->get_dof_indices (other_cell_dof_indices);
+                            for (unsigned int i = 0; i < other_cell_dof_indices.size(); ++ i){
+                                it = cell_dof_indices_map.find(other_cell_dof_indices[i]);
+                                if (it != cell_dof_indices_map.end()){
+                                    //print_cell_coords<dim>(child_of_neighbor);
+                                    //neighborCells1.push_back(child_of_neighbor);
+                                    neighborCellsIDS.push_back(child_of_neighbor->id());
+                                    neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(child_of_neighbor->id(),idx++));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    else{
+                        if (neighborCells1[ineigh]->neighbor(iface)->is_artificial())
+                            continue;
+
+                        if (cell->id() == neighborCells1[ineigh]->neighbor(iface)->id())
+                            continue;
+                        neighIt = neighborCellsIDSmap.find(neighborCells1[ineigh]->neighbor(iface)->id());
+                        if (neighIt != neighborCellsIDSmap.end())
+                            continue;
+                        neighborCells1[ineigh]->neighbor(iface)->get_dof_indices (other_cell_dof_indices);
+                        for (unsigned int i = 0; i < other_cell_dof_indices.size(); ++ i){
+                            it = cell_dof_indices_map.find(other_cell_dof_indices[i]);
+                            if (it != cell_dof_indices_map.end()){
+                                //print_cell_coords<dim>(neighborCells1[ineigh]->neighbor(iface));
+                                //neighborCells1.push_back(neighborCells[ineigh]->neighbor(iface));
+                                neighborCellsIDS.push_back(neighborCells1[ineigh]->neighbor(iface)->id());
+                                neighborCellsIDSmap.insert(std::pair<dealii::CellId, int>(neighborCells1[ineigh]->neighbor(iface)->id(),idx++));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            Point<dim> center = cell->center();
+            grph_stream << std::setprecision(2) << std::fixed << center[0] << " " << center[1] << " "
+                        <<  neighborCellsIDSmap.size() << " " << cell->id().to_string() << " ";
+            for (neighIt = neighborCellsIDSmap.begin(); neighIt != neighborCellsIDSmap.end(); ++ neighIt){
+                grph_stream << neighIt->first.to_string() << " ";
+            }
+            grph_stream << std::endl;
+        }
+    }
+    grph_stream.close();
+}
+
+
 
 #endif // NPSAT_H

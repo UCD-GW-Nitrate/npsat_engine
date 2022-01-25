@@ -17,7 +17,12 @@ set e Print velocity field cloud = 1
 Another important option is the velocity multiplier, 
 which is used to increase the precision of the outputs.
 ```
-set f Velocity multiplier        = 10000
+set g Velocity multiplier        = 10000
+```
+
+Last, there is an option to print the element connectivity.
+```
+set f Print dependency graph for cloud = 1
 ```
 
 To run the model using 6 processors use the following
@@ -29,10 +34,13 @@ The above command assumes that the current folder is where the tule.prm file is 
 The following figure shows the velocity cloud on a simulation with 6 processors.
 ![Velocity field simulated on six processors](VelocityField_shot1.png)
 
+while this figure illustrates the distribution of velocity nodes on 32 processors
+![Velocity field simulated on six processors](VelocityField_shotA32proc.png)
+
 Redist
 ---
 As we can see the distribution of the cloud points is very irregular 
-and at least one of the subdomains is split into two parts. 
+and at least one of the subdomains (in the case of 6 processors) is split into two parts. 
 So the next step is to split velocity field into convex regular domains.
 To do so we use [redist](https://github.com/giorgk/redist).
 

@@ -252,6 +252,9 @@ public:
     //! Prints the velocity field. The cloud velocity field is calculated on the quadrature points of the elements
     int                                 print_velocity_cloud;
 
+    //! Prints the element connectivity file
+    int                                 print_element_graph;
+
     //! This prints the average velocity of the solution which is defined on the mesh nodes
     int                                 print_Average_Velocity;
 

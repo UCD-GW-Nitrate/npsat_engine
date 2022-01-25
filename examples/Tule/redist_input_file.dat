@@ -1,5 +1,5 @@
-6 output/TuleRiver_v1_ 4 .vel
-6 0 0 0 1 0 0
-6 6 6 0 2 2
-actual_domains.ich extended_domains.ich
-output/TuleRiver_v1_new_
+6 output2/TuleRiver2_ 4 .vel 1 2
+6 5 5 6 1 2 3 
+2 2 6 6 6
+Tule_actual_dom.dat Tule_extended_dom.dat
+output2/TuleRiver2new_

@@ -667,21 +667,27 @@ void CL_arguments<dim>::declare_parameters(){
                               "Prints the velocity field cloud\n"
                               "The file name is Prefix + proc.vel");
 
-            prm.declare_entry("f Velocity multiplier", "10000", Patterns::Double(1,1000000000),
+            prm.declare_entry("f Print dependency graph for cloud", "0", Patterns::Integer(0,2),
                               "f----------------------------------\n"
+                              "It is used only if the print velocity is 1\n"
+                              "The file name is Prefix + proc.grph");
+
+            prm.declare_entry("g Velocity multiplier", "10000", Patterns::Double(1,1000000000),
+                              "g----------------------------------\n"
                               "Multiplier coefficient to increase the printed velocity precision");
 
-            prm.declare_entry("g Print Boundary conditions", "0", Patterns::Integer(0,2),
-                              "g----------------------------------\n"
+            prm.declare_entry("h Print Boundary conditions", "0", Patterns::Integer(0,2),
+                              "h----------------------------------\n"
                               "Prints the constant head boundary condition polygons\n"
                               "The file name is Prefix + proc.vel");
-            prm.declare_entry("h Print Average Velocity", "0", Patterns::Integer(0,2),
-                              "h----------------------------------\n"
+
+            prm.declare_entry("i Print Average Velocity", "0", Patterns::Integer(0,2),
+                              "i----------------------------------\n"
                               "Prints the average velocity field\n"
                               "The file name is Prefix + AvVelField + proc.vel");
 
-            prm.declare_entry("i Print GW Recharge", "0", Patterns::Integer(0,2),
-                              "i----------------------------------\n"
+            prm.declare_entry("j Print GW Recharge", "0", Patterns::Integer(0,2),
+                              "j----------------------------------\n"
                               "Prints the groundwater recharge as point cloud\n"
                               "The file name is Prefix + proc.rch");
         }
@@ -1099,11 +1105,12 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
             }
             AQprop.print_solution_vtk = prm.get_integer("d Print solution vtk");
             AQprop.print_velocity_cloud = prm.get_integer("e Print velocity field cloud");
-            AQprop.multiplier_velocity_print = prm.get_double("f Velocity multiplier");
+            AQprop.print_element_graph = prm.get_integer("f Print dependency graph for cloud");
+            AQprop.multiplier_velocity_print = prm.get_double("g Velocity multiplier");
             AQprop.part_param.velocity_multiplier = AQprop.multiplier_velocity_print;
-            AQprop.print_bnd_cond = prm.get_integer("g Print Boundary conditions");
-            AQprop.print_Average_Velocity = prm.get_integer("h Print Average Velocity");
-            AQprop.print_GW_rch = prm.get_integer("i Print GW Recharge");
+            AQprop.print_bnd_cond = prm.get_integer("h Print Boundary conditions");
+            AQprop.print_Average_Velocity = prm.get_integer("i Print Average Velocity");
+            AQprop.print_GW_rch = prm.get_integer("j Print GW Recharge");
         }
         prm.leave_subsection ();
 

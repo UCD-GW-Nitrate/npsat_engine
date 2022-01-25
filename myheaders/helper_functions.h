@@ -1244,6 +1244,21 @@ bool areSegmentsCollinear(Point<dim>& SegAstart, Point<dim>& SegAend,
 
 }
 
+template<int dim>
+void findCellNeighbors(typename dealii::DoFHandler<dim>::active_cell_iterator cell,
+                       std::vector<dealii::CellId>& neighborCells){
+    std::cout << "All good" << std::endl;
+    neighborCells.clear();
+    typename DoFHandler<dim>::active_cell_iterator adjacent_cell;
+    for (int i = 0; i < GeometryInfo<dim>::faces_per_cell; ++i){
+        adjacent_cell = cell->neighbor(i);
+        if (adjacent_cell->state() == IteratorState::invalid)
+            continue;
+
+    }
+
+}
+
 
 
 /*
