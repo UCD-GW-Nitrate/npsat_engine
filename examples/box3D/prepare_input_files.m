@@ -232,3 +232,27 @@ fprintf(fid, '%.2f %.2f\n', p2.Vertices');
 fprintf(fid, '%d %s %s\n', size(p3.Vertices,1), 'GRIDDED', 'p3_rch.npsat');
 fprintf(fid, '%.2f %.2f\n', p3.Vertices');
 fclose(fid);
+%% Read redist output files
+[Vel, Graph] = readRedistVelGrph('output/box3d_testVelnew_0000.vel');
+%% plot
+plot3(Vel.XYZ(:,1), Vel.XYZ(:,2), Vel.XYZ(:,3),'.')
+hold on
+plot3(Graph.XYZ(:,1), Graph.XYZ(:,2), Graph.XYZ(:,3),'o')
+%% Find the interpolation points for a given cell
+icell = 22074;
+vpnts = [];
+% Add the velocities of the cell itself
+for ii = 1:length(Graph.VellCell{icell,1})
+    vpnts = [vpnts; Vel.XYZ(Graph.VellCell{icell,1}(ii) + 1,:)];
+end
+% add the velocities from the neighboring cells
+for ii = 1:length(Graph.NeighCells{icell,1})
+    ineigh = Graph.NeighCells{icell,1}(ii) + 1;
+    for j = 1:length(Graph.VellCell{ineigh,1})
+        vpnts = [vpnts; Vel.XYZ(Graph.VellCell{ineigh,1}(j) + 1,:)];
+    end
+end
+clf
+plot3(Graph.XYZ(icell,1), Graph.XYZ(icell,2), Graph.XYZ(icell,3),'o')
+hold on
+plot3(vpnts(:,1), vpnts(:,2), vpnts(:,3), '.')
