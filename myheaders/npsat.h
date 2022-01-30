@@ -1832,7 +1832,7 @@ void NPSAT<dim>::printElementConnectivity() {
                 }
             }
             Point<dim> center = cell->center();
-            grph_stream << std::setprecision(2) << std::fixed << center[0] << " " << center[1] << " "
+            grph_stream << std::setprecision(2) << std::fixed << center[0] << " " << center[1] << " " << center[2] << " "
                         <<  neighborCellsIDSmap.size() << " " << cell->id().to_string() << " ";
             for (neighIt = neighborCellsIDSmap.begin(); neighIt != neighborCellsIDSmap.end(); ++ neighIt){
                 grph_stream << neighIt->first.to_string() << " ";
