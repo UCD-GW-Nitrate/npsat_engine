@@ -1,4 +1,4 @@
-function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
+function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
 % WellURF = readURFs(filename, opt)
 % This function reads the *.urfs files which is the result of the gather 
 % process of the NPSAT 
@@ -20,6 +20,7 @@ function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
     topt.do_fit = false;
     topt.exe_path;
     topt.fitname = 'urf.dat';
+    topt.simplify_thres = 0;
     if ~isempty(opt)
         topt.aL.alpha = opt.alpha;
         topt.aL.beta = opt.beta;
@@ -43,6 +44,9 @@ function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
         end
         if isfield(opt, 'fitname')
             topt.fitname = opt.fitname;
+        end
+        if isfield(opt, 'simplify_thres')
+            topt.simplify_thres = opt.simplify_thres;
         end
     end
 
@@ -112,6 +116,10 @@ function [WellData, URFs] = readURFs_ichnos_v1(filename, opt)
         WellData(cnter,2) = S_id;
         WellData(cnter,3) = ex_r;
         if ex_r == 1 || ex_r == 2  || ex_r == 3
+            if opt.simplify_thres > 0
+                [PPsimple, ix] = dpsimplify(pp, opt.simplify_thres);
+            end
+            
             WellData(cnter,6:8) = pp(1,:);
             WellData(cnter,9) = vv(1);
             WellData(cnter,10:11) = pp(end,1:2);
