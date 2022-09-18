@@ -1,4 +1,4 @@
-function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
+function [WellData, URFs, PPs] = readURFs_ichnos_v1(filename, opt)
 % WellURF = readURFs(filename, opt)
 % This function reads the *.urfs files which is the result of the gather 
 % process of the NPSAT 
@@ -18,7 +18,6 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
     topt.Lmin = 200; %[m]
     topt.mult = 1000000;
     topt.do_fit = false;
-    topt.exe_path;
     topt.fitname = 'urf.dat';
     topt.simplify_thres = 0;
     if ~isempty(opt)
@@ -55,6 +54,7 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
     if fid < 0
         WellData = [];
         URFs = [];
+        PPs = [];
         return;
     end
     cnter = 1;
@@ -62,7 +62,8 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
     %clf
     %hold on
 
-    [WellData, URFs] = allocate_space([],[]);
+    [WellData, URFs, PPs] = allocate_space([],[],[]);
+
 
     while 1
         temp = fgetl(fid);
@@ -116,8 +117,13 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
         WellData(cnter,2) = S_id;
         WellData(cnter,3) = ex_r;
         if ex_r == 1 || ex_r == 2  || ex_r == 3
-            if opt.simplify_thres > 0
-                [PPsimple, ix] = dpsimplify(pp, opt.simplify_thres);
+            if size(pp,1) <= 10
+                if opt.simplify_thres > 0
+                    [PPsimple, ix] = dpsimplify(pp, opt.simplify_thres);
+                end
+                PPs{cnter,1} = PPsimple;
+            else
+                PPs{cnter,1} = pp;
             end
             
             WellData(cnter,6:8) = pp(1,:);
@@ -126,39 +132,50 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
             WellData(cnter,12) = vv(end);
             L = cumsum(sqrt(sum((pp(2:end,:) - pp(1:end-1,:)).^2,2)));
             WellData(cnter,13) = L(end);
-            WellData(cnter,14) = sum(diff([0;L])./vv(1:end-1))/365;
+            age =  sum(diff([0;L])./vv(1:end-1))/365;
+            WellData(cnter,14) = age;
             % WellURF(cnter,1).v_eff = v_eff(1);
             % WellURF(cnter,1).v_m = v_eff(2);
             topt.Ttime = min(1000,round(4*sum(diff([0;L])./vv(1:end-1))/365));
             topt.Ttime = ceil(topt.Ttime/100)*100;
             %display(topt.Ttime)
-            urf = ComputeURF(pp, vv, topt);
+            if age > 2
+                urf = ComputeURF(pp, vv, topt);
+            else
+                urf = zeros(1,100);
+                urf(1,1) = 1;
+            end
             %plot(urf)
             %drawnow
-            URFs(cnter,1).URF = urf;
+            URFs{cnter,1} = urf;
             if topt.do_fit && ex_r == 1
-                iter1 = 1;
-                hasValidfid = false;
-                while true
-                    fitname = [topt.fitname '_' num2str(E_id) '_' num2str(S_id) '_' num2str(round(10000000*rand)) '.dat'];
-                    fid1 = fopen(fitname, 'w');
-                    if fid1 >= 0
-                        hasValidfid = true;
-                        break;
+                if age > 2
+                    iter1 = 1;
+                    hasValidfid = false;
+                    while true
+                        fitname = [topt.fitname '_' num2str(E_id) '_' num2str(S_id) '_' num2str(round(10000000*rand)) '.dat'];
+                        fid1 = fopen(fitname, 'w');
+                        if fid1 >= 0
+                            hasValidfid = true;
+                            break;
+                        end
+                        iter1 = iter1 + 1
+                        if iter1 > 20
+                            break;
+                        end
                     end
-                    iter1 = iter1 + 1
-                    if iter > 20
-                        break;
+                    if hasValidfid
+                        fprintf(fid1,'%.10f\n', urf);
+                        fclose(fid1);
+                        [st, cm] = system([topt.exe_path ' ' fitname]);
+                        cft = textscan(strtrim(cm),'%f %f');
+                        WellData(cnter,4) = cft{1};
+                        WellData(cnter,5) = cft{2};
+                        delete(fitname);
                     end
-                end
-                if hasValidfid
-                    fprintf(fid1,'%.10f\n', urf);
-                    fclose(fid1);
-                    [st, cm] = system([topt.exe_path ' ' fitname]);
-                    cft = textscan(strtrim(cm),'%f %f');
-                    WellData(cnter,4) = cft{1};
-                    WellData(cnter,5) = cft{2};
-                    delete(fitname);
+                else
+                    WellData(cnter,4) = -1;
+                    WellData(cnter,5) = 0;
                 end
             end
             if ex_r == 2
@@ -171,25 +188,31 @@ function [WellData, URFs, PPsimple] = readURFs_ichnos_v1(filename, opt)
         end
         cnter = cnter + 1;
         if cnter > size(WellData,1)
-            [WellData, URFs] = allocate_space(WellData, URFs);
+            [WellData, URFs, PPs] = allocate_space(WellData, URFs, PPs);
         end
+        %if cnter > 1000
+        %    break
+        %end
     end
     fclose(fid);
     WellData(cnter:end,:) = [];
     URFs(cnter:end,:) = [];
+    PPs(cnter:end,:) = [];
 end
 
-function [WellData, URFs] = allocate_space(WellData, URFs)
+function [WellData, URFs, PPs] = allocate_space(WellData, URFs, PPs)
     cnt = 10000;
     if isempty(WellData)
         %[Eid Sid Exit m s p_cds v_cds p_lnd v_lnd  L Age]
         %[1   1   1    1 1   3     1     2     1    1  1]
         WellData = nan(cnt,14);
-        URFs(cnt,1).URF = [];
+        URFs{cnt,1} = [];
+        PPs{cnt,1} = [];
 
     else
         WellData = [WellData;nan(cnt,14)];
-        URFs(size(WellData,1),1).URF = [];
+        URFs{size(WellData,1)+cnt,1} = [];
+        PPs{size(WellData,1)+cnt,1} = [];
     end
 end
 
