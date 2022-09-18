@@ -10,12 +10,12 @@ function [p, MSH] = readOBJmesh(varargin)
 % readOBJmesh reads the vertices (v), faces (f) and lines (l) from an obj file.
 % All other info is ignored.
 % The programs that write obj files can write into the file any kind of
-% geometry. FOr example if there are degenerated polygons these will be
+% geometry. For example if there are degenerated polygons these will be
 % printed. Therefore before attempting to use this script make sure that
-% the onj file is somewhat clean.
+% the obj file is somewhat clean.
 % Just by reading a file does not mean that the mesh would make any sense.
 % if the obj file represent something that it's not a mesh then the result
-% wont make any sense.
+% won't make any sense.
 
 if nargin == 1
     filename = varargin{1};

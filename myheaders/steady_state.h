@@ -299,10 +299,14 @@ void GWFLOW<dim>::assemble(){
                             if (((cell->face(i_face)->boundary_id() == 4 && dim == 3) ||
                                 (cell->face(i_face)->boundary_id() == 2 && dim == 2)) &&
                                   Neumann.getType(ibnd) == BoundaryConditions::BoundaryType::BOT){ // Flows from bottom face
+
                                 fe_face_values.reinit (cell, i_face);
                                 std::vector<Point<dim> > q_pnts = fe_face_values.get_quadrature_points();
                                 for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point){
-                                    double flow_rate = Neumann.interpolate(q_pnts[q_point], ibnd);
+                                    double flow_rate = 0.0;
+                                    if (Neumann.isPartofBoundary(q_pnts[q_point], ibnd)) {
+                                        flow_rate = Neumann.interpolate(q_pnts[q_point], ibnd);
+                                    }
                                     for (unsigned int i = 0; i < dofs_per_cell; ++i){
                                         double Q_flow = flow_rate *
                                                 fe_face_values.shape_value(i,q_point)*
@@ -310,6 +314,36 @@ void GWFLOW<dim>::assemble(){
 
                                         cell_rhs(i) += Q_flow;
                                         QFLOW_TOT[ibnd] += Q_flow;
+                                    }
+                                }
+                            }
+                            else if (((dim == 3 && cell->face(i_face)->boundary_id() != 4 && cell->face(i_face)->boundary_id() != 5) ||
+                                     (dim == 2 && cell->face(i_face)->boundary_id() != 2 && cell->face(i_face)->boundary_id() != 3)) &&
+                                    Neumann.getType(ibnd) == BoundaryConditions::BoundaryType::BOUNDARY_LINE){
+                                double cx3,cy3,cx4,cy4;
+                                cx3 = cell->face(i_face)->vertex(0)[0]; cy3 = cell->face(i_face)->vertex(0)[1];
+                                cx4 = cell->face(i_face)->vertex(1)[0]; cy4 = cell->face(i_face)->vertex(1)[1];
+                                // Sometimes the faces are oriented in such a way that vertices 0 and 1 have the same x and y coordinates
+                                // In such cases we use the 2nd point
+                                if (Point<2>(cx3,cy3).distance(Point<2>(cx4,cy4)) < 0.1){
+                                    cx4 = cell->face(i_face)->vertex(2)[0]; cy4 = cell->face(i_face)->vertex(2)[1];
+                                }
+                                Point<dim> A, B;
+                                A[0] = cx3; A[1] = cy3;
+                                B[0] = cx4; B[1] = cy4;
+                                if (Neumann.isPartofBoundary(A,B,ibnd)){
+                                    fe_face_values.reinit (cell, i_face);
+                                    std::vector<Point<dim> > q_pnts = fe_face_values.get_quadrature_points();
+                                    for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point){
+                                        double flow_rate = Neumann.interpolate(q_pnts[q_point], ibnd);
+                                        for (unsigned int i = 0; i < dofs_per_cell; ++i){
+                                            double Q_flow = flow_rate *
+                                                            fe_face_values.shape_value(i,q_point)*
+                                                            fe_face_values.JxW(q_point);
+
+                                            cell_rhs(i) += Q_flow;
+                                            QFLOW_TOT[ibnd] += Q_flow;
+                                        }
                                     }
                                 }
                             }

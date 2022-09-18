@@ -16,7 +16,7 @@ namespace BoundaryConditions{
 
 using namespace dealii;
 
-enum class BoundaryType{BOT,VER};
+enum class BoundaryType{BOT,BOUNDARY_LINE};
 
 /*! A primitive boundary shape.
  *
@@ -568,9 +568,36 @@ public:
     Neumann();
 
     double interpolate(Point<dim> p, int ibnd);
+
+    /*!
+     * \brief Reads the Neumann boundary condition file. This file should contain flow boundaries around the domain
+     * or at the bottom. For the flows from the top set as recharge.
+     *
+     * The format of the input file is as follows
+     * NBND : the number of boundaries in the file
+     * next line
+     * TYPE N mult VALUE
+     * where
+     * TYPE : is either BOT or BOUNDARY_LINE
+     * N : if the type is BOT N is the number of points that define the polygon
+     * For BOUNDARY_LINE N must be 0
+     * mult: is a multiplier for the boundary values. set it to 1 if no multiplier is used
+     * VALUE: is the value of the boundary. For BOT it can be a scalar or a file that describe a function
+     * for BOUNDARY_LINE this must be a file that describes the boundary line
+     * next lines
+     * For BOT the next N lines should contain the x and y coordinates of the polygon
+     * X Y
+     *
+     *
+     * @param filename
+     * @return
+     */
     bool getData(std::string filename);
     int Nbnd();
     BoundaryType getType(int i);
+    bool isPartofBoundary(Point<dim> p, int ibnd);
+    bool isPartofBoundary(Point<dim> pa, Point<dim> pb, int ibnd);
+
 
 private:
     int Nb = 0;
@@ -597,6 +624,33 @@ BoundaryType Neumann<dim>::getType(int i){
 }
 
 template<int dim>
+bool Neumann<dim>::isPartofBoundary(Point<dim> p, int ibnd) {
+    bool out = false;
+    if (ibnd >= bnd_type.size())
+        return out;
+
+    if (bnd_type[ibnd] == BoundaryType::BOT){
+        if (boundary_parts[ibnd].is_any_point_insideBB(p[0], p[1])){
+            if (boundary_parts[ibnd].is_point_inside_poly(p[0], p[1])){
+                out = true;
+            }
+        }
+    }
+    return out;
+}
+
+template<int dim>
+bool Neumann<dim>::isPartofBoundary(Point<dim> pa, Point<dim> pb, int ibnd) {
+    bool out = false;
+    if (ibnd >= bnd_type.size())
+        return out;
+    if (bnd_type[ibnd] == BoundaryType::BOUNDARY_LINE){
+        out = interp_funct[ibnd].is_face_part_of_BND(pa,pb);
+    }
+    return out;
+}
+
+template<int dim>
 double Neumann<dim>::interpolate(Point<dim> p, int ibnd){
 
     double out = 0.0;
@@ -604,16 +658,17 @@ double Neumann<dim>::interpolate(Point<dim> p, int ibnd){
         std::cout << "Neuman conditions in 2D are not impemented yet" << std::endl;
     }
     else if (dim == 3){
-        if (bnd_type[ibnd] == BoundaryType::BOT){
-            if (boundary_parts[ibnd].is_any_point_insideBB(p[0], p[1])){
-                if (boundary_parts[ibnd].is_point_inside_poly(p[0], p[1])){
-                    out = interp_funct[ibnd].interpolate(p) * multiplier[ibnd];
-                }
-            }
-        }
-        else if (bnd_type[ibnd] == BoundaryType::VER){
-            std::cout << "Vertical Neuman conditions in 3D are not impemented yet" << std::endl;
-        }
+        out = interp_funct[ibnd].interpolate(p) * multiplier[ibnd];
+        //if (bnd_type[ibnd] == BoundaryType::BOT){
+        //    if (boundary_parts[ibnd].is_any_point_insideBB(p[0], p[1])){
+        //        if (boundary_parts[ibnd].is_point_inside_poly(p[0], p[1])){
+        //            out = interp_funct[ibnd].interpolate(p) * multiplier[ibnd];
+        //        }
+        //    }
+        //}
+        //else if (bnd_type[ibnd] == BoundaryType::BOUNDARY_LINE){
+        //    out = interp_funct[ibnd].interpolate(p) * multiplier[ibnd];
+        //}
     }
     return out;
 }
@@ -648,8 +703,8 @@ bool Neumann<dim>::getData(std::string filename){
                 if (type.compare("BOT") == 0){
                     bnd_type[i] = BoundaryType::BOT;
                 }
-                else if (type.compare("VER") == 0){
-                    bnd_type[i] = BoundaryType::VER;
+                else if (type.compare("BOUNDARY_LINE") == 0){
+                    bnd_type[i] = BoundaryType::BOUNDARY_LINE;
                 }
                 else{
                     std::cout << "Unknown type of Neumann condition: " << type << std::endl;
@@ -660,7 +715,7 @@ bool Neumann<dim>::getData(std::string filename){
                 inp >> value;
             }
             if (dim == 2){
-                std::cout << "Neumann readers are not implemented yet for 2D" << std::endl;
+                std::cout << "Neumann readers are not implemented for 2D" << std::endl;
                 return false;
             }
             else if (dim == 3){
@@ -699,8 +754,8 @@ bool Neumann<dim>::getData(std::string filename){
                     interp_funct[i].get_data(value);
                 }
                 break;
-                case BoundaryType::VER:{
-                    std::cout << "Neumann readers are not implemented yet for VER type" << std::endl;
+                case BoundaryType::BOUNDARY_LINE:{
+                    interp_funct[i].get_data(value);
                 }
                 break;
                 }

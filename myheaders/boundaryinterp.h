@@ -53,6 +53,10 @@ private:
 
     bool isPoint_onBoundary(Point<dim> p);
 
+    double nearest_interpolation(Point<dim> p) const;
+
+    std::string SourceFile;
+
 
 };
 
@@ -71,6 +75,7 @@ void BoundaryInterp<dim>::get_data(std::string filename){
         return;
     }
     else{
+        SourceFile = filename;
         char buffer[512];
 
         {// Read the data type
@@ -203,6 +208,13 @@ void BoundaryInterp<dim>::get_data(std::string filename){
 
 template <int dim>
 bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) const{
+    //Point<dim> tt(-196356, 151880, 0.0);
+    //double d_temp = tt.distance(Point<dim>(p[0], p[1],0.0));
+    //bool debug_this = false;
+    //if (d_temp < 1){
+    //    debug_this = true;
+    //}
+
     dst_t = -9999999999;
     if (iSeg >= static_cast<int>(Pnts.size() - 1))
         return false;
@@ -211,31 +223,53 @@ bool BoundaryInterp<dim>::isPoint_onSeg(Point<dim> p, int iSeg, double& dst_t) c
     Point<dim> pp = project_point_onLine<dim>(p, Pnts[iSeg], Pnts[iSeg+1]);
     // Compute the distance between the point and its projection
     double dst = distance_2_points(pp[0], pp[1], p[0],p[1]);
-    if (dst < 0.1){
+    //if (debug_this)
+    //    std::cout << "Seg: " << iSeg << " dst " << dst << std::endl;
+
+    if (dst < tolerance){
+        //if (debug_this)
+        //    std::cout << "Seg: " << iSeg << " dst " << dst << std::endl;
+
         double t = 0.0;
         if (std::abs(Pnts[iSeg+1][0] - Pnts[iSeg][0]) > std::abs(Pnts[iSeg+1][1] - Pnts[iSeg][1]) ){
             t = (pp[0] - Pnts[iSeg][0])/(Pnts[iSeg+1][0] - Pnts[iSeg][0]);
+            //if (debug_this){
+            //    std::cout << "A: " << t << std::endl;
+            //}
         }
         else{
             t = (pp[1] - Pnts[iSeg][1])/(Pnts[iSeg+1][1] - Pnts[iSeg][1]);
+            //if (debug_this){
+            //    std::cout << "B: " << t << std::endl;
+            //}
         }
 
         dst_t = distance_2_points(p[0], p[1], Pnts[iSeg][0], Pnts[iSeg][1]);
+        //if (debug_this){
+        //    std::cout << "C: " << dst_t << std::endl;
+        //    std::cout << std::setprecision(10) << "p " <<  p << std::endl;
+        //    std::cout << std::setprecision(10) << "Pnts " <<  Pnts[iSeg] << std::endl;
+        //    std::cout << std::setprecision(10) << "t " <<  t << std::endl;
+        //}
 
-        if (std::abs(t) < 0.001){
-            if (dst_t < 0.1){
+        if (std::abs(t) < 0.05){
+            if (dst_t < tolerance){
                 t = 0.00000001;
                 dst_t = 0;
             }
         }
-        else if (std::abs(t-1) < 0.001){
-            double dst = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
-            if (dst < 0.1){
+        else if (std::abs(t-1) < 0.05){
+            double dst1 = distance_2_points(p[0], p[1], Pnts[iSeg+1][0], Pnts[iSeg+1][1]);
+            //if (debug_this){
+            //    std::cout << std::setprecision(10) << "Pnts+1 " <<  Pnts[iSeg+1] << std::endl;
+            //    std::cout << "D: " << dst1 << std::endl;
+            //}
+            if (dst1 < tolerance){
                 t = 0.99999999;
             }
         }
 
-        if ( t >= 0.0 && t <=1 ){
+        if ( t >= 0.0 && t <= 1.0 ){
             return true;
         }
     }
@@ -354,9 +388,21 @@ bool BoundaryInterp<dim>::is_face_part_of_BND(Point<dim> A, Point<dim> B){
 template <int dim>
 double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
 
+    //bool debug_this = false;
+    //Point<dim> tt(-196356, 151880, 0.0);
+    //double d_temp = tt.distance(Point<dim>(p[0], p[1],0.0));
+    //if (d_temp < 1){
+    //    debug_this = true;
+    //    std::cout << "START HERE ===========" << std::endl;
+    //}
+
     for (unsigned int i = 0; i < Npnts - 1; ++i){
         double dst_t = 0;
         if (isPoint_onSeg(p, i, dst_t)){
+            //if (debug_this){
+            //    std::cout << "Found segment: " << i << ", at " << dst_t << std::endl;
+            //}
+
             double t = dst_t/(Length[i+1] - Length[i]);
             if (Ndata == 1){
                 //std::cout << "plot(" << p[0] << "," << p[1] << ",'xg')" << std::endl;
@@ -407,9 +453,66 @@ double BoundaryInterp<dim>::interpolate(Point<dim> p)const{
         }
     }
 
-    std::cerr << "The Interpolation should never reach this point. There must be something wrong when assigning BC" << std::endl;
+    double tmp = nearest_interpolation(p);
+    std::cerr << "The Interpolation should never reach this point. There must be something wrong when assigning BC from " << SourceFile << std::endl;
+    std::cout << "Point: " << p << std::endl;
     std::cout << "plot(" << p[0] << "," << p[1] << ",'or')" << std::endl;
-    return -999999999;
+    std::cout << "Switch to nearest interpolation with value: " << tmp << std::endl;
+    //if (debug_this){
+    //    std::cout << "END HERE ===========" << std::endl;
+    //}
+
+    return tmp;
+}
+
+template <int dim>
+double BoundaryInterp<dim>::nearest_interpolation(Point<dim> p) const {
+    unsigned idx = 0;
+    double min_dst = 99999999999.0;
+    Point<dim> p2D;
+    Point<dim> PNT2D;
+    for (int i = 0; i < dim; ++i){
+        p2D[i] = p[i];
+    }
+
+    for (unsigned int i = 0; i < Pnts.size(); ++i){
+        for (int j = 0; j < dim; ++j){
+            PNT2D[j] = Pnts[i][j];
+        }
+        double dst = p2D.distance(PNT2D);
+        if (dst < min_dst){
+            min_dst = dst;
+            idx = i;
+        }
+    }
+
+    if (Ndata == 1){
+        return Values[idx][0];
+    }
+
+    double zup, zdown, vup, vdown;
+    zup = Elevations[idx][0];
+    if (p(2) >= zup){
+        return Values[idx][0];
+    }
+    for (int j = 1; j < Nlayers; ++j){
+        zdown = Elevations[idx][j];
+        if (p[2] <= zup && p[2] >= zdown){
+            if (sci_methodZ == SCI_METHOD::NEAREST){
+                return Values[idx][j];
+            }
+            else{
+                double tz = (p[2] - zdown)/(zup - zdown);
+                vup = Values[idx][j-1];
+                vdown = Values[idx][j];
+                return vup * tz + vdown * (1-tz);
+            }
+        }
+        zup = zdown;
+    }
+    if (p[2] <= zdown){
+        return Values[idx][Values[idx].size()-1];
+    }
 }
 
 

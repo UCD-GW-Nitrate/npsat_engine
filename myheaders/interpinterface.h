@@ -154,7 +154,7 @@ void InterpInterface<dim>::get_data(std::string namefile){
                 BND_LINE[BND_LINE.size()-1].get_data(namefile);
                 //BoundaryInterp<dim> tmp;
                 //tmp.get_data(namefile);
-                //BND_LINE.push_back(tmp);
+                //BOUNDARY_LINE.push_back(tmp);
             }
             else if (type_temp.compare("GRIDDED") == 0 ){
                 TYPE = 3;
