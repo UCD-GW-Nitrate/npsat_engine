@@ -66,6 +66,13 @@ namespace AquiferGrid{
         //! Assigns boundary ids
         void assign_default_boundary_id(parallel::distributed::Triangulation<dim>& triangulation);
 
+        int readLayerRelativeElevation();
+
+        std::vector<std::vector<double>> laydata;
+        PointIdCloud interpCloud;
+        std::shared_ptr<pointid_kd_tree> interpIndex;
+
+
     };
 
     //===================================================
@@ -112,9 +119,58 @@ namespace AquiferGrid{
                 Triangulation<dim-1> tria2D;
                 Triangulation<dim> tria3D;
                 bool done = read_2D_grid(tria2D);
+
                 if (done){
 #if _DIM>2
-                    dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 100, tria3D);
+                    if (!geom_param.use_rel_elev_file) {
+                        dealii::GridGenerator::extrude_triangulation(tria2D,geom_param.vert_discr.size(), 100, tria3D);
+                    }
+                    else{
+                        int nlay = readLayerRelativeElevation();
+                        dealii::GridGenerator::extrude_triangulation(tria2D, nlay+2, 100, tria3D);
+
+                        nanoflann::SearchParams params;
+                        params.sorted = true;
+                        std::vector<std::pair<size_t,double> > ret_matches;
+                        std::vector<size_t>   ret_index(1);
+                        std::vector<double> out_dist_sqr(1);
+                        size_t num_results;
+                        std::map<int,double> processed_vertices;
+                        std::map<int,double>::iterator vert_it;
+                        typename Triangulation<dim>::active_cell_iterator
+                        cell = tria3D.begin_active(),
+                        endc = tria3D.end();
+                        for (; cell!=endc; ++cell){
+                            for (unsigned int vertex_no = 0;  vertex_no < GeometryInfo<dim>::vertices_per_cell; ++vertex_no){
+                                int vert_idx = cell->vertex_index(vertex_no);
+                                vert_it = processed_vertices.find(vert_idx);
+                                if (vert_it != processed_vertices.end())
+                                    continue;
+
+                                Point<dim> &v = cell->vertex(vertex_no);
+
+                                if (std::abs(v[2]) < 0.001 || std::abs(v[2] - 100) < 0.001)
+                                    continue;
+                                double d_idx = std::round(v[2]*static_cast<double>(nlay+1)/100);
+                                int idx = static_cast<int>(d_idx)-1;
+
+                                double query_pt[2];
+                                query_pt[0] = v[0];
+                                query_pt[1] = v[1];
+                                num_results = interpIndex->knnSearch(&query_pt[0],
+                                                                     1,
+                                                                     &ret_index[0],
+                                                                     &out_dist_sqr[0]);
+
+                                //std::cout << ret_index[0] << std::endl;
+                                //std::cout << laydata[ret_index[0]][idx] << std::endl;
+                                v[2] = 100.0*laydata[ret_index[0]][idx];
+
+                                //std::cout << vert_idx << ": " << v << " | " << ret_index[0] << " | " << out_dist_sqr[0] << std::endl;
+                                processed_vertices.insert(std::pair<int,double>(vert_idx, v[2]));
+                            }
+                        }
+                    }
 
                     // This is going to work for deal version 9 and higher
                     /*std::vector<double> slices;
@@ -233,6 +289,51 @@ namespace AquiferGrid{
                 }
             }
         }
+    }
+
+    template <int dim>
+    int GridGenerator<dim>::readLayerRelativeElevation() {
+        int nlay;
+        std::ifstream rel_elev_file(geom_param.rel_elev_file.c_str());
+        if (rel_elev_file.good()){
+            char buffer[512];
+            int Npnts;
+            rel_elev_file.getline(buffer, 512);
+            {
+                std::istringstream inp(buffer);
+                inp >> Npnts;
+                inp >> nlay;
+            }
+            {//Read info
+                std::vector<double> tmp_data;
+                for (int i = 0; i < Npnts; ++i){
+                    tmp_data.clear();
+                    rel_elev_file.getline(buffer, 512);
+                    std::istringstream inp(buffer);
+                    PointId pid;
+                    double x, y, v;
+                    inp >> x;
+                    inp >> y;
+                    pid.x = x;
+                    pid.y = y;
+                    pid.id = i;
+                    for (int j = 0; j < nlay; ++j){
+                        inp >> v;
+                        tmp_data.push_back(v);
+                    }
+                    laydata.push_back(tmp_data);
+                    interpCloud.pts.push_back(pid);
+                }
+                int Nleafs = 10;
+                interpIndex = std::shared_ptr<pointid_kd_tree>(
+                        new pointid_kd_tree (2, interpCloud,
+                                             nanoflann::KDTreeSingleIndexAdaptorParams(Nleafs)));
+
+                interpIndex->buildIndex();
+            }
+        }
+
+        return nlay;
     }
 }
 

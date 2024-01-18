@@ -306,6 +306,11 @@ void CL_arguments<dim>::declare_parameters(){
                                "a----------------------------------\n"
                                "If the geometry type is FILE specify the file name\n"
                                "that contains the initial mesh.\n If the type is box this is ignored.");
+
+            prm.declare_entry ("b Relative elevation file", "",Patterns::Anything(),
+                               "b----------------------------------\n"
+                               "Specify the relative layer elevation\n"
+                               "This overwrites the Nxyz option of discretization.\n If the type is box this is ignored.");
         }
         prm.leave_subsection();
 
@@ -803,6 +808,16 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
             {
                 AQprop.input_mesh_file = prm.get("a Input mesh file");
                 AQprop.input_mesh_file = input_dir + AQprop.input_mesh_file;
+
+                AQprop.rel_elev_file = prm.get("b Relative elevation file");
+                if (!AQprop.rel_elev_file.empty()){
+                    AQprop.rel_elev_file = input_dir + AQprop.rel_elev_file;
+                    AQprop.use_rel_elev_file = true;
+                }
+                else{
+                    AQprop.use_rel_elev_file = false;
+                }
+
             }
             prm.leave_subsection();
         } else {

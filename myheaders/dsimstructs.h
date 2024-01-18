@@ -179,6 +179,10 @@ public:
     //! This will hold the name of the user defined mesh file
     std::string                     input_mesh_file;
 
+    //! This will hold the name of the user defined relative elevation file
+    std::string                     rel_elev_file;
+    bool                            use_rel_elev_file;
+
     //! The number of initial refinements before the simulation
     unsigned int                    N_init_refinement;
 
