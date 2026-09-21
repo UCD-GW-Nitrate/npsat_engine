@@ -1,7 +1,7 @@
 #ifndef NANOFLANN_STRUCTURES_H
 #define NANOFLANN_STRUCTURES_H(args)
 
-#include <nanoflann.hpp>
+#include "nanoflann.hpp"
 #include "helper_functions.h"
 
 struct PointId{
@@ -33,13 +33,13 @@ struct PointIdCloud{
 
 typedef nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Adaptor<double, PointIdCloud>,
-        PointIdCloud,2> pointid_kd_tree;
+        PointIdCloud,2,size_t> pointid_kd_tree;
 
 
 
 typedef nanoflann::KDTreeSingleIndexDynamicAdaptor<
         nanoflann::L2_Simple_Adaptor<double, PointIdCloud > ,
-        PointIdCloud, 2> pointIdDynamic_kd_tree;
+        PointIdCloud, 2,size_t> pointIdDynamic_kd_tree;
 
 
 
@@ -72,7 +72,7 @@ struct PointVectorCloud{
 
 typedef nanoflann::KDTreeSingleIndexAdaptor<
         nanoflann::L2_Adaptor<double, PointVectorCloud>,
-        PointVectorCloud,2> pointVector_kd_tree;
+        PointVectorCloud,2,size_t> pointVector_kd_tree;
 
 void interpolateVectorCloud(PointVectorCloud& cloud,
                             std::shared_ptr<pointVector_kd_tree>& index,
@@ -80,8 +80,8 @@ void interpolateVectorCloud(PointVectorCloud& cloud,
                             double x, double y,
                             std::vector<double>& out){
     const double query_pt[2] = {x, y};
-    std::vector<std::pair<size_t,double> > ret_matches;
-    nanoflann::SearchParams params;
+    std::vector<nanoflann::ResultItem<size_t, double> > ret_matches;
+    nanoflann::SearchParameters params;
     params.sorted = false;
     std::vector< std::vector<double> > values;
     std::vector<double> distances;

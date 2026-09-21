@@ -11,7 +11,7 @@
 //#include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/affine_constraints.h>
 
-//#include "my_functions.h"
+//#include "conductivity_function.h"
 //#include "cgal_functions.h"
 #include "nanoflann_structures.h"
 #include "helper_functions.h"
@@ -474,8 +474,8 @@ bool Streams<dim>::get_stream_recharge(std::vector<double>& xc,
 
     // Search for river segments near this cell
     const double query_pt[2] = {barycenter[0], barycenter[1]};
-    std::vector<std::pair<size_t,double> > ret_matches;
-    nanoflann::SearchParams params;
+    std::vector<nanoflann::ResultItem<size_t, double> > ret_matches;
+    nanoflann::SearchParameters params;
     const int nMatches = streamIndex->radiusSearch(
             &query_pt[0], diameter_search, ret_matches, params);
 
@@ -637,8 +637,8 @@ void Streams<dim>::flag_cells_for_refinement(parallel::distributed::Triangulatio
                 Point<dim> cell_barycenter = cell->barycenter();
                 // Search for river segments near this cell
                 const double query_pt[2] = {cell_barycenter[0], cell_barycenter[1]};
-                std::vector<std::pair<size_t,double> > ret_matches;
-                nanoflann::SearchParams params;
+                std::vector<nanoflann::ResultItem<size_t, double> > ret_matches;
+                nanoflann::SearchParameters params;
                 const int nMatches = streamIndex->radiusSearch(
                         &query_pt[0], diameter_search, ret_matches, params);
                 bool tf = false;

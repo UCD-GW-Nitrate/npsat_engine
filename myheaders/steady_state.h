@@ -28,13 +28,14 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#include "my_functions.h"
+#include "conductivity_function.h"
 #include "helper_functions.h"
 #include "wells.h"
 #include "streams.h"
 //#include "cgal_functions.h"
 #include "dsimstructs.h"
-#include "dirichlet_boundary.h"
+#include "neumann_boundary.h"
+#include "BC/dirichlet_bc.h"
 
 
 struct SimPrintFlags{
@@ -70,8 +71,8 @@ public:
            TrilinosWrappers::MPI::Vector&       locally_relevant_solution,
            TrilinosWrappers::MPI::Vector&       system_rhs,
            std::map<types::boundary_id, const Function<dim>* >&     dirichlet_boundary,
-           MyTensorFunction<dim>&               HK_function,
-           MyFunction<dim,dim>&                 groundwater_recharge,
+           ConductivityFunction<dim>&               HK_function,
+           npsat_flow::InterpolationFunction<dim>&                 groundwater_recharge,
            BoundaryConditions::Neumann<dim>&    Neumann_conditions,
            std::vector<int>&                    top_boundary_ids,
            SolverParameters&                    solver_param_in);
@@ -102,8 +103,8 @@ private:
     TrilinosWrappers::SparseMatrix 			  	system_matrix;
     TrilinosWrappers::MPI::Vector&       	  	system_rhs;
     std::map<types::boundary_id, const Function<dim>* >&				dirichlet_boundary;
-    MyTensorFunction<dim>	 					HK;
-    MyFunction<dim,dim> 						GWRCH;
+    ConductivityFunction<dim>	 					HK;
+    npsat_flow::InterpolationFunction<dim> 						GWRCH;
     BoundaryConditions::Neumann<dim>            Neumann;
     std::vector<int>                            top_boundary_ids;
     SolverParameters                            solver_param;
@@ -140,8 +141,8 @@ GWFLOW<dim>::GWFLOW(MPI_Comm&                           mpi_communicator_in,
                     TrilinosWrappers::MPI::Vector&      locally_relevant_solution_in,
                     TrilinosWrappers::MPI::Vector&      system_rhs_in,
                     std::map<types::boundary_id, const Function<dim>* >&    dirichlet_boundary_in,
-                    MyTensorFunction<dim>&              HK_function,
-                    MyFunction<dim, dim>&               groundwater_recharge,
+                    ConductivityFunction<dim>&              HK_function,
+                    npsat_flow::InterpolationFunction<dim>&               groundwater_recharge,
                     BoundaryConditions::Neumann<dim>&   Neumann_conditions,
                     std::vector<int>&                   top_boundary_ids_in,
                     SolverParameters&                   solver_param_in)

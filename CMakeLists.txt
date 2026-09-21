@@ -6,7 +6,7 @@
 SET(TARGET "npsat")
 
 # For the aqua cluster you may need the following two enabled
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 
 FILE(GLOB_RECURSE TARGET_INC  myheaders/*.h)
@@ -30,7 +30,7 @@ SET(TARGET_SRC
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
-FIND_PACKAGE(deal.II 9.1.1 QUIET
+FIND_PACKAGE(deal.II 9.3.0 QUIET
   HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR}
   )
 IF(NOT ${deal.II_FOUND})
@@ -63,7 +63,7 @@ One or both of the aforementioned combinations of prerequisites are not met by y
           )
 ENDIF()
 
-INCLUDE_DIRECTORIES(${GRID_INTERP} ${NANOFLAN})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/myheaders)
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 

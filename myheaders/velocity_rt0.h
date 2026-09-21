@@ -389,7 +389,7 @@ public:
     bool calculateSubcellFlows(typename DoFHandler<dim>::active_cell_iterator& cell,
                                FE_Q<dim>&                          fe,
                                TrilinosWrappers::MPI::Vector& 	locally_relevant_solution,
-                               MyTensorFunction<dim> &HK_function);
+                               ConductivityFunction<dim> &HK_function);
 
     double outflow_from_subcell_with_vertex(int ivertex);
 
@@ -430,7 +430,7 @@ protected:
                          std::vector<double>& heads,
                          std::vector<Point<dim>> unit_points);
 
-    std::vector<Tensor<2,dim>> calculateHK(std::vector<Point<dim>> vertices,MyTensorFunction<dim> &HK_function);
+    std::vector<Tensor<2,dim>> calculateHK(std::vector<Point<dim>> vertices,ConductivityFunction<dim> &HK_function);
 
 
 
@@ -545,7 +545,7 @@ template <int dim>
 bool CellInfoRT0<dim>::calculateSubcellFlows(typename DoFHandler<dim>::active_cell_iterator &cell,
                                              FE_Q<dim> &fe,
                                              TrilinosWrappers::MPI::Vector &locally_relevant_solution,
-                                             MyTensorFunction<dim>& HK_function){
+                                             ConductivityFunction<dim>& HK_function){
     //
     std::vector<Point<dim>> quad_points;
     midCellQuadPoints(quad_points);
@@ -1016,7 +1016,7 @@ std::vector<double> CellInfoRT0<dim>::calculateInnerFaceAreas(std::vector<Point<
 }
 
 template <int dim>
-std::vector<Tensor<2, dim> > CellInfoRT0<dim>::calculateHK(std::vector<Point<dim> > vertices, MyTensorFunction<dim> &HK_function){
+std::vector<Tensor<2, dim> > CellInfoRT0<dim>::calculateHK(std::vector<Point<dim> > vertices, ConductivityFunction<dim> &HK_function){
     Point<dim> tmp;
     std::vector<Tensor<2,dim>> HK;
     if (dim == 2){

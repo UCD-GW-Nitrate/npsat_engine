@@ -27,7 +27,8 @@
 #include "make_grid.h"
 #include "dsimstructs.h"
 #include "mesh_struct.h"
-#include "dirichlet_boundary.h"
+#include "neumann_boundary.h"
+#include "BC/dirichlet_bc.h"
 #include "steady_state.h"
 //#include "mix_mesh.h"
 #include "nanoflann_structures.h"
@@ -67,9 +68,9 @@ public:
 
     void particle_tracking();
 
-    void printVelocityField(MyTensorFunction<dim> &HK_function, bool graph);
+    void printVelocityField(ConductivityFunction<dim> &HK_function, bool graph);
 
-    void printGWrecharge(MyFunction<dim, dim> &RCH_function);
+    void printGWrecharge(npsat_flow::InterpolationFunction<dim> &RCH_function);
 
     void printElementConnectivity();
 
@@ -99,7 +100,7 @@ private:
     std::shared_ptr<pointVector_kd_tree>        topCloudIndex;
     PointVectorCloud                            botCloud;
     std::shared_ptr<pointVector_kd_tree>        botCloudIndex;
-    std::vector<ScatterInterp<dim>>             newTopFnc;
+    std::shared_ptr<npsat_flow::ScatteredSpatialInterpolant<dim>>             newTopFnc;
 
 
 
@@ -111,7 +112,7 @@ private:
 
     // Boundary Conditions
     std::map<types::boundary_id, const Function<dim>* >             dirichlet_boundary;
-    BoundaryConditions::Dirichlet<dim>          DirBC;
+    npsat_flow::DirichletBoundary<dim>          DirBC;
     std::vector<int>                            top_boundary_ids;
     std::vector<int>                            bottom_boundary_ids;
 
@@ -207,10 +208,9 @@ void NPSAT<dim>::make_grid(){
                                      distributed_mesh_Offset_vertices,
                                      mpi_communicator, pcout);
 
-        //MyFunction<dim, dim> top_function(AQProps.top_elevation);
-        //MyFunction<dim, dim> bottom_function(AQProps.bottom_elevation);
+        //npsat_flow::InterpolationFunction<dim> top_function(AQProps.top_elevation);
+        //npsat_flow::InterpolationFunction<dim> bottom_function(AQProps.bottom_elevation);
         //double test = top_function.value(Point<dim>(550,0));
-        //double tmp = AQProps.top_elevation.interpolate(Point<dim>(550,0));
 
         mesh_struct.compute_initial_elevations(AQProps.top_elevation, AQProps.bottom_elevation);
 
@@ -298,7 +298,7 @@ void NPSAT<dim>::make_grid(){
     }
 
     // Prepare dirichlet Boudnary Conditions
-    DirBC.get_from_file(AQProps.dirichlet_file_names, AQProps.Dirs.input);
+    DirBC.read_data(AQProps.dirichlet_file_names, 1.0, mpi_communicator, 17, AQProps.Dirs.input);
 
     if (AQProps.print_init_mesh >0){
         std::ofstream out (AQProps.Dirs.output + AQProps.sim_prefix + "_init_mesh_" + Utilities::int_to_string(my_rank,4) + ".vtk");
@@ -372,13 +372,13 @@ void NPSAT<dim>::UpdateNonConformingElevation() {
                 double PointTop;
 
                 if (useSolution2UpdateMesh){
-                    PointTop = newTopFnc[0].interpolate(pz.p);
+                    PointTop = newTopFnc->interpolate(pz.p, 0);
                 }
                 else{
-                    PointTop = AQProps.top_elevation.interpolate(pz.p);
+                    PointTop = AQProps.top_elevation->interpolate(pz.p, 0);
                 }
 
-                double PointBot = AQProps.bottom_elevation.interpolate(pz.p);
+                double PointBot = AQProps.bottom_elevation->interpolate(pz.p, 0);
                 double newElev = PointTop * pz.p[dim-1]/100.0 + PointBot*(1 - pz.p[dim-1]/100.0);
                 double dz = newElev - pz.p[dim-1];
 
@@ -426,27 +426,27 @@ template <int dim>
 void NPSAT<dim>::solve_refine(){
 
     // Create a hydraulic conductivity function
-    MyTensorFunction<dim>* HK_function = 0;
+    ConductivityFunction<dim>* HK_function = 0;
     if (dim == 2){
         if (AQProps.HKuse[1] == false)
-            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0]);
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0]);
         else
-            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
                                                     AQProps.HydraulicConductivity[1]);
     }
     else if (dim == 3){
         if (AQProps.HKuse[1] == false && AQProps.HKuse[2] == false)
-            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0]);
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0]);
         else if(AQProps.HKuse[1] == false && AQProps.HKuse[2] == true)
-            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
                                                     AQProps.HydraulicConductivity[2]);
         else if(AQProps.HKuse[1] == true && AQProps.HKuse[2] == true)
-            HK_function = new MyTensorFunction<dim>(AQProps.HydraulicConductivity[0],
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
                                                     AQProps.HydraulicConductivity[1],
                                                     AQProps.HydraulicConductivity[2]);
     }
 
-    MyFunction<dim, dim> GR_funct(AQProps.GroundwaterRecharge);
+    npsat_flow::InterpolationFunction<dim> GR_funct(AQProps.GroundwaterRecharge);
 
     SimPrintFlags printing_flags;
     printing_flags.top_point_cloud = AQProps.print_point_top_cloud;
@@ -460,10 +460,16 @@ void NPSAT<dim>::solve_refine(){
     for (int iter = 0; iter < AQProps.solver_param.NonLinearIter ; ++iter){
         pcout << "|----------- Iteration : " << iter << " -------------|" << std::endl;
 
-        DirBC.assign_dirichlet_to_triangulation(triangulation,
-                                                dirichlet_boundary,
-                                                top_boundary_ids,
-                                                bottom_boundary_ids);
+        DirBC.assign_to_triangulation(triangulation, dirichlet_boundary);
+        dirichlet_boundary = DirBC.get_function_map();
+        top_boundary_ids.assign(1, GeometryInfo<dim>::faces_per_cell - 1);
+        bottom_boundary_ids.assign(1, GeometryInfo<dim>::faces_per_cell - 2);
+        for (const auto &part : DirBC.get_parts()) {
+            if (part.kind == npsat_flow::BoundaryKind::TOP)
+                top_boundary_ids.push_back(part.boundary_id);
+            if (part.kind == npsat_flow::BoundaryKind::BOT)
+                bottom_boundary_ids.push_back(part.boundary_id);
+        }
         GWFLOW<dim> gw(mpi_communicator,
                        dof_handler,
                        fe,
@@ -490,8 +496,7 @@ void NPSAT<dim>::solve_refine(){
 
         if (iter < AQProps.solver_param.NonLinearIter - 1){
             pcout << "      Updating Mesh ..." <<std::endl;
-            newTopFnc.clear();
-            newTopFnc.resize(1);
+            newTopFnc.reset();
             if (!meshConform) {
                 create_top_scatter_func();
             }
@@ -821,7 +826,8 @@ void NPSAT<dim>::create_top_scatter_func(){
     std::cout << "Rank: " << my_rank << " has: " << topPoints.size()
               << " top and: " << Elements.size() << " bottom" << std::endl;
 
-    newTopFnc[0].SetScalarData(topPoints,Elements,SCI_METHOD::LINEAR);
+    newTopFnc = std::make_shared<npsat_flow::ScatteredSpatialInterpolant<dim>>(npsat_flow::InterpRegion2D<dim>());
+    newTopFnc->set_surface_data(topPoints, Elements);
 }
 
 template<int dim>
@@ -1170,7 +1176,7 @@ void NPSAT<dim>::particle_tracking(){
     pcout << "Started at \n" << print_current_time() << std::endl;
     unsigned int n_proc = Utilities::MPI::n_mpi_processes(mpi_communicator);
 
-    MyFunction<dim, dim> porosity_fnc(AQProps.Porosity);
+    npsat_flow::InterpolationFunction<dim> porosity_fnc(AQProps.Porosity);
 
     Particle_Tracking<dim> pt(mpi_communicator,
                          dof_handler, fe,
@@ -1398,7 +1404,7 @@ void NPSAT<dim>::read_Particles_from_file(std::vector<Streamline<dim>> &Streamli
 
 
 template <int dim>
-void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function, bool graph){
+void NPSAT<dim>::printVelocityField(ConductivityFunction<dim>& HK_function, bool graph){
     const std::string vel_filename = (AQProps.Dirs.output + AQProps.sim_prefix + "_" +
                                       Utilities::int_to_string(my_rank,4) + ".vel");
 
@@ -1592,7 +1598,7 @@ void NPSAT<dim>::printVelocityField(MyTensorFunction<dim>& HK_function, bool gra
 }
 
 template <int dim>
-void NPSAT<dim>::printGWrecharge(MyFunction<dim, dim> &RCH_function) {
+void NPSAT<dim>::printGWrecharge(npsat_flow::InterpolationFunction<dim> &RCH_function) {
     if (dim != 3 ){
         pcout << "Printing recharge in other than 3D is not supported yet" << std::endl;
         return;

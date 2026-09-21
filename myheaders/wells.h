@@ -10,7 +10,7 @@
 #include "helper_functions.h"
 //#include "cgal_functions.h"
 #include "nanoflann_structures.h"
-#include "my_functions.h"
+#include "conductivity_function.h"
 #include "mpi_help.h"
 #include "streamlines.h"
 
@@ -241,7 +241,7 @@ public:
                             const DoFHandler<dim>& dof_handler,
                             const FE_Q<dim>& fe,
                             const AffineConstraints<double>& constraints,
-                            const MyTensorFunction<dim>& hydraulic_conductivity,
+                            const ConductivityFunction<dim>& hydraulic_conductivity,
                             MPI_Comm mpi_communicator);
 
     /*!
@@ -481,7 +481,7 @@ void Well_Set<dim>::add_contributions(TrilinosWrappers::MPI::Vector& system_rhs,
                                       const DoFHandler<dim>& dof_handler,
                                       const FE_Q<dim>& fe,
                                       const AffineConstraints<double>& constraints,
-                                      const MyTensorFunction<dim>& hydraulic_conductivity,
+                                      const ConductivityFunction<dim>& hydraulic_conductivity,
                                       MPI_Comm mpi_communicator){
 
     if (Nwells == 0)
@@ -825,8 +825,8 @@ bool Well_Set<dim>::search4NearbyWells(double x, double y, double searchRadius,
     if (dim == 2)
         y = 0;
     const double query_pt[2] = {x, y};
-    std::vector<std::pair<size_t,double> > ret_matches;
-    nanoflann::SearchParams params;
+    std::vector<nanoflann::ResultItem<size_t, double> > ret_matches;
+    nanoflann::SearchParameters params;
     params.sorted = false;
     const int nMatches = wellIndex->radiusSearch(&query_pt[0], searchRadius, ret_matches, params);
     for (int i = 0; i < nMatches; ++i){

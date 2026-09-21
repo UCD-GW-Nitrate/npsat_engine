@@ -1,0 +1,101 @@
+subsection A. Workspace directories ============================
+  set a Input directory  = examples/interpolation_v2/
+  set b Output directory = build-topo3/output/
+end
+subsection B. Geometry  ========================================
+  set a Geometry Type = BOX
+  subsection A. Case BOX =---=---=---=---=---=---=---=---=---=
+    set a XYZ dimensions   = 100,100,10
+    set b Left lower point = 0,0,0
+  end
+  subsection B. Case FILE =---=---=---=---=---=---=---=---=---
+    set a Input mesh file = 
+  end
+  subsection C. Common parameters =---=---=---=---=---=---=---
+    set a Top elevation function    = top.master
+    set b Bottom elevation function = bottom.master
+    set c x-y threshold             = 0.1
+    set d z threshold               = 0.01
+  end
+end
+subsection C. Discretization ===================================
+  set a Nxyz                            = 2,2,2
+  set b Vertical discretization         = 
+  set c Initial Refinement              = 0
+  set d Well Refinement                 = 0
+  set e Stream Refinement               = 0
+  set f Top Refinement                  = 0
+  set g Remaining Boundaries Refinement = 0
+end
+subsection D. Boundary Conditions ==============================
+  set a Dirichlet file name = dirichlet.dat
+end
+subsection E Aquifer Properties ================================
+  set a Hydraulic Conductivity KX = conductivity.master
+  set b Hydraulic Conductivity KY = 
+  set c Hydraulic Conductivity KZ = 
+  set d Porosity                  = porosity.master
+end
+subsection F. Sources & Sinks ==================================
+  set a Groundwater recharge = recharge.master
+  set b Stream recharge      = 
+  set c Wells                = 
+  set d Neumann Conditions   = 
+  set e Recharge multiplier  = 1
+  set f Well multiplier      = 1
+  set g Stream multiplier    = 1
+end
+subsection G. Solver parameters ================================
+  set a Nonlinear iterations = 2
+  set b Solver tolerance     = 1e-8
+  set c Max iterations       = 1000
+  set d Output details       = 0
+end
+subsection H. Refinement Parameters ============================
+  set a Max refinements iterations = 0
+  set b Top fraction               = 0.15
+  set c Bottom fraction            = 0.01
+  set d Minimum element size       = 1.0
+end
+subsection I. Particle tracking ================================
+  set a Enable particle tracking = 0
+  subsection A. Configuration =---=---=---=---=---=---=---=---=
+    set a Tracking method         = 3
+    set b Step size               = 6
+    set c Stuck iterations        = 50
+    set d Streamline iterations   = 1000
+    set e Outer iterations        = 100
+    set f Search iterations       = 3
+    set g N Particles in parallel = 5000
+  end
+  subsection B. Initial particle locations =---=---=---=---=---=
+    set a Particles from file       = 
+    set b Trace wells               = 1
+    set c Layers per well           = 25
+    set d Particles per layer(well) = 4
+    set e Distance from well        = 50.0
+    set f Well Distribution type    = 
+  end
+  subsection C. Particle Output configuration =---=---=---=---=---=
+    set a Particles Prefix           = 
+    set b Simplify threshold         = 5.5
+    set c Print entity frequency     = 1
+    set d Print streamline frequency = 1
+  end
+end
+subsection J. Output Parameters ================================
+  set a Prefix = smoke
+  subsection A. Load/Save options =---=---=---=---=---=---=
+    set a Savix                      = sol
+    set b Save Solution              = 0
+    set c Load Solution              = 0
+    set d Print solution vtk         = 1
+    set e Print velocity field cloud = 0
+  end
+  subsection B. Debug options =---=---=---=---=---=---=
+    set a Print initial mesh             = 0
+    set b Print free surface point cloud = 0
+    set c Domain Scale X                 = 1000
+    set d Domain Scale Z                 = 500
+  end
+end

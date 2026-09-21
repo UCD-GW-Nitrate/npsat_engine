@@ -4,12 +4,13 @@
 #include <iostream>
 #include <vector>
 
-#include "interpinterface.h"
-#include "MultiPolyInterp.h"
+#include "interpolation/interpolation_function.h"
+
 #include "wells.h"
 #include "streams.h"
-#include "my_functions.h"
-#include "dirichlet_boundary.h"
+#include "conductivity_function.h"
+#include "neumann_boundary.h"
+#include "BC/dirichlet_bc.h"
 
 
 struct Directories{
@@ -205,10 +206,10 @@ public:
     std::vector<double>             vert_discr;
 
     //! This is a 2D interpolation function for the top elevation
-    InterpInterface<dim>          top_elevation;
+    std::shared_ptr<npsat_flow::InterpInterface<dim>>          top_elevation;
 
     //! This is a 2D interpolation function for the bottom elevation
-    InterpInterface<dim>          bottom_elevation;
+    std::shared_ptr<npsat_flow::InterpInterface<dim>>          bottom_elevation;
 
     //! The minimum cell dimension that is expected in the x-y plane
     //! Triangulation points closer than #xy_thres distance will be considered identical
@@ -278,19 +279,19 @@ public:
     double                              multiplier_velocity_print;
 
     //! This is a structure that will store the hydraulic conductivity values
-    std::vector<InterpInterface<dim> >	HydraulicConductivity;
+    std::vector<std::shared_ptr<npsat_flow::InterpInterface<dim>> >	HydraulicConductivity;
 
-    MyTensorFunction<dim>*              HK_function;
+    ConductivityFunction<dim>*              HK_function;
 
     //! This boolean variable specifies which functions of the AquiferProperties#HydraulicConductivity are actually used.
     //! For example when the aquifer is isotropic the HKuse[0] should be true while the HKuse[1] and HKuse[2] should be set to false.
     std::vector<bool>                   HKuse;
 
     //! A 3D interpolation function for the aquifer porosity
-    InterpInterface<dim>                Porosity;
+    std::shared_ptr<npsat_flow::InterpInterface<dim>>                Porosity;
 
     //! This is a 2D interpolation function for the groundwater recharge
-    InterpInterface<dim>              GroundwaterRecharge;
+    std::shared_ptr<npsat_flow::InterpInterface<dim>>              GroundwaterRecharge;
 
     //! This holds the information for the streams
     Streams<dim>                        streams;

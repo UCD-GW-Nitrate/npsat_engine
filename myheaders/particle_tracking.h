@@ -9,7 +9,7 @@
 #include <deal.II/base/bounding_box.h>
 #include <deal.II/lac/affine_constraints.h>
 
-#include "my_functions.h"
+#include "conductivity_function.h"
 #include "dsimstructs.h"
 #include "streamlines.h"
 //#include "cgal_functions.h"
@@ -125,8 +125,8 @@ public:
                       AffineConstraints<double>& constraints_in,
                       TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                       TrilinosWrappers::MPI::Vector& 	system_rhs_in,
-                      MyTensorFunction<dim>& HK_function_in,
-                      MyFunction<dim, dim>& porosity_in,
+                      ConductivityFunction<dim>& HK_function_in,
+                      npsat_flow::InterpolationFunction<dim>& porosity_in,
                       ParticleParameters& param_in);
 
 
@@ -146,8 +146,8 @@ private:
     AffineConstraints<double>&                   Headconstraints;
     TrilinosWrappers::MPI::Vector       locally_relevant_solution;
     TrilinosWrappers::MPI::Vector       system_rhs;
-    MyTensorFunction<dim>               HK_function;
-    MyFunction<dim, dim>                porosity;
+    ConductivityFunction<dim>               HK_function;
+    npsat_flow::InterpolationFunction<dim>                porosity;
     ParticleParameters                  param;
     ConditionalOStream                  pcout;
 
@@ -364,8 +364,8 @@ Particle_Tracking<dim>::Particle_Tracking(MPI_Comm& mpi_communicator_in,
                                           AffineConstraints<double>& constraints_in,
                                           TrilinosWrappers::MPI::Vector& 	locally_relevant_solution_in,
                                           TrilinosWrappers::MPI::Vector& 	system_rhs_in,
-                                          MyTensorFunction<dim>& HK_function_in,
-                                          MyFunction<dim, dim>& porosity_in,
+                                          ConductivityFunction<dim>& HK_function_in,
+                                          npsat_flow::InterpolationFunction<dim>& porosity_in,
                                           ParticleParameters& param_in)
     :
     mpi_communicator(mpi_communicator_in),
@@ -508,8 +508,8 @@ void Particle_Tracking<dim>::trace_particles(std::vector<Streamline<dim>>& strea
                 else if (dim == 2)
                     query_pt[1] = 0;
 
-                std::vector<std::pair<size_t,double> > ret_matches;
-                nanoflann::SearchParams params;
+                std::vector<nanoflann::ResultItem<size_t, double> > ret_matches;
+                nanoflann::SearchParameters params;
                 params.sorted = false;
                 const int nMatches = particleCloudIndex.radiusSearch(query_pt,cellradius,ret_matches,params);
 

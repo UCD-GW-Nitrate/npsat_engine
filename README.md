@@ -1,3 +1,5 @@
+> **topo3 input format:** See [the interpolation migration guide](Doc/interpolation_v2.md) and `examples/interpolation_v2/smoke.prm`. Older examples below use the retired interpolation format.
+
 
 <img src="Logo/logo_npsat_600.png" alt="Npsat engine logo" width="700"/>
 

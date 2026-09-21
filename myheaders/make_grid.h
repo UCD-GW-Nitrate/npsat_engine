@@ -129,7 +129,7 @@ namespace AquiferGrid{
                         int nlay = readLayerRelativeElevation();
                         dealii::GridGenerator::extrude_triangulation(tria2D, nlay+2, 100, tria3D);
 
-                        nanoflann::SearchParams params;
+                        nanoflann::SearchParameters params;
                         params.sorted = true;
                         std::vector<std::pair<size_t,double> > ret_matches;
                         std::vector<size_t>   ret_index(1);

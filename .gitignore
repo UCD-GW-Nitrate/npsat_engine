@@ -14,6 +14,10 @@
 /myheaders/*
 #Un-ignore the source code
 !/myheaders/*.h
+!/myheaders/nanoflann.hpp
+!/myheaders/interpolation/
+!/myheaders/BC/
+!/tests/
 
 # unignore the Vis folder =========Vis========
 !/Vis
@@ -133,3 +137,6 @@
 
 
 .Rproj.user
+
+# Time-series interpolation examples and integration fixtures
+!/examples/interpolation_v2/

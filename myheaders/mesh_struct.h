@@ -20,7 +20,7 @@
 #include "pnt_info.h"
 //#include "cgal_functions.h"
 #include "nanoflann_structures.h"
-#include "my_functions.h"
+#include "conductivity_function.h"
 #include "mpi_help.h"
 #include "helper_functions.h"
 //#include "mix_mesh.h"
@@ -193,8 +193,8 @@ public:
 
     //! This method calculates the top and bottom elevation on the points of the #PointsMap
     //! This should be called on the initial grid before any refinement.
-    void compute_initial_elevations(InterpInterface<dim>& top_function,
-                                    InterpInterface<dim>& bot_function);
+    void compute_initial_elevations(const std::shared_ptr<npsat_flow::InterpInterface<dim>>& top_function,
+                                    const std::shared_ptr<npsat_flow::InterpInterface<dim>>& bot_function);
 
     //void assign_top_bottom(mix_mesh<dim-1>& top_elev, mix_mesh<dim-1>& bot_elev,
     //                       ConditionalOStream pcout,
@@ -305,9 +305,9 @@ int Mesh_struct<dim>::check_if_point_exists(Point<dim> p){
     }
 
     const double radius = 1;
-    std::vector<std::pair<size_t, double> > indices_dists;
+    std::vector<nanoflann::ResultItem<size_t, double> > indices_dists;
     nanoflann::RadiusResultSet<double, size_t> resultSet(radius, indices_dists);
-    XYPointSetIndex->findNeighbors(resultSet, query_pt, nanoflann::SearchParams());
+    XYPointSetIndex->findNeighbors(resultSet, query_pt, nanoflann::SearchParameters());
 
     //std::vector<int> ids = circle_search_in_2DSet(CGALset, ine_Point3(x, y, 0.0) , xy_thres);
 
@@ -1470,8 +1470,8 @@ void Mesh_struct<dim>::make_dof_ij_map(){
 
 
 template <int dim>
-void Mesh_struct<dim>::compute_initial_elevations(InterpInterface<dim>& top_function,
-                                                  InterpInterface<dim>& bot_function){
+void Mesh_struct<dim>::compute_initial_elevations(const std::shared_ptr<npsat_flow::InterpInterface<dim>>& top_function,
+                                                  const std::shared_ptr<npsat_flow::InterpInterface<dim>>& bot_function){
     // Any modifications here maybe have to be copied on assign_top_bottom method at the end
 
     typename std::map<int , PntsInfo<dim> >::iterator it;
@@ -1482,8 +1482,8 @@ void Mesh_struct<dim>::compute_initial_elevations(InterpInterface<dim>& top_func
             p_dim[ii] = it->second.PNT[ii];
         p_dim[dim-1] = 0;
 
-        double top = top_function.interpolate(p_dim);
-        double bot = bot_function.interpolate(p_dim);
+        double top = top_function->interpolate(p_dim, 0);
+        double bot = bot_function->interpolate(p_dim, 0);
         if (std::isnan(top))
             std::cout << "Top was nan" << std::endl;
         if (std::isnan(bot))

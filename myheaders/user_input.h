@@ -318,13 +318,13 @@ void CL_arguments<dim>::declare_parameters(){
         {
             prm.declare_entry ("a Top elevation function", "",Patterns::Anything(),
                                "a----------------------------------\n"
-                               "Top elevation function must be either a single value\n"
-                               "or the name of a file");
+                               "Top elevation interpolation master file\n"
+                               "relative to the input directory");
 
             prm.declare_entry ("b Bottom elevation function", "",Patterns::Anything(),
                                "b----------------------------------\n"
-                               "Bottom elevation function must be either a single value\n"
-                               "or the name of a file");
+                               "Bottom elevation interpolation master file\n"
+                               "relative to the input directory");
 
             prm.declare_entry("c x-y threshold", "0.1", Patterns::Double(0,10000),
                               "c----------------------------------\n"
@@ -416,24 +416,24 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry ("a Hydraulic Conductivity KX", "",Patterns::Anything(),
                            "a----------------------------------\n"
                            "Hydraulic conductivity along the x direction.\n"
-                           "It must be either a single value or the name of a file");
+                           "Specify an interpolation master file relative to the input directory");
 
         prm.declare_entry ("b Hydraulic Conductivity KY", "",Patterns::Anything(),
                            "b----------------------------------\n"
                            "Hydraulic conductivity along the y direction.\n"
-                           "It must be either a single value or the name of a file\n"
+                           "Specify an interpolation master file relative to the input directory\n"
                            "If KY == KX leave this empty. In 2D this is ignored");
 
         prm.declare_entry ("c Hydraulic Conductivity KZ", "",Patterns::Anything(),
                            "c----------------------------------\n"
                            "Hydraulic conductivity along the z direction.\n"
-                           "It must be either a single value or the name of a file\n"
+                           "Specify an interpolation master file relative to the input directory\n"
                            "If KZ == KX leave this empty. In 2D this corresponds to the vertical K");
 
         prm.declare_entry("d Porosity", "", Patterns::Anything(),
                           "d----------------------------------\n"
                           "Porosity. This is used during particle tracking\n"
-                          "A single value or the name of the file");
+                          "Interpolation master file relative to the input directory");
     }
     prm.leave_subsection();
 
@@ -445,7 +445,7 @@ void CL_arguments<dim>::declare_parameters(){
         prm.declare_entry ("a Groundwater recharge", "",Patterns::Anything(),
                            "a----------------------------------\n"
                            "Groundwater recharche function\n"
-                           "must be either a single value or the name of a file");
+                           "Specify an interpolation master file relative to the input directory");
 
         prm.declare_entry ("b Stream recharge", "",Patterns::Anything(),
                            "b----------------------------------\n"
@@ -827,19 +827,12 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
         prm.enter_subsection("C. Common parameters =---=---=---=---=---=---=---");
         {
             std::string temp_name = prm.get("a Top elevation function");
-            if (is_input_a_scalar((temp_name))){
-                AQprop.top_elevation.get_data(temp_name);
-            }else{
-                AQprop.top_elevation.get_data(input_dir + temp_name);
-            }
+            AQprop.top_elevation = std::make_shared<npsat_flow::InterpInterface<dim>>();
+            AQprop.top_elevation->read_master_file(temp_name, 1.0, MPI_COMM_WORLD, input_dir);
 
             temp_name = prm.get("b Bottom elevation function");
-            if (is_input_a_scalar(temp_name)){
-                AQprop.bottom_elevation.get_data(temp_name);
-            }
-            else{
-                AQprop.bottom_elevation.get_data(input_dir + temp_name);
-            }
+            AQprop.bottom_elevation = std::make_shared<npsat_flow::InterpInterface<dim>>();
+            AQprop.bottom_elevation->read_master_file(temp_name, 1.0, MPI_COMM_WORLD, input_dir);
 
             AQprop.xy_thres = prm.get_double("c x-y threshold");
             AQprop.z_thres = prm.get_double("d z threshold");
@@ -894,7 +887,7 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
     //+++++++++++++++++++++++++++++++++++++++++
     prm.enter_subsection("D. Boundary Conditions ==============================");
     {
-        AQprop.dirichlet_file_names = input_dir + prm.get("a Dirichlet file name");
+        AQprop.dirichlet_file_names = prm.get("a Dirichlet file name");
     }
     prm.leave_subsection ();
 
@@ -908,23 +901,15 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
         AQprop.HydraulicConductivity.resize(dim);
         AQprop.HKuse.resize(dim,false);
         std::string temp_name = prm.get("a Hydraulic Conductivity KX");
-        if (is_input_a_scalar(temp_name)){
-            AQprop.HydraulicConductivity[0].get_data(temp_name);
-        }
-        else{
-            AQprop.HydraulicConductivity[0].get_data(input_dir + temp_name);
-        }
+        AQprop.HydraulicConductivity[0] = std::make_shared<npsat_flow::InterpInterface<dim>>();
+        AQprop.HydraulicConductivity[0]->read_master_file(temp_name, 1.0, MPI_COMM_WORLD, input_dir);
         AQprop.HKuse[0] = true;
 
         //KZ Hydraulic Conductivity
         std::string KZ_file = prm.get("c Hydraulic Conductivity KZ");
         if (KZ_file != ""){
-            if (is_input_a_scalar(KZ_file)){
-                AQprop.HydraulicConductivity[dim-1].get_data(KZ_file);
-            }
-            else{
-                AQprop.HydraulicConductivity[dim-1].get_data(input_dir + KZ_file);
-            }
+            AQprop.HydraulicConductivity[dim-1] = std::make_shared<npsat_flow::InterpInterface<dim>>();
+            AQprop.HydraulicConductivity[dim-1]->read_master_file(KZ_file, 1.0, MPI_COMM_WORLD, input_dir);
             AQprop.HKuse[dim-1] = true;
         }
 
@@ -932,12 +917,8 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
             //KY Hydraulic Conductivity
             std::string KY_file = prm.get("b Hydraulic Conductivity KY");
             if (KY_file != ""){
-                if(is_input_a_scalar(KY_file)){
-                    AQprop.HydraulicConductivity[1].get_data(KY_file);
-                }
-                else{
-                    AQprop.HydraulicConductivity[1].get_data(input_dir + KY_file);
-                }
+                AQprop.HydraulicConductivity[1] = std::make_shared<npsat_flow::InterpInterface<dim>>();
+                AQprop.HydraulicConductivity[1]->read_master_file(KY_file, 1.0, MPI_COMM_WORLD, input_dir);
                 AQprop.HKuse[1] = true;
             }
         }
@@ -945,19 +926,19 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
         { // Set up the hydraulic conductivity tensor function
             if (dim == 2){
                 if (AQprop.HKuse[1] == false)
-                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0]);
+                    AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0]);
                 else
-                   AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                   AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
                                                                    AQprop.HydraulicConductivity[1]);
             }
             else if (dim == 3){
                 if (AQprop.HKuse[1] == false && AQprop.HKuse[2] == false)
-                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0]);
+                    AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0]);
                 else if(AQprop.HKuse[1] == false && AQprop.HKuse[2] == true)
-                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                    AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
                                                                    AQprop.HydraulicConductivity[2]);
                 else if(AQprop.HKuse[1] == true && AQprop.HKuse[2] == true)
-                    AQprop.HK_function = new MyTensorFunction<dim>(AQprop.HydraulicConductivity[0],
+                    AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
                                                                    AQprop.HydraulicConductivity[1],
                                                                    AQprop.HydraulicConductivity[2]);
             }
@@ -965,12 +946,8 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
 
         //Porosity
         std::string por_file = prm.get("d Porosity");
-        if (is_input_a_scalar(por_file)){
-            AQprop.Porosity.get_data(por_file);
-        }
-        else{
-            AQprop.Porosity.get_data(input_dir + por_file);
-        }
+        AQprop.Porosity = std::make_shared<npsat_flow::InterpInterface<dim>>();
+        AQprop.Porosity->read_master_file(por_file, 1.0, MPI_COMM_WORLD, input_dir);
     }
     prm.leave_subsection ();
 
@@ -982,12 +959,8 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
     {
         // Diffuse Recharge
         std::string temp_name = prm.get("a Groundwater recharge");
-        if (is_input_a_scalar(temp_name)){
-            AQprop.GroundwaterRecharge.get_data(temp_name);
-        }
-        else{
-            AQprop.GroundwaterRecharge.get_data(input_dir + temp_name);
-        }
+        AQprop.GroundwaterRecharge = std::make_shared<npsat_flow::InterpInterface<dim>>();
+        AQprop.GroundwaterRecharge->read_master_file(temp_name, 1.0, MPI_COMM_WORLD, input_dir);
 
 
         //Read Rivers
@@ -1009,7 +982,7 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
         std::string neumann_file = prm.get("d Neumann Conditions");
         if (neumann_file != ""){
             neumann_file = input_dir + neumann_file;
-            AQprop.have_neumann = AQprop.NeumanBoundaries.getData(neumann_file);
+            AQprop.have_neumann = AQprop.NeumanBoundaries.getData(neumann_file, input_dir, MPI_COMM_WORLD);
         }
 
         AQprop.solver_param.rch_multiplier = prm.get_double("e Recharge multiplier");
