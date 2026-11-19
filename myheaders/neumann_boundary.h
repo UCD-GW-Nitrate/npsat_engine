@@ -145,6 +145,9 @@ public:
      */
     bool getData(std::string filename, const std::string &input_path, MPI_Comm comm);
     int Nbnd();
+    void select_steady_step(unsigned int step) {
+        for (const auto &interp : interp_funct) interp->select_steady_step(step);
+    }
     BoundaryType getType(int i);
     bool isPartofBoundary(Point<dim> p, int ibnd);
     bool isPartofBoundary(Point<dim> pa, Point<dim> pb, int ibnd);
@@ -226,7 +229,9 @@ double Neumann<dim>::interpolate(Point<dim> p, int ibnd){
 
 template<int dim>
 bool Neumann<dim>::getData(std::string filename, const std::string &input_path, MPI_Comm comm){
-    std::ifstream  datafile(filename.c_str());
+    std::string boundary_text;
+    npsat_flow::read_text_file_mpi(filename, comm, boundary_text);
+    std::istringstream datafile(boundary_text);
     if (!datafile.good()){
         std::cout << "Can't open " << filename << std::endl;
         return false;
@@ -237,6 +242,8 @@ bool Neumann<dim>::getData(std::string filename, const std::string &input_path, 
             getline(datafile, line);
             std::istringstream inp(line.c_str());
             inp >> Nb;
+            AssertThrow(inp && Nb >= 0 && static_cast<std::size_t>(Nb) <= boundary_text.size(),
+                        ExcMessage("Invalid Neumann boundary count"));
             boundary_parts.resize(Nb);
             interp_funct.resize(Nb);
             bnd_type.resize(Nb);
@@ -258,12 +265,15 @@ bool Neumann<dim>::getData(std::string filename, const std::string &input_path, 
                     bnd_type[i] = BoundaryType::BOUNDARY_LINE;
                 }
                 else{
-                    std::cout << "Unknown type of Neumann condition: " << type << std::endl;
+                    AssertThrow(false, ExcMessage("Unknown Neumann type: " + type));
                 }
                 inp >> np;
                 inp >> mult;
                 multiplier[i] = mult;
                 inp >> value;
+                AssertThrow(inp && std::isfinite(mult) &&
+                            ((type == "BOT" && np >= 3) || (type == "BOUNDARY_LINE" && np == 0)),
+                            ExcMessage("Invalid Neumann boundary record"));
             }
             if (dim == 2){
                 std::cout << "Neumann readers are not implemented for 2D" << std::endl;
@@ -283,6 +293,7 @@ bool Neumann<dim>::getData(std::string filename, const std::string &input_path, 
                         getline(datafile, line);
                         std::istringstream inp(line.c_str());
                         inp >> x;
+                        AssertThrow(inp && std::isfinite(x), ExcMessage("Invalid Neumann vertex"));
                         // X coordinate
                         if (x < boundary_parts[i].BBmin[0])
                             boundary_parts[i].BBmin[0] = x;
@@ -292,6 +303,7 @@ bool Neumann<dim>::getData(std::string filename, const std::string &input_path, 
 
                          // Y coordinate
                          inp >> y;
+                         AssertThrow(inp && std::isfinite(y), ExcMessage("Invalid Neumann vertex"));
                          if (y < boundary_parts[i].BBmin[1])
                              boundary_parts[i].BBmin[1] = y;
                          if (y > boundary_parts[i].BBmax[1])
@@ -315,7 +327,6 @@ bool Neumann<dim>::getData(std::string filename, const std::string &input_path, 
             }
         }
     }
-    datafile.close();
     return true;
 }
 

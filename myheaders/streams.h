@@ -64,6 +64,7 @@ public:
      *
      */
     bool read_streams(std::string namefile);
+    bool read_streams(std::istream &datafile, const std::string &namefile);
 
     //! A list with the coordinates of the starting points of the stream.
     //! Note that it is not important which end is set as starting or ending pooint
@@ -241,7 +242,12 @@ void Streams<dim>::setup_cell(typename DoFHandler<dim>::face_iterator top_face, 
 
 template <int dim>
 bool Streams<dim>::Streams::read_streams(std::string namefile){
-    std::ifstream  datafile(namefile.c_str());
+    std::ifstream datafile(namefile.c_str());
+    return read_streams(datafile, namefile);
+}
+
+template <int dim>
+bool Streams<dim>::read_streams(std::istream &datafile, const std::string &namefile){
     char buffer[512];
     if (!datafile.good()){
         std::cout << "Can't open the file" << namefile << std::endl;

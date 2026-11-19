@@ -17,8 +17,10 @@
 #include <iostream>
 #include <fstream>
 #include <list>
+#include <sys/stat.h>
 
 #include "dsimstructs.h"
+#include "flow_options.h"
 #include "helper_functions.h"
 //#include "cgal_functions.h"
 
@@ -74,6 +76,11 @@ public:
     //void Debug_Prop();
 
     bool do_gather;
+    bool validate_only = false;
+    bool print_config = false;
+    bool ini_input = false;
+    bool read_ini_file(AquiferProperties<dim>& AQprop);
+    template<class Reader> bool read_options(AquiferProperties<dim>& AQprop, Reader &prm);
 
     //! This is a vector that holds the entity ids to gather via the gather process
     std::vector<int> EntityIDs;
@@ -144,6 +151,33 @@ CL_arguments<dim>::CL_arguments()
 }
 template<int dim>
 bool CL_arguments<dim>::parse_command_line(const int argc, char *const *argv){
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "-c" || std::string(argv[i]) == "--config" ||
+            std::string(argv[i]).find("--config=") == 0 || std::string(argv[i]) == "--help-config" ||
+            std::string(argv[i]) == "--validate-only" || std::string(argv[i]) == "--print-config")
+            ini_input = true;
+    if (ini_input) {
+        namespace po = boost::program_options;
+        po::options_description command("FEM flow options");
+        command.add_options()
+            ("config,c", po::value<std::string>(), "INI configuration file")
+            ("validate-only", po::bool_switch(&validate_only), "Read and validate data without solving")
+            ("print-config", po::bool_switch(&print_config), "Print canonical options and selected inputs")
+            ("help-config", "Print INI schema");
+        po::variables_map options;
+        po::store(po::parse_command_line(argc, argv, command), options);
+        po::notify(options);
+        do_gather = false;
+        if (options.count("help-config")) {
+            npsat_input::FlowOptions schema;
+            pcout << command << '\n' << schema.schema << std::endl;
+            return false;
+        }
+        npsat_input::require(options.count("config") != 0, "Use -c config.ini");
+        param_file = options["config"].as<std::string>();
+        return true;
+    }
+
     bool out = false;
     // The number of input arguments has to be at least two since they are pairs
     if (argc < 2){
@@ -729,6 +763,7 @@ void CL_arguments<dim>::declare_parameters(){
 
 template<int dim>
 bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
+    if (ini_input) return read_ini_file(AQprop);
 
     std::ifstream f(param_file.c_str());
     if (!f.good())
@@ -737,6 +772,13 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
     AQprop.main_param_file = param_file;
 
     prm.parse_input(param_file);
+    return read_options(AQprop, prm);
+}
+
+template<int dim>
+template<class Reader>
+bool CL_arguments<dim>::read_options(AquiferProperties<dim>& AQprop, Reader &prm) {
+
 
 
     //+++++++++++++++++++++++++++++++++++++++++
@@ -937,6 +979,10 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
                 else if(AQprop.HKuse[1] == false && AQprop.HKuse[2] == true)
                     AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
                                                                    AQprop.HydraulicConductivity[2]);
+                else if(AQprop.HKuse[1] == true && AQprop.HKuse[2] == false)
+                    AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
+                                                                   AQprop.HydraulicConductivity[1],
+                                                                   AQprop.HydraulicConductivity[0]);
                 else if(AQprop.HKuse[1] == true && AQprop.HKuse[2] == true)
                     AQprop.HK_function = new ConductivityFunction<dim>(AQprop.HydraulicConductivity[0],
                                                                    AQprop.HydraulicConductivity[1],
@@ -983,6 +1029,7 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
         if (neumann_file != ""){
             neumann_file = input_dir + neumann_file;
             AQprop.have_neumann = AQprop.NeumanBoundaries.getData(neumann_file, input_dir, MPI_COMM_WORLD);
+            AssertThrow(AQprop.have_neumann, ExcMessage("Could not read Neumann data"));
         }
 
         AQprop.solver_param.rch_multiplier = prm.get_double("e Recharge multiplier");
@@ -1114,6 +1161,97 @@ bool CL_arguments<dim>::read_param_file(AquiferProperties<dim>&  AQprop){
     }
     prm.leave_subsection ();
 
+    return true;
+}
+
+template<int dim>
+bool CL_arguments<dim>::read_ini_file(AquiferProperties<dim>& aq) {
+    npsat_input::FlowOptions options;
+    options.read(param_file, mpi_communicator);
+    if (!validate_only) {
+        struct stat output_info;
+        npsat_input::require(stat(options.output_path.c_str(), &output_info) == 0 &&
+                            (output_info.st_mode & S_IFDIR),
+                            "Output directory does not exist: " + options.output_path);
+    }
+    aq.main_param_file = param_file;
+    aq.shared_flow_input = true;
+    aq.stress_step = options.value<int>("Simulation.Start_step");
+    aq.boundary_half_width = options.value<double>("BC.HalfWidth");
+    aq.boundary_min_overlap = options.value<double>("BC.MinOverlap");
+    npsat_input::require(validate_only || options.sources.wells.empty() ||
+                        options.value<std::string>("FEM.WellModel") == "legacy",
+                        "MNW assembly is milestone 3. Use FEM.WellModel=legacy explicitly for comparison.");
+    if (!read_options(aq, options)) throw std::runtime_error("Invalid flow configuration");
+    aq.top_elevation->select_steady_step(aq.stress_step);
+    aq.bottom_elevation->select_steady_step(aq.stress_step);
+    aq.Porosity->select_steady_step(aq.stress_step);
+    aq.GroundwaterRecharge->select_steady_step(aq.stress_step);
+    for (const auto &k : aq.HydraulicConductivity) if (k) k->select_steady_step(aq.stress_step);
+    aq.NeumanBoundaries.select_steady_step(aq.stress_step);
+
+    // Validate boundary tables before mesh setup (also for --validate-only).
+    npsat_flow::DirichletBoundary<dim> boundary;
+    boundary.set_lateral_matching_tolerances(aq.boundary_half_width, aq.boundary_min_overlap);
+    boundary.read_data(aq.dirichlet_file_names, 1.0, mpi_communicator, 17, aq.Dirs.input);
+    for (const auto &part : boundary.get_parts()) part.interp->select_steady_step(aq.stress_step);
+    // Transient metadata is accepted but not used in this steady solver. Validate
+    // supplied interpolation files to prevent unnoticed stale/malformed inputs.
+    for (const char *key : {"Properties.Sy", "Properties.Ss", "IC.Head"}) {
+        if (!options.value<std::string>(key).empty()) {
+            npsat_flow::InterpInterface<dim> unused;
+            unused.read_master_file(options.value<std::string>(key), 1.0, mpi_communicator, aq.Dirs.input);
+            unused.select_steady_step(aq.stress_step);
+        }
+    }
+    if (!options.value<std::string>("Simulation.Delta_time_file").empty()) {
+        npsat_flow::TimeSeriesData<double> time;
+        time.read_data(options.path("Simulation.Delta_time_file"), mpi_communicator);
+    }
+    if (aq.geomtype == "FILE") {
+        std::string mesh;
+        npsat_flow::read_text_file_mpi(aq.input_mesh_file, mpi_communicator, mesh);
+        npsat_input::require(!mesh.empty(), "Empty mesh file");
+        if (aq.use_rel_elev_file) npsat_flow::read_text_file_mpi(aq.rel_elev_file, mpi_communicator, mesh);
+    }
+
+    for (const auto &record : options.sources.wells) {
+        PointId point;
+        point.x = record.x; point.y = record.y; point.id = record.id;
+        aq.wells.WellsAsCloud.pts.push_back(point);
+        Well<dim> well;
+        well.top[0] = record.x; well.bottom[0] = record.x;
+        if (dim == 3) { well.top[1] = record.y; well.bottom[1] = record.y; }
+        well.top[dim-1] = record.top; well.bottom[dim-1] = record.bottom;
+        well.Qtot = record.rate; well.well_id = record.id;
+        aq.wells.wells.insert(std::make_pair(record.id, well));
+    }
+    aq.wells.Nwells = options.sources.wells.size();
+    aq.have_wells = aq.wells.Nwells > 0;
+    if (aq.have_wells) {
+        aq.wells.wellIndex.reset(new pointid_kd_tree(2, aq.wells.WellsAsCloud,
+                                     nanoflann::KDTreeSingleIndexAdaptorParams(10)));
+        aq.wells.wellIndex->buildIndex();
+    }
+    if (!options.sources.streams.empty()) {
+        std::istringstream data(options.sources.legacy_stream_text());
+        aq.have_streams = aq.streams.read_streams(data, "validated shared stream data");
+        npsat_input::require(aq.have_streams, "Cannot initialize stream geometry");
+    }
+    if (print_config || validate_only) {
+        if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0) options.print(std::cout);
+        Point<dim> sample;
+        if (aq.geomtype == "BOX")
+            for (unsigned d = 0; d < dim; ++d) sample[d] = aq.left_lower_point[d] + 0.5*aq.Length[d];
+        pcout << std::setprecision(17) << "Selected.Center.Top=" << aq.top_elevation->interpolate(sample, 0)
+              << "\nSelected.Center.Bottom=" << aq.bottom_elevation->interpolate(sample, 0)
+              << "\nSelected.Center.Kxy=" << aq.HydraulicConductivity[0]->interpolate(sample, 0)
+              << "\nSelected.Center.Recharge=" << aq.GroundwaterRecharge->interpolate(sample, 0) << '\n';
+        for (unsigned i = 0; i < boundary.get_parts().size(); ++i)
+            pcout << "Selected.Center.Dirichlet." << i << '='
+                  << boundary.get_parts()[i].interp->interpolate(sample, 0) << '\n';
+        pcout << "INPUT_VALIDATION_OK\n";
+    }
     return true;
 }
 

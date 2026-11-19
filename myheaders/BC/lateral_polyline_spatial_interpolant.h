@@ -145,6 +145,10 @@ namespace npsat_flow {
         {
             values.read_data(filename, comm);
             values.multiply_by_factor(factor);
+            for (const auto &layer : ids)
+                for (int id : layer)
+                    AssertThrow(id >= 0 && id < values.n_points(),
+                                ExcMessage("Lateral value row ID is out of range"));
         }
 
         /**

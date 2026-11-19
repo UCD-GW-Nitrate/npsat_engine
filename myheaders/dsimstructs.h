@@ -323,12 +323,18 @@ public:
 
     //! This is the main parameter file.
     std::string main_param_file;
+    bool shared_flow_input = false;
+    unsigned int stress_step = 0;
+    double boundary_half_width = 20.0;
+    double boundary_min_overlap = 5.0;
 };
 
 template <int dim>
 AquiferProperties<dim>::AquiferProperties(){
     have_wells = false;
     have_streams = false;
+    have_neumann = false;
+    use_rel_elev_file = false;
 }
 
 template <int dim>

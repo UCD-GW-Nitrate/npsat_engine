@@ -298,7 +298,10 @@ void NPSAT<dim>::make_grid(){
     }
 
     // Prepare dirichlet Boudnary Conditions
+    DirBC.set_lateral_matching_tolerances(AQProps.boundary_half_width, AQProps.boundary_min_overlap);
     DirBC.read_data(AQProps.dirichlet_file_names, 1.0, mpi_communicator, 17, AQProps.Dirs.input);
+    if (AQProps.shared_flow_input)
+        for (const auto &part : DirBC.get_parts()) part.interp->select_steady_step(AQProps.stress_step);
 
     if (AQProps.print_init_mesh >0){
         std::ofstream out (AQProps.Dirs.output + AQProps.sim_prefix + "_init_mesh_" + Utilities::int_to_string(my_rank,4) + ".vtk");
@@ -440,6 +443,10 @@ void NPSAT<dim>::solve_refine(){
         else if(AQProps.HKuse[1] == false && AQProps.HKuse[2] == true)
             HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
                                                     AQProps.HydraulicConductivity[2]);
+        else if(AQProps.HKuse[1] == true && AQProps.HKuse[2] == false)
+            HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
+                                                    AQProps.HydraulicConductivity[1],
+                                                    AQProps.HydraulicConductivity[0]);
         else if(AQProps.HKuse[1] == true && AQProps.HKuse[2] == true)
             HK_function = new ConductivityFunction<dim>(AQProps.HydraulicConductivity[0],
                                                     AQProps.HydraulicConductivity[1],

@@ -64,7 +64,7 @@ using namespace dealii;
 int main (int argc, char **argv){
     deallog.depth_console (1);
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
-
+    try {
     CL_arguments<_DIM> CLI;
     AquiferProperties<_DIM>   AQprop;
     //std::cout << "Is here?" << std::endl;
@@ -72,6 +72,7 @@ int main (int argc, char **argv){
     if (CLI.parse_command_line(argc,argv)){
         bool read_param = CLI.read_param_file(AQprop);
         if (read_param){
+            if (CLI.validate_only) return 0;
             if (CLI.do_gather){
                 if (AQprop.part_param.particle_prefix.empty()){
                     std::cerr << "You havent specify a particle prefix name to gather data from" << std::endl;
@@ -93,9 +94,19 @@ int main (int argc, char **argv){
                     npsat.particle_tracking();
             }
         }
-        else
+        else {
             std::cerr << "Error while reading the parameter file" << std::endl;
+            return 1;
+        }
     }
     //std::cout << "Just a dummy change" << std::endl;
 	return 0;
+    } catch (const std::exception &e) {
+        int rank = 0;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        std::cerr << "NPSAT error on rank " << rank << ": " << e.what() << std::endl;
+        // A rank-local exception must not leave other ranks blocked in a collective.
+        MPI_Abort(MPI_COMM_WORLD, 1);
+        return 1;
+    }
 }

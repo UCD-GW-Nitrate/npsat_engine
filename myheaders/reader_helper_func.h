@@ -15,10 +15,12 @@
 #include <sstream>
 #include <cctype>
 #include <algorithm>
+#include <cmath>
 
 #include "flow_structures.h"
 
 namespace npsat_flow{
+    static inline void broadcast_string_mpi(std::string &text, MPI_Comm comm, const int root = 0);
 
     static inline bool is_comment_or_empty_line(const std::string &line)
     {
@@ -75,9 +77,21 @@ namespace npsat_flow{
 
             // Parse through a wide type to avoid surprising overflow behavior during extraction.
             // Then cast to T (you may clamp/validate if you want stricter behavior).
-            long double tmp;
-            while (iss >> tmp)
+            std::string token;
+            while (iss >> token) {
+                long double tmp = 0;
+                std::istringstream number(token);
+                // Numeric overflow at end-of-line sets both failbit and eofbit;
+                // token parsing must reject it instead of accepting a short row.
+                if (!(number >> tmp) || !(number >> std::ws).eof())
+                    throw std::runtime_error("Invalid numeric token in " + filename + " line " + std::to_string(line_no));
+                if (!std::isfinite(tmp) || tmp > std::numeric_limits<T>::max() ||
+                    tmp < std::numeric_limits<T>::lowest())
+                    throw std::runtime_error("Nonfinite or out-of-range value in " + filename);
                 vals.push_back(static_cast<T>(tmp));
+            }
+            if (!iss.eof())
+                throw std::runtime_error("Invalid numeric token in " + filename + " line " + std::to_string(line_no));
 
             if (vals.empty())
                 continue;
@@ -97,6 +111,9 @@ namespace npsat_flow{
             rows.emplace_back(std::move(vals));
         }
 
+        if (rows.empty() || ncols <= 0)
+            throw std::runtime_error("Empty numeric table: " + filename);
+        if (in.bad()) throw std::runtime_error("Read failure: " + filename);
         nrows_out = static_cast<std::int64_t>(rows.size());
         ncols_out = (ncols < 0) ? 0 : ncols;
         return rows;
@@ -152,9 +169,12 @@ template <typename T>
         std::int64_t nrows = 0, ncols = 0;
         std::vector<T> flat; // contiguous [r*ncols + c]
 
+        std::string read_error;
         if (rank == 0) {
+          try {
             auto rows = read_ascii_2d_on_rank0_typed<T>(filename, nrows, ncols);
-
+            if (ncols <= 0 || nrows > std::numeric_limits<std::int64_t>::max() / ncols)
+                throw std::runtime_error("Matrix dimensions overflow: " + filename);
             const std::int64_t total64 = nrows * ncols;
             if (total64 < 0)
                 throw std::runtime_error("Invalid matrix size (overflow).");
@@ -167,7 +187,10 @@ template <typename T>
                 std::copy(row.begin(), row.end(),
                           flat.begin() + static_cast<std::size_t>(r) * static_cast<std::size_t>(ncols));
             }
+          } catch (const std::exception &e) { read_error = e.what(); }
         }
+        broadcast_string_mpi(read_error, comm);
+        if (!read_error.empty()) throw std::runtime_error(read_error);
 
         // Broadcast dimensions first
         MPI_Bcast(&nrows, 1, MPI_INT64_T, 0, comm);
@@ -234,7 +257,7 @@ template <typename T>
 
     static inline void broadcast_string_mpi(std::string &text,
                                             MPI_Comm comm,
-                                            const int root = 0)
+                                            const int root)
     {
         int rank = 0;
         MPI_Comm_rank(comm, &rank);
@@ -285,6 +308,7 @@ template <typename T>
 
                 std::ostringstream buffer;
                 buffer << in.rdbuf();
+                if (in.bad()) throw std::runtime_error("Read failure: " + filename);
                 text = buffer.str();
             }
             catch (const std::exception &exc)

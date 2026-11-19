@@ -128,6 +128,10 @@ private:
     void output_DBC(int iter, std::string output_file);
     SolverControl::State writeSolverConverge(const unsigned int iteration, const double check_value, const TrilinosWrappers::MPI::Vector /*&current_iterate*/)const{
         pcout << "\tIter:" << iteration << ": " << check_value << std::endl;
+        // deal.II 9.3 SolverBase::StateCombiner gives failure and iterate
+        // precedence over success. This logging-only slot is neutral: the
+        // SolverControl slot still determines convergence and failure.
+        // Returning iterate here would prevent successful termination.
         return SolverControl::success;
     };
 
@@ -392,7 +396,7 @@ void GWFLOW<dim>::solve(){
 
     pcout << "\t\t Relative Solver tolerance:" << solver_tolerance << std::endl;
     TrilinosWrappers::MPI::Vector completely_distributed_solution(locally_owned_dofs,mpi_communicator);
-    SolverControl solver_control (dof_handler.n_dofs(), solver_tolerance, true, true);
+    SolverControl solver_control (solver_param.Maxiter, solver_tolerance, true, true);
     solver_control.log_result(true);
     solver_control.log_history(true);
     solver_control.log_frequency(1);

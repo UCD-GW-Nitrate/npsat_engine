@@ -25,12 +25,24 @@ namespace npsat_flow{
     public:
         InterpInterface() = default;
 
+        // Pin a steady scenario without changing the existing tracing query API.
+        // One-column regions are time-constant; multi-column regions never clamp.
+        void select_steady_step(unsigned int step) {
+            AssertThrow(!interpolants.empty(), ExcMessage("Empty interpolation master"));
+            for (const auto &interp : interpolants)
+                AssertThrow(interp->n_times() == 1 || step < interp->n_times(),
+                            ExcMessage("Unavailable stress column " + std::to_string(step)));
+            selected_step = step;
+            steady_selection = true;
+        }
+
         double interpolate(const Point<dim> &p, unsigned int time_index) const
         {
             for (const auto &interp : interpolants)
             {
                 if (interp->contains(p))
-                    return interp->interpolate(p, time_index);
+                    return interp->interpolate(p, steady_selection ?
+                        (interp->n_times() == 1 ? 0 : selected_step) : time_index);
             }
 
             return default_value;
@@ -119,6 +131,8 @@ namespace npsat_flow{
         std::vector<std::unique_ptr<SpatialInterpolantBase<dim>>> interpolants;
 
         double default_value = 0.0;
+        bool steady_selection = false;
+        unsigned int selected_step = 0;
     };
 
     template <int dim>
@@ -139,16 +153,20 @@ namespace npsat_flow{
                                                 const double lateral_polyline_min_overlap){
 
         const std::string master_file = resolve_relative_path(input_path, filename);
+        interpolants.clear();
+        steady_selection = false;
 
         std::string master_text;
         read_text_file_mpi(master_file, comm, master_text);
         std::istringstream in(master_text);
 
-        unsigned int n_regions = 0;
+        int n_regions = 0;
         in >> n_regions;
         AssertThrow(in, ExcMessage("Invalid interpolation master file: " + master_file));
+        AssertThrow(n_regions > 0 && static_cast<std::size_t>(n_regions) <= master_text.size(),
+                    ExcMessage("Invalid region count: " + master_file));
 
-        for (unsigned int ir = 0; ir < n_regions; ++ir) {
+        for (int ir = 0; ir < n_regions; ++ir) {
             std::string interp_type;
             std::string spatial_file;
             std::string values_file;
@@ -269,26 +287,30 @@ namespace npsat_flow{
     {
         if (interp_type == "CONST")
         {
-            return std::make_unique<ConstantSpatialInterpolant<dim>>(std::move(region));
+            return std::unique_ptr<SpatialInterpolantBase<dim>>(
+                new ConstantSpatialInterpolant<dim>(std::move(region)));
         }
 
         if (interp_type == "SCATTER")
         {
-            return std::make_unique<ScatteredSpatialInterpolant<dim>>(std::move(region));
+            return std::unique_ptr<SpatialInterpolantBase<dim>>(
+                new ScatteredSpatialInterpolant<dim>(std::move(region)));
         }
 
         if (interp_type == "GRIDDED")
         {
-            return std::make_unique<GriddedSpatialInterpolant<dim>>(std::move(region));
+            return std::unique_ptr<SpatialInterpolantBase<dim>>(
+                new GriddedSpatialInterpolant<dim>(std::move(region)));
         }
 
         if (interp_type == "LATERAL_POLYLINE" ||
             interp_type == "LATERAL")
         {
-             return std::make_unique<LateralPolylineSpatialInterpolant<dim>>(
+             return std::unique_ptr<SpatialInterpolantBase<dim>>(
+                 new LateralPolylineSpatialInterpolant<dim>(
                  std::move(region),
                  lateral_polyline_half_width,
-                 lateral_polyline_min_overlap);
+                 lateral_polyline_min_overlap));
         }
 
         return nullptr;

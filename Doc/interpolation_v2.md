@@ -79,7 +79,11 @@ are unchanged.
 ## Build and verification
 
 Requires deal.II 9.3 or newer with the existing MPI/Trilinos/p4est dependencies.
-C++14 is required by the copied implementation (`std::make_unique`). The
+C++14 is required by deal.II 9.3's public headers. The local `std::make_unique`
+calls have been replaced with explicit unique ownership, but this does not
+make the dependency compatible with strict C++11. Boost.Program_options is
+now an explicitly linked dependency. See [migration step 0.1](fem_flow_migration.md)
+for the baseline and deployment status. The
 reference nanoflann 1.9 header is bundled, removing the external NANOFLAN and
 GRID_INTERP include-path requirements.
 

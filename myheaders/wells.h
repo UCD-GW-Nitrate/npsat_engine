@@ -830,7 +830,9 @@ bool Well_Set<dim>::search4NearbyWells(double x, double y, double searchRadius,
     params.sorted = false;
     const int nMatches = wellIndex->radiusSearch(&query_pt[0], searchRadius, ret_matches, params);
     for (int i = 0; i < nMatches; ++i){
-        ids.push_back(ret_matches[i].first);
+        // nanoflann returns a cloud position, not the external well ID.
+        // Legacy IDs equal positions; shared v2 files may use sparse Eids.
+        ids.push_back(WellsAsCloud.pts.at(ret_matches[i].first).id);
     }
     if (ids.size() > 0)
         return true;

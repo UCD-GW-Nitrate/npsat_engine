@@ -56,6 +56,7 @@ class ConstantSpatialInterpolant final
         {
             values.read_data(filename, comm);
             values.multiply_by_factor(factor);
+            AssertThrow(values.n_points() == 1, ExcMessage("CONST values require exactly one row"));
         }
 
         double interpolate(const Point<dim> &, unsigned int time_index) const override

@@ -49,7 +49,7 @@ namespace npsat_flow {
             boundary_id = boundary_id_in;
             interp = std::move(interp_in);
 
-            function = std::make_unique<InterpolationFunction<dim>>(interp);
+            function.reset(new InterpolationFunction<dim>(interp));
         }
 
         bool is_initialized() const
@@ -139,18 +139,20 @@ namespace npsat_flow {
             read_text_file_mpi(boundary_file, comm, boundary_text);
             std::istringstream in(boundary_text);
 
-            unsigned int n_parts = 0;
+            int n_parts = 0;
             in >> n_parts;
-            if (!in)
+            if (!in || n_parts < 0 || static_cast<std::size_t>(n_parts) > boundary_text.size())
                 throw std::runtime_error("Invalid Dirichlet file: " + boundary_file);
             parts.resize(n_parts);
 
-            for (unsigned int i = 0; i < n_parts; ++i) {
+            for (int i = 0; i < n_parts; ++i) {
                 std::string type_string;
                 int nv = 0;
                 std::string bc_data_file;
 
                 in >> type_string >> nv >> bc_data_file;
+                AssertThrow(in && nv > 0 && static_cast<std::size_t>(nv) <= boundary_text.size(),
+                            ExcMessage("Invalid Dirichlet geometry record"));
 
                 const BoundaryKind kind = boundary_kind_from_string(type_string);
                 BoundaryRegion<dim> region = read_boundary_region(in, kind, nv);

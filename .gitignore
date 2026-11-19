@@ -18,6 +18,7 @@
 !/myheaders/interpolation/
 !/myheaders/BC/
 !/tests/
+/tests/__pycache__/
 
 # unignore the Vis folder =========Vis========
 !/Vis
@@ -140,3 +141,5 @@
 
 # Time-series interpolation examples and integration fixtures
 !/examples/interpolation_v2/
+!/examples/shared_flow/
+/examples/shared_flow/output/

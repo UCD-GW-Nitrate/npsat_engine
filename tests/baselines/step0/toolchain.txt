@@ -1,0 +1,24 @@
+g++ (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+cmake version 3.16.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+mpirun (Open MPI) 4.0.3
+
+Report bugs to http://www.open-mpi.org/community/help/
+SET(DEAL_II_PACKAGE_VERSION "9.3.0")
+      "Using the ${DEAL_II_PACKAGE_NAME}-${DEAL_II_PACKAGE_VERSION} build directory found at ${DEAL_II_PATH}"
+      "Using the ${DEAL_II_PACKAGE_NAME}-${DEAL_II_PACKAGE_VERSION} installation found at ${DEAL_II_PATH}"
+SET(DEAL_II_BOOST_VERSION "1.71.0")
+SET(DEAL_II_WITH_MPI ON)
+SET(DEAL_II_MPI_VERSION "3.1")
+SET(DEAL_II_WITH_P4EST ON)
+SET(DEAL_II_P4EST_VERSION "2.2")
+SET(DEAL_II_WITH_TRILINOS ON)
+SET(DEAL_II_TRILINOS_VERSION "12.14.1")
+#define HAVE_AMESOS_KLU
+libboost-program-options-dev:amd64	1.71.0.0ubuntu2
+libboost-program-options1.71-dev:amd64	1.71.0-6ubuntu6

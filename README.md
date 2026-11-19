@@ -1,4 +1,6 @@
-> **topo3 input format:** See [the interpolation migration guide](Doc/interpolation_v2.md) and `examples/interpolation_v2/smoke.prm`. Older examples below use the retired interpolation format.
+> **FEM flow input:** Use `npsat -c model.ini`; see the [shared input guide](Doc/shared_flow_inputs.md) and [portable verification example](examples/shared_flow/README.md). The legacy `-p` path remains available for comparisons. The [migration record](Doc/fem_flow_migration.md) documents implementation and validation status.
+>
+> **topo3 interpolation format:** See [the interpolation migration guide](Doc/interpolation_v2.md) and `examples/interpolation_v2/smoke.prm`. Older examples below use the retired interpolation format.
 
 
 <img src="Logo/logo_npsat_600.png" alt="Npsat engine logo" width="700"/>
